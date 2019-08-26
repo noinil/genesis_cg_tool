@@ -1,2 +1,2 @@
 # genesis_cg_input
-Prepare topology and coordinate file for CG models in Genesis.
+This project helps you prepare topology and coordinate file for CG models in the molecular dynamics package Genesis.
