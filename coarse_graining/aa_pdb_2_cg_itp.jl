@@ -1,5 +1,16 @@
 #!/usr/bin/env julia
 
+###############################################################################
+#                                    README                                   
+# This program read PDB structures and prepare toppology and coordinate files
+# for CG MD simulations in Genesis.
+#
+# PDB format:
+# 1. Atoms startswith "ATOM  "
+# 2. Chains should end with "TER" and have different IDs
+###############################################################################
+
+using Printf
 using ArgParse
 using LinearAlgebra
 
@@ -16,12 +27,14 @@ const CAL2JOU = 4.184
 # General Parameters: Mass, Charge, ...
 # =====================================
 
-res_mass_dict = Dict(
+RES_MASS_DICT = Dict(
     "ALA" =>  71.09,
     "ARG" => 156.19,
     "ASN" => 114.11,
     "ASP" => 115.09,
     "CYS" => 103.15,
+    "CYM" => 103.15,
+    "CYT" => 103.15,
     "GLN" => 128.14,
     "GLU" => 129.12,
     "GLY" =>  57.05,
@@ -39,12 +52,14 @@ res_mass_dict = Dict(
     "VAL" =>  99.14
 )
 
-res_charge_dict = Dict(
+RES_CHARGE_DICT = Dict(
     "ALA" =>  0.0,
     "ARG" =>  1.0,
     "ASN" =>  0.0,
     "ASP" => -1.0,
     "CYS" =>  0.0,
+    "CYM" =>  0.0,
+    "CYT" =>  0.0,
     "GLN" =>  0.0,
     "GLU" => -1.0,
     "GLY" =>  0.0,
@@ -62,72 +77,96 @@ res_charge_dict = Dict(
     "VAL" =>  0.0
 )
 
+RES_NAME_LIST_PROTEIN = (
+    "ALA", "ARG", "ASN", "ASP",
+    "CYS", "GLN", "GLU", "GLY",
+    "HIS", "ILE", "LEU", "LYS",
+    "MET", "PHE", "PRO", "SER",
+    "THR", "TRP", "TYR", "VAL",
+    "CYM", "CYT")
+
+# RES_NAME_LIST_DNA = ("DA", "DC", "DG", "DT", "ADE", "GUA", "URA", "CYT")
+RES_NAME_LIST_DNA = ("DA", "DC", "DG", "DT")
+
+# RES_NAME_LIST_RNA = ("RA", "RC", "RG", "RT", "ADE", "GUA", "THY", "CYT")
+RES_NAME_LIST_RNA = ("RA", "RC", "RG", "RU")
+
+# ==============
+# Molecule Types
+# ==============
+
+const MOL_DNA     = 1
+const MOL_RNA     = 2
+const MOL_PROTEIN = 3
+const MOL_OTHER   = 4
+MOL_TYPE_LIST = ["DNA", "RNA", "protein", "other", "unknown"]
+
 # ===============================
 # Protein AICG2+ Model Parameters
 # ===============================
 
 # AICG2+ bond force constant
-const aicg_bond_k               = 110.40 * CAL2JOU * 100 * 2
+const AICG_BOND_K               = 110.40 * CAL2JOU * 100 * 2
 # AICG2+ sigma for Gaussian angle
-const aicg_ang_gauss_sigma      = 0.15 * 0.1  # nm
+const AICG_ANG_GAUSS_SIGMA      = 0.15 * 0.1  # nm
 # AICG2+ sigma for Gaussian dihedral
-const aicg_dih_gauss_sigma      = 0.15        # Rad ??
+const AICG_DIH_GAUSS_SIGMA      = 0.15        # Rad ??
 # AICG2+ atomistic contact cutoff
-const aicg_go_atomic_cutoff     = 6.5
+const AICG_GO_ATOMIC_CUTOFF     = 6.5
 # AICG2+ pairwise interaction cutoff
-const aicg_atomic_cutoff        = 5.0
+const AICG_ATOMIC_CUTOFF        = 5.0
 # AICG2+ hydrogen bond cutoff
-const aicg_hydrogen_bond_cutoff = 3.2
+const AICG_HYDROGEN_BOND_CUTOFF = 3.2
 # AICG2+ salt bridge cutoff
-const aicg_salt_bridge_cutoff   = 3.5
+const AICG_SALT_BRIDGE_CUTOFF   = 3.5
 # AICG2+ energy cutoffs
-const aicg_ene_upper_lim        = -0.5
-const aicg_ene_lower_lim        = -5.0
+const AICG_ENE_UPPER_LIM        = -0.5
+const AICG_ENE_LOWER_LIM        = -5.0
 # average and general AICG2+ energy values
-const aicg_13_ave               = 1.72
-const aicg_14_ave               = 1.23
-const aicg_contact_ave          = 0.55
-const aicg_13_gen               = 1.11
-const aicg_14_gen               = 0.87
-const aicg_contact_gen          = 0.32
+const AICG_13_AVE               = 1.72
+const AICG_14_AVE               = 1.23
+const AICG_CONTACT_AVE          = 0.55
+const AICG_13_GEN               = 1.11
+const AICG_14_GEN               = 0.87
+const AICG_CONTACT_GEN          = 0.32
 
 # AICG2+ pairwise interaction pairs
-const aicg_itype_bb_hb = 1  # B-B hydrogen bonds
-const aicg_itype_bb_da = 2  # B-B donor-accetor contacts
-const aicg_itype_bb_cx = 3  # B-B carbon-X contacts
-const aicg_itype_bb_xx = 4  # B-B other
-const aicg_itype_ss_hb = 5  # S-S hydrogen bonds
-const aicg_itype_ss_sb = 6  # S-S salty bridge
-const aicg_itype_ss_da = 7  # S-S donor-accetor contacts
-const aicg_itype_ss_cx = 8  # S-S carbon-X contacts
-const aicg_itype_ss_qx = 9  # S-S charge-X contacts
-const aicg_itype_ss_xx = 10 # S-S other
-const aicg_itype_sb_hb = 11 # S-B hydrogen bonds
-const aicg_itype_sb_da = 12 # S-B donor-accetor contacts
-const aicg_itype_sb_cx = 13 # S-B carbon-X contacts
-const aicg_itype_sb_qx = 14 # S-B charge-X contacts
-const aicg_itype_sb_xx = 15 # S-B other
-const aicg_itype_lr_ct = 16 # long range contacts
-const aicg_itype_offst = 17  # offset
+const AICG_ITYPE_BB_HB = 1  # B-B hydrogen bonds
+const AICG_ITYPE_BB_DA = 2  # B-B donor-accetor contacts
+const AICG_ITYPE_BB_CX = 3  # B-B carbon-X contacts
+const AICG_ITYPE_BB_XX = 4  # B-B other
+const AICG_ITYPE_SS_HB = 5  # S-S hydrogen bonds
+const AICG_ITYPE_SS_SB = 6  # S-S salty bridge
+const AICG_ITYPE_SS_DA = 7  # S-S donor-accetor contacts
+const AICG_ITYPE_SS_CX = 8  # S-S carbon-X contacts
+const AICG_ITYPE_SS_QX = 9  # S-S charge-X contacts
+const AICG_ITYPE_SS_XX = 10 # S-S other
+const AICG_ITYPE_SB_HB = 11 # S-B hydrogen bonds
+const AICG_ITYPE_SB_DA = 12 # S-B donor-accetor contacts
+const AICG_ITYPE_SB_CX = 13 # S-B carbon-X contacts
+const AICG_ITYPE_SB_QX = 14 # S-B charge-X contacts
+const AICG_ITYPE_SB_XX = 15 # S-B other
+const AICG_ITYPE_LR_CT = 16 # long range contacts
+const AICG_ITYPE_OFFST = 17  # offset
 
-aicg_pairwise_energy = ones(Float64, (17, 1))
-aicg_pairwise_energy[aicg_itype_bb_hb] = - 1.4247   # B-B hydrogen bonds
-aicg_pairwise_energy[aicg_itype_bb_da] = - 0.4921   # B-B donor-accetor contacts
-aicg_pairwise_energy[aicg_itype_bb_cx] = - 0.2404   # B-B carbon-X contacts
-aicg_pairwise_energy[aicg_itype_bb_xx] = - 0.1035   # B-B other
-aicg_pairwise_energy[aicg_itype_ss_hb] = - 5.7267   # S-S hydrogen bonds
-aicg_pairwise_energy[aicg_itype_ss_sb] = -12.4878   # S-S salty bridge
-aicg_pairwise_energy[aicg_itype_ss_da] = - 0.0308   # S-S donor-accetor contacts
-aicg_pairwise_energy[aicg_itype_ss_cx] = - 0.1113   # S-S carbon-X contacts
-aicg_pairwise_energy[aicg_itype_ss_qx] = - 0.2168   # S-S charge-X contacts
-aicg_pairwise_energy[aicg_itype_ss_xx] =   0.2306   # S-S other
-aicg_pairwise_energy[aicg_itype_sb_hb] = - 3.4819   # S-B hydrogen bonds
-aicg_pairwise_energy[aicg_itype_sb_da] = - 0.1809   # S-B donor-accetor contacts
-aicg_pairwise_energy[aicg_itype_sb_cx] = - 0.1209   # S-B carbon-X contacts
-aicg_pairwise_energy[aicg_itype_sb_qx] = - 0.2984   # S-B charge-X contacts
-aicg_pairwise_energy[aicg_itype_sb_xx] = - 0.0487   # S-B other
-aicg_pairwise_energy[aicg_itype_lr_ct] = - 0.0395   # long range contacts
-aicg_pairwise_energy[aicg_itype_offst] = - 0.1051   # offset
+AICG_PAIRWISE_ENERGY = zeros(Float64, (17, ))
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_BB_HB] = - 1.4247   # B-B hydrogen bonds
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_BB_DA] = - 0.4921   # B-B donor-accetor contacts
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_BB_CX] = - 0.2404   # B-B carbon-X contacts
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_BB_XX] = - 0.1035   # B-B other
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_SS_HB] = - 5.7267   # S-S hydrogen bonds
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_SS_SB] = -12.4878   # S-S salty bridge
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_SS_DA] = - 0.0308   # S-S donor-accetor contacts
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_SS_CX] = - 0.1113   # S-S carbon-X contacts
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_SS_QX] = - 0.2168   # S-S charge-X contacts
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_SS_XX] =   0.2306   # S-S other
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_SB_HB] = - 3.4819   # S-B hydrogen bonds
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_SB_DA] = - 0.1809   # S-B donor-accetor contacts
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_SB_CX] = - 0.1209   # S-B carbon-X contacts
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_SB_QX] = - 0.2984   # S-B charge-X contacts
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_SB_XX] = - 0.0487   # S-B other
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_LR_CT] = - 0.0395   # long range contacts
+AICG_PAIRWISE_ENERGY[AICG_ITYPE_OFFST] = - 0.1051   # offset
 
 
 # ====================
@@ -135,40 +174,26 @@ aicg_pairwise_energy[aicg_itype_offst] = - 0.1051   # offset
 # ====================
 
 # "NREXCL" in "[moleculetype]"
-const mol_nr_excl            = 3
+const MOL_NR_EXCL            = 3
 # "CGNR" in "[atoms]"
-const aicg_atom_func_nr      = 1
+const AICG_ATOM_FUNC_NR      = 1
 # "f" in "[bonds]"
-const aicg_bond_func_type    = 1
+const AICG_BOND_FUNC_TYPE    = 1
 # "f" in AICG-type "[angles]"
-const aicg_ang_g_func_type   = 21
+const AICG_ANG_G_FUNC_TYPE   = 21
 # "f" in Flexible-type "[angles]"
-const aicg_ang_f_func_type   = 22
+const AICG_ANG_F_FUNC_TYPE   = 22
 # "f" in AICG-type "[dihedral]"
-const aicg_dih_g_func_type   = 21
+const AICG_DIH_G_FUNC_TYPE   = 21
 # "f" in Flexible-type "[dihedral]"
-const aicg_dih_f_func_type   = 22
+const AICG_DIH_F_FUNC_TYPE   = 22
 # "f" in Go-contacts "[pairs]"
-const aicg_contact_func_type = 2
+const AICG_CONTACT_FUNC_TYPE = 2
 
 
 ###############################################################################
 #                                  Functions                                  #
 ###############################################################################
-
-# =============================
-# Parsing Commandline Arguments
-# =============================
-function parse_commandline()
-    s = ArgParseSettings()
-    @add_arg_table s begin
-        "pdb"
-            help     = "PDB file name."
-            required = true
-            arg_type = String
-    end
-    return parse_args(s)
-end
 
 # ===================
 # Geometric Functions
@@ -314,7 +339,7 @@ function is_protein_go_contact(resid1, resid2, atom_names, atom_coors)
             end
             coor_2  = atom_coors[j]
             dist_12 = compute_distance(coor_1, coor_2)
-            if dist_12 < aicg_go_atomic_cutoff
+            if dist_12 < AICG_GO_ATOMIC_CUTOFF
                 return True
             end
         end
@@ -323,7 +348,7 @@ function is_protein_go_contact(resid1, resid2, atom_names, atom_coors)
 end
 function count_aicg_atomic_contact(resid1, resid2, res_name_1, res_name_2, atom_names, atom_coors)
     contact_count                   = [0 for _ in 1:17]
-    contact_count[aicg_itype_offst] = 1
+    contact_count[AICG_ITYPE_OFFST] = 1
     num_short_range_contact         = 0
     for i in resid1.first : resid1.last
         atom_name_1 = atom_names[i]
@@ -344,60 +369,60 @@ function count_aicg_atomic_contact(resid1, resid2, res_name_1, res_name_2, atom_
             is_nonsb_charge = is_protein_nonsb_charge_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
             is_1_backbone   = is_protein_backbone(atom_name_1)
             is_2_backbone   = is_protein_backbone(atom_name_2)
-            if dist_12 < aicg_go_atomic_cutoff
-                contact_count[aicg_itype_lr_ct] += 1
-            elseif dist_12 < aicg_atomic_cutoff
+            if dist_12 < AICG_GO_ATOMIC_CUTOFF
+                contact_count[AICG_ITYPE_LR_CT] += 1
+            elseif dist_12 < AICG_ATOMIC_CUTOFF
                 num_short_range_contact += 1
                 if is_1_backbone && is_2_backbone
                     if is_hb
-                        if dist_12 < aicg_hydrogen_bond_cutoff
-                            contact_count[aicg_itype_bb_hb] += 1
+                        if dist_12 < AICG_HYDROGEN_BOND_CUTOFF
+                            contact_count[AICG_ITYPE_BB_HB] += 1
                         else
-                            contact_count[aicg_itype_bb_da] += 1
+                            contact_count[AICG_ITYPE_BB_DA] += 1
                         end
                     elseif atom_name_1[1] == 'C' || atom_name_2[1] == 'C'
-                        contact_count[aicg_itype_bb_cx] += 1
+                        contact_count[AICG_ITYPE_BB_CX] += 1
                     else
-                        contact_count[aicg_itype_bb_xx] += 1
+                        contact_count[AICG_ITYPE_BB_XX] += 1
                     end
                 elseif ( !is_1_backbone ) && ( !is_2_backbone )
                     if is_hb
                         if is_sb
-                            if dist_12 < aicg_salt_bridge_cutoff
-                                contact_count[aicg_itype_ss_sb] += 1
+                            if dist_12 < AICG_SALT_BRIDGE_CUTOFF
+                                contact_count[AICG_ITYPE_SS_SB] += 1
                             else
-                                contact_count[aicg_itype_ss_qx] += 1
+                                contact_count[AICG_ITYPE_SS_QX] += 1
                             end
-                        elseif dist_12 < aicg_hydrogen_bond_cutoff
-                            contact_count[aicg_itype_ss_hb] += 1
+                        elseif dist_12 < AICG_HYDROGEN_BOND_CUTOFF
+                            contact_count[AICG_ITYPE_SS_HB] += 1
                         elseif is_nonsb_charge
-                            contact_count[aicg_itype_ss_qx] += 1
+                            contact_count[AICG_ITYPE_SS_QX] += 1
                         else
-                            contact_count[aicg_itype_ss_da] += 1
+                            contact_count[AICG_ITYPE_SS_DA] += 1
                         end
                     elseif is_nonsb_charge
-                        contact_count[aicg_itype_ss_qx] += 1
+                        contact_count[AICG_ITYPE_SS_QX] += 1
                     elseif atom_name_1[1] == 'C' || atom_name_2[1] == 'C'
-                        contact_count[aicg_itype_ss_cx] += 1
+                        contact_count[AICG_ITYPE_SS_CX] += 1
                     else
-                        contact_count[aicg_itype_ss_xx] += 1
+                        contact_count[AICG_ITYPE_SS_XX] += 1
                     end
                 elseif ( is_1_backbone && ( !is_2_backbone ) ) ||
                     ( is_2_backbone && ( !is_1_backbone ) )
                     if is_hb
-                        if dist_12 < aicg_hydrogen_bond_cutoff
-                            contact_count[aicg_itype_sb_hb] += 1
+                        if dist_12 < AICG_HYDROGEN_BOND_CUTOFF
+                            contact_count[AICG_ITYPE_SB_HB] += 1
                         elseif is_nonsb_charge
-                            contact_count[aicg_itype_sb_qx] += 1
+                            contact_count[AICG_ITYPE_SB_QX] += 1
                         else
-                            contact_count[aicg_itype_sb_da] += 1
+                            contact_count[AICG_ITYPE_SB_DA] += 1
                         end
                     elseif is_nonsb_charge
-                        contact_count[aicg_itype_sb_qx] += 1
+                        contact_count[AICG_ITYPE_SB_QX] += 1
                     elseif atom_name_1[1] == 'C' || atom_name_2[1] == 'C'
-                        contact_count[aicg_itype_sb_cx] += 1
+                        contact_count[AICG_ITYPE_SB_CX] += 1
                     else
-                        contact_count[aicg_itype_sb_xx] += 1
+                        contact_count[AICG_ITYPE_SB_XX] += 1
                     end
                 end
             end
@@ -405,16 +430,16 @@ function count_aicg_atomic_contact(resid1, resid2, res_name_1, res_name_2, atom_
     end
 
     # control the number of long-range contacts
-    if aicg_go_atomic_cutoff > aicg_atomic_cutoff
-        contact_count[aicg_itype_lr_ct] -= num_short_range_contact
+    if AICG_GO_ATOMIC_CUTOFF > AICG_ATOMIC_CUTOFF
+        contact_count[AICG_ITYPE_LR_CT] -= num_short_range_contact
     else
-        contact_count[aicg_itype_lr_ct] = 0
+        contact_count[AICG_ITYPE_LR_CT] = 0
     end
 
     # control the number of salty bridge
-    if contact_count[aicg_itype_ss_sb] >= 2
-        contact_count[aicg_itype_ss_qx] += contact_count[aicg_itype_ss_sb] - 1
-        contact_count[aicg_itype_ss_sb] = 1
+    if contact_count[AICG_ITYPE_SS_SB] >= 2
+        contact_count[AICG_ITYPE_SS_QX] += contact_count[AICG_ITYPE_SS_SB] - 1
+        contact_count[AICG_ITYPE_SS_SB] = 1
     end
     
     return contact_count
@@ -422,38 +447,204 @@ end
 
 
 ###############################################################################
-#                               Main Function!!!                              #
+#                                Core Function                                #
 ###############################################################################
+struct AAResidue
+    name::String
+    atoms::Array{Int64, 1}
+end
+
+struct AAChain
+    id::Char
+    residues::Array{Int64, 1}
+end
+
 function pdb_2_top(pdb_name)
 
     # ===============
     # Data Structures
     # ===============
 
-    # aa_atom_index  = []
-    # aa_atom_name   = []
-    # aa_resid_index = []
-    # aa_resid_name  = []
-    # aa_chain_id    = []
-    # aa_coor        = []
-    # aa_occupancy   = []
-    # aa_tempfactor  = []
-    # aa_element     = []
-    # aa_charge      = []
-
-    cg_coor            = []
-    cg_particle_name   = []
-    cg_particle_index  = []
-    cg_particle_charge = []
-    cg_residue_name    = []
-    cg_residue_index   = []
+    aa_num_atom = 0
+    aa_num_residue = 0
+    aa_num_chain = 0
 
     # ================
     # Step 1: open PDB
     # ================
+    println("============================================================")
     println("> Step 1: open PDB file.")
 
+    aa_pdb_lines = []
+    for line in eachline(pdb_name)
+        if startswith(line, "ATOM")
+            push!(aa_pdb_lines, rpad(line, 80))
+            aa_num_atom += 1
+        elseif startswith(line, "TER")
+            push!(aa_pdb_lines, rpad(line, 80))
+        end
+    end
+
+    aa_atom_name   = fill("    ",       aa_num_atom)
+    # aa_resid_index = zeros(Int,         aa_num_atom)
+    # aa_resid_name  = fill("    ",       aa_num_atom)
+    # aa_chain_id    = fill('?',          aa_num_atom)
+    aa_coor        = zeros(Float64, (3, aa_num_atom))
+    # aa_occupancy   = zeros(Float64,     aa_num_atom)
+    # aa_tempfactor  = zeros(Float64,     aa_num_atom)
+    # aa_segment_id  = fill("          ", aa_num_atom)
+    # aa_element     = fill("  ",         aa_num_atom)
+    # aa_charge      = zeros(Float64,     aa_num_atom)
+
+    aa_residues = []
+    aa_chains   = []
+
+    i_atom     = 0
+    i_resid    = 0
+    curr_resid = NaN
+    curr_chain = NaN
+    residue_name = "    "
+    chain_id = '?'
+    tmp_res_atoms = []
+    tmp_chain_res = []
+    for line in aa_pdb_lines
+        if startswith(line, "TER")
+            if length(tmp_res_atoms) > 0
+                push!(aa_residues, AAResidue(residue_name, tmp_res_atoms))
+                tmp_res_atoms = []
+            end
+            if length(tmp_chain_res) > 0
+                push!(aa_chains, AAChain(chain_id, tmp_chain_res))
+                tmp_chain_res = []
+            end
+            continue
+        end
+
+        i_atom += 1
+        atom_serial       = parse(Int, line[7:11])
+        atom_name         = strip(line[13:16])
+        residue_name      = strip(line[18:21])
+        chain_id          = line[22]
+        residue_serial    = parse(Int, line[23:26])
+        coor_x            = parse(Float64, line[31:38])
+        coor_y            = parse(Float64, line[39:46])
+        coor_z            = parse(Float64, line[47:54])
+        # occupancy         = parse(Float64, line[55:60])
+        # tempfactor        = parse(Float64, line[61:66])
+        # segment_id        = strip(line[67:76])
+        # element_name      = strip(line[77:78])
+        # charge            = parse(Float64, line[79:80])
+
+        aa_atom_name[i_atom]   = atom_name
+        # aa_resid_index[i_atom] = residue_serial
+        # aa_resid_name[i_atom]  = residue_name
+        # aa_chain_id[i_atom]    = chain_id
+        aa_coor[1, i_atom]     = coor_x
+        aa_coor[2, i_atom]     = coor_y
+        aa_coor[3, i_atom]     = coor_z
+        # aa_occupancy[i_atom]   = occupancy
+        # aa_tempfactor[i_atom]  = tempfactor
+        # aa_segment_id[i_atom]  = segment_id
+        # aa_element[i_atom]     = element_name
+        # aa_charge[i_atom]      = charge
+
+        if residue_serial != curr_resid
+            i_resid += 1
+            push!(tmp_chain_res, i_resid)
+            curr_resid = residue_serial
+            if length(tmp_res_atoms) > 0
+                push!(aa_residues, AAResidue(residue_name, tmp_res_atoms))
+                tmp_res_atoms = []
+            end
+        end
+
+        push!(tmp_res_atoms, i_atom)
+
+    end
+    aa_num_residue = length(aa_residues)
+    aa_num_chain = length(aa_chains)
+    println("          > Number of atoms:    $(aa_num_atom)")
+    println("          > Number of residues: $(aa_num_residue)")
+    println("          > Number of chains:   $(aa_num_chain)")
+    
+    # ===============================
+    # Step 2: find out molecule types
+    # ===============================
+    println("============================================================")
+    println("> Step 2: set molecular types for every chain.")
+    
+    cg_num_particles = 0
+    
+    aa_chain_mol_types = ones(Int, (aa_num_chain, ))
+    for i_chain = 1:aa_num_chain
+        chain = aa_chains[i_chain]
+        mol_type = -1
+        for i_res in chain.residues
+            res_name = aa_residues[i_res].name
+            if in(res_name, RES_NAME_LIST_PROTEIN)
+                tmp_mol_type = MOL_PROTEIN
+            elseif in(res_name, RES_NAME_LIST_DNA)
+                tmp_mol_type = MOL_DNA
+            elseif in(res_name, RES_NAME_LIST_RNA)
+                tmp_mol_type = MOL_RNA
+            else
+                tmp_mol_type = MOL_OTHER
+            end
+            if mol_type == -1
+                mol_type = tmp_mol_type
+            elseif tmp_mol_type != mol_type
+                error("BUG: Inconsistent residue types in chain ", i_chain,
+                      " ID - ", chain.id,
+                      " residue - ", i_res,
+                      " : ", res_name)
+            end
+        end
+        aa_chain_mol_types[i_chain] = mol_type
+        n_res = length(chain.residues)
+        if mol_type == MOL_DNA
+            n_particles = 3 * n_res - 1
+        elseif mol_type == MOL_RNA
+            n_particles = 3 * n_res - 1
+        elseif mol_type == MOL_PROTEIN
+            n_particles = n_res
+        else
+            n_particles = 0
+        end
+        cg_num_particles += n_particles
+        @printf("          > Chain %3d | %7s | # particles: %5d \n",
+                i_chain, MOL_TYPE_LIST[ mol_type ], n_particles)
+    end
+
+    # =================================
+    # Step 3: AICG2+ model for proteins
+    # =================================
+    println("============================================================")
+    println("> Step 3: processing proteins.")
+
+    # --------------------------------
+    # Step 3.1: find out C-alpha atoms
+    # --------------------------------
+
+
 end
+
+# =============================
+# Parsing Commandline Arguments
+# =============================
+function parse_commandline()
+    s = ArgParseSettings()
+    @add_arg_table s begin
+        "pdb"
+            help     = "PDB file name."
+            required = true
+            arg_type = String
+    end
+    return parse_args(s)
+end
+
+# ====
+# Main
+# ====
 
 function main()
     
@@ -464,3 +655,4 @@ function main()
 end
 
 main()
+
