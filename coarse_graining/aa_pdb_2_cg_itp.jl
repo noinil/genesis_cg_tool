@@ -13,6 +13,7 @@
 using Printf
 using ArgParse
 using LinearAlgebra
+using ProgressMeter
 
 ###########################################################################
 #                          Force Field Parameters                         #
@@ -49,7 +50,13 @@ RES_MASS_DICT = Dict(
     "THR" => 101.11,
     "TRP" => 186.21,
     "TYR" => 163.18,
-    "VAL" =>  99.14
+    "VAL" =>  99.14,
+    "DA"  => 134.10,
+    "DC"  => 110.10,
+    "DG"  => 150.10,
+    "DT"  => 125.10,
+    "DP"  =>  94.97,
+    "DS"  =>  83.11
 )
 
 RES_CHARGE_DICT = Dict(
@@ -74,7 +81,13 @@ RES_CHARGE_DICT = Dict(
     "THR" =>  0.0,
     "TRP" =>  0.0,
     "TYR" =>  0.0,
-    "VAL" =>  0.0
+    "VAL" =>  0.0,
+    "DA"  =>  0.0,
+    "DC"  =>  0.0,
+    "DG"  =>  0.0,
+    "DT"  =>  0.0,
+    "DP"  => -0.6,
+    "DS"  =>  0.0
 )
 
 RES_NAME_LIST_PROTEIN = (
@@ -85,11 +98,17 @@ RES_NAME_LIST_PROTEIN = (
     "THR", "TRP", "TYR", "VAL",
     "CYM", "CYT")
 
-# RES_NAME_LIST_DNA = ("DA", "DC", "DG", "DT", "ADE", "GUA", "URA", "CYT")
 RES_NAME_LIST_DNA = ("DA", "DC", "DG", "DT")
 
-# RES_NAME_LIST_RNA = ("RA", "RC", "RG", "RT", "ADE", "GUA", "THY", "CYT")
 RES_NAME_LIST_RNA = ("RA", "RC", "RG", "RU")
+
+# DNA CG residue atom names
+ATOM_NAME_LIST_DP = ("P", "OP1", "OP2", "O5'", "O1P", "O2P")
+ATOM_NAME_LIST_DS = ("C5'", "C4'", "C3'", "C2'", "C1'", "O4'", "O2'")
+
+# RNA CG residue atom names
+ATOM_NAME_LIST_RP = ("P", "OP1", "OP2", "O1P", "O2P")
+ATOM_NAME_LIST_RS = ("C5'", "C4'", "C3'", "C2'", "C1'", "O5'", "O4'", "O3'", "O2'")
 
 # ==============
 # Molecule Types
@@ -260,9 +279,8 @@ function is_protein_hb_donor(atom_name, res_name)
             ( res_name == "TYR" && atom_name == "OH"  )
             return true
         end
-    else
-        return false
     end
+    return false
 end
 function is_protein_hb_acceptor(atom_name)
     if atom_name[1] == 'O' || atom_name[1] == 'S'
@@ -277,9 +295,8 @@ function is_protein_cation(atom_name, res_name)
             ( res_name == "LYS" && atom_name == "NZ"  )
             return true
         end
-    else
-        return false
     end
+    return false
 end
 function is_protein_anion(atom_name, res_name)
     if atom_name[1] == 'O'
@@ -289,9 +306,8 @@ function is_protein_anion(atom_name, res_name)
             ( res_name == "ASP" && atom_name == "OD2" )
             return true
         end
-    else
-        return false
     end
+    return false
 end
 function is_protein_hb_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
     if  is_protein_hb_acceptor(atom_name_1) &&
@@ -300,9 +316,8 @@ function is_protein_hb_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
     elseif is_protein_hb_acceptor(atom_name_2) &&
         is_protein_hb_donor(atom_name_1, res_name_1)
         return true
-    else
-        return false
     end
+    return false
 end
 function is_protein_sb_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
     if  is_protein_cation(atom_name_1, res_name_1) &&
@@ -311,57 +326,55 @@ function is_protein_sb_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
     elseif is_protein_cation(atom_name_2, res_name_2) &&
         is_protein_anion(atom_name_1,  res_name_1)
         return true
-    else
-        return false
     end
+    return false
 end
 function is_protein_nonsb_charge_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
     if  is_protein_cation(atom_name_1, res_name_1) ||
         is_protein_anion(atom_name_1,  res_name_1) ||
         is_protein_cation(atom_name_2, res_name_2) ||
         is_protein_anion(atom_name_2,  res_name_2)
-        return True
-    else
-        return False
+        return true
     end
+    return false
 end
 function is_protein_go_contact(resid1, resid2, atom_names, atom_coors)
-    for i in resid1.first : resid1.last
+    for i in resid1.atoms
         atom_name_1 = atom_names[i]
         if atom_name_1[1] == 'H'
             continue
         end
-        coor_1 = atom_coors[i]
-        for j in resid2.fist : resid2.last
+        coor_1 = atom_coors[:, i]
+        for j in resid2.atoms
             atom_name_2 = atom_names[j]
             if atom_name_2[1] == 'H'
                 continue
             end
-            coor_2  = atom_coors[j]
+            coor_2  = atom_coors[:, j]
             dist_12 = compute_distance(coor_1, coor_2)
             if dist_12 < AICG_GO_ATOMIC_CUTOFF
-                return True
+                return true
             end
         end
     end
-    return False
+    return false
 end
 function count_aicg_atomic_contact(resid1, resid2, res_name_1, res_name_2, atom_names, atom_coors)
     contact_count                   = [0 for _ in 1:17]
     contact_count[AICG_ITYPE_OFFST] = 1
     num_short_range_contact         = 0
-    for i in resid1.first : resid1.last
+    for i in resid1.atoms
         atom_name_1 = atom_names[i]
         if atom_name_1[1] == 'H'
             continue
         end
-        coor_1 = atom_coors[i]
-        for j in resid2.start : resid2.last
+        coor_1 = atom_coors[:, i]
+        for j in resid2.atoms
             atom_name_2     = atom_names[j]
             if atom_name_2[1] == 'H'
                 continue
             end
-            coor_2          = atom_coors[j]
+            coor_2          = atom_coors[:, j]
             dist_12         = compute_distance(coor_1, coor_2)
 
             is_hb           = is_protein_hb_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
@@ -459,7 +472,19 @@ struct AAChain
     residues::Array{Int64, 1}
 end
 
-function pdb_2_top(pdb_name)
+struct CGResidue
+    res_name::String
+    atm_name::String
+    atoms::Array{Int64, 1}
+end
+
+struct CGChain
+    first::Int
+    last::Int
+    moltype::Int
+end
+
+function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
 
     # ===============
     # Data Structures
@@ -503,6 +528,7 @@ function pdb_2_top(pdb_name)
     i_resid    = 0
     curr_resid = NaN
     curr_chain = NaN
+    curr_rname = "    "
     residue_name = "    "
     chain_id = '?'
     tmp_res_atoms = []
@@ -553,9 +579,10 @@ function pdb_2_top(pdb_name)
             push!(tmp_chain_res, i_resid)
             curr_resid = residue_serial
             if length(tmp_res_atoms) > 0
-                push!(aa_residues, AAResidue(residue_name, tmp_res_atoms))
+                push!(aa_residues, AAResidue(curr_rname, tmp_res_atoms))
                 tmp_res_atoms = []
             end
+            curr_rname = residue_name
         end
 
         push!(tmp_res_atoms, i_atom)
@@ -575,7 +602,9 @@ function pdb_2_top(pdb_name)
     
     cg_num_particles = 0
     
-    aa_chain_mol_types = ones(Int, (aa_num_chain, ))
+    cg_chain_mol_types = zeros(Int, aa_num_chain)
+    cg_chain_length    = zeros(Int, aa_num_chain)
+
     for i_chain = 1:aa_num_chain
         chain = aa_chains[i_chain]
         mol_type = -1
@@ -599,7 +628,7 @@ function pdb_2_top(pdb_name)
                       " : ", res_name)
             end
         end
-        aa_chain_mol_types[i_chain] = mol_type
+        cg_chain_mol_types[i_chain] = mol_type
         n_res = length(chain.residues)
         if mol_type == MOL_DNA
             n_particles = 3 * n_res - 1
@@ -610,20 +639,437 @@ function pdb_2_top(pdb_name)
         else
             n_particles = 0
         end
+        cg_chain_length[i_chain] = n_particles
         cg_num_particles += n_particles
-        @printf("          > Chain %3d | %7s | # particles: %5d \n",
-                i_chain, MOL_TYPE_LIST[ mol_type ], n_particles)
+        @printf("          > Chain %3d | %7s \n",
+                i_chain, MOL_TYPE_LIST[ mol_type ])
     end
 
+    # ===========================
+    # Step 3: Assign CG particles
+    # ===========================
+    println("============================================================")
+    println("> Step 3: assign coarse-grained particles.")
+
+    cg_residues = []
+    cg_chains   = []
+
+    i_offset_cg_particle = 0
+    for i_chain in 1:aa_num_chain
+        chain = aa_chains[i_chain]
+        mol_type = cg_chain_mol_types[i_chain]
+
+        i_bead = i_offset_cg_particle
+        if mol_type == MOL_PROTEIN
+            for i_res in chain.residues
+                cg_idx = []
+                res_name = aa_residues[i_res].name
+                for i_atom in aa_residues[i_res].atoms
+                    atom_name = aa_atom_name[i_atom]
+                    if atom_name[1] == 'H'
+                        continue
+                    else
+                        push!(cg_idx, i_atom)
+                    end
+                end
+                i_bead += 1
+                push!(cg_residues, CGResidue(res_name, "CA", cg_idx))
+            end
+        elseif mol_type == MOL_DNA
+            tmp_atom_index_O3p = 0
+            for (i_local_index, i_res) in enumerate( chain.residues )
+                res_name = aa_residues[i_res].name
+                cg_DP_idx = [tmp_atom_index_O3p]
+                cg_DS_idx = []
+                cg_DB_idx = []
+                for i_atom in aa_residues[i_res].atoms
+                    atom_name = aa_atom_name[i_atom]
+                    if atom_name[1] == 'H'
+                        continue
+                    elseif in(atom_name, ATOM_NAME_LIST_DP)
+                        push!(cg_DP_idx, i_atom)
+                    elseif in(atom_name, ATOM_NAME_LIST_DS)
+                        push!(cg_DS_idx, i_atom)
+                    elseif atom_name == "O3'"
+                        tmp_atom_index_O3p = i_atom
+                    else
+                        push!(cg_DB_idx, i_atom)
+                    end
+                end
+                if i_local_index > 1
+                    i_bead += 1
+                    push!(cg_residues, CGResidue(res_name, "DP", cg_DP_idx))
+                end
+                i_bead += 1
+                push!(cg_residues, CGResidue(res_name, "DS", cg_DS_idx))
+                i_bead += 1
+                push!(cg_residues, CGResidue(res_name, "DB", cg_DB_idx))
+            end
+        elseif mol_type == MOL_RNA
+            for (i_local_index, i_res) in enumerate( chain.residues )
+                res_name = aa_residues[i_res].name
+                cg_RP_idx = []
+                cg_RS_idx = []
+                cg_RB_idx = []
+                for i_atom in aa_residues[i_res].atoms
+                    atom_name = aa_atom_name[i_atom]
+                    if atom_name[1] == 'H'
+                        continue
+                    elseif in(atom_name, ATOM_NAME_LIST_RP)
+                        push!(cg_RP_idx, i_atom)
+                    elseif in(atom_name, ATOM_NAME_LIST_RS)
+                        push!(cg_RS_idx, i_atom)
+                    else
+                        push!(cg_RB_idx, i_atom)
+                    end
+                end
+                if i_local_index > 1
+                    i_bead += 1
+                    push!(cg_residues, CGResidue(res_name, "RP", cg_RP_idx))
+                end
+                i_bead += 1
+                push!(cg_residues, CGResidue(res_name, "RS", cg_RS_idx))
+                i_bead += 1
+                push!(cg_residues, CGResidue(res_name, "RB", cg_RB_idx))
+            end       
+        end
+        push!(cg_chains, CGChain(i_offset_cg_particle + 1, i_bead, mol_type))
+        i_offset_cg_particle += cg_chain_length[i_chain]
+    end
+    for i_chain in 1:aa_num_chain
+        @printf("          > Chain %3d | # particles: %5d | %5d -- %5d \n",
+                i_chain, cg_chain_length[i_chain],
+                cg_chains[i_chain].first, cg_chains[i_chain].last)
+    end
+    println("------------------------------------------------------------")
+    println("          In total: $(cg_num_particles) CG particles.")
+
+
+
+
+    # ==============================
+    # CG topology structure data !!!
+    # ==============================
+    top_cg_pro_bonds        = []
+    top_cg_pro_angles       = []
+    top_cg_pro_dihedrals    = []
+    top_cg_pro_aicg13       = []
+    top_cg_pro_aicg14       = []
+    top_cg_pro_aicg_contact = []
+    param_cg_pro_e_13       = []
+    param_cg_pro_e_14       = []
+    param_cg_pro_e_contact  = []
+
+
+
     # =================================
-    # Step 3: AICG2+ model for proteins
+    # Step 4: AICG2+ model for proteins
     # =================================
     println("============================================================")
-    println("> Step 3: processing proteins.")
+    println("> Step 4: processing proteins.")
+
+    cg_resid_name  = fill("    ", cg_num_particles)
+    cg_resid_index = zeros(Int, cg_num_particles)
+    cg_bead_name   = fill("    ", cg_num_particles)
+    cg_bead_charge = zeros(Float64, cg_num_particles)
+    cg_bead_mass   = zeros(Float64, cg_num_particles)
+    cg_bead_coor   = zeros(Float64, (3, cg_num_particles))
 
     # --------------------------------
-    # Step 3.1: find out C-alpha atoms
+    # Step 4.1: find out C-alpha atoms
     # --------------------------------
+    println("------------------------------------------------------------")
+    println(">      4.1: determine CA mass, charge, and coordinates.")
+
+    for i_chain in 1:aa_num_chain
+        chain = cg_chains[i_chain]
+
+        if chain.moltype != MOL_PROTEIN
+            continue
+        end
+
+        for i_res in chain.first : chain.last
+            res_name = cg_residues[i_res].res_name
+            for i_atom in cg_residues[i_res].atoms
+                if aa_atom_name[i_atom] == "CA"
+                    cg_resid_name[i_res]   = res_name
+                    cg_resid_index[i_res]  = i_res
+                    cg_bead_name[i_res]    = "CA"
+                    cg_bead_charge[i_res]  = RES_CHARGE_DICT[res_name]
+                    cg_bead_mass[i_res]    = RES_MASS_DICT[res_name]
+                    cg_bead_coor[:, i_res] = aa_coor[:, i_atom]
+                    break
+                end
+            end
+        end
+    end
+
+    if length(protein_charge_filename) > 0
+        try
+            for line in eachline(protein_charge_filename)
+                charge_data = split(line)
+                if length(charge_data) < 1
+                    continue
+                end
+                i = parse(Int, charge_data[1])
+                c = parse(Float64, charge_data[2])
+                cg_bead_charge[i] = c
+            end
+        catch e
+            println(e)
+            error("ERROR in user-defined charge distribution.\n")
+        end
+    end
+    println(">           ... DONE!")
+
+    # -------------------------
+    # Step 4.2: AICG2+ topology
+    # -------------------------
+    println("------------------------------------------------------------")
+    println(">      4.2: AICG2+ topology.")
+    println(" - - - - - - - - - - - - - - - - - - - - - - - -")
+    println(">      4.2.1: AICG2+ local interactions.")
+    for i_chain in 1:aa_num_chain
+        chain = cg_chains[i_chain]
+
+        if chain.moltype != MOL_PROTEIN
+            continue
+        end
+
+        for i_res in chain.first : chain.last - 1
+            coor1 = cg_bead_coor[:, i_res]
+            coor2 = cg_bead_coor[:, i_res + 1]
+            dist12 = compute_distance(coor1, coor2)
+            push!(top_cg_pro_bonds, (i_res, dist12))
+        end
+    end
+    println(">           ... Bond: DONE!")
+ 
+    e_ground_local = 0.0
+    e_ground_13    = 0.0
+    num_angle      = 0
+    for i_chain in 1:aa_num_chain
+        chain = cg_chains[i_chain]
+
+        if chain.moltype != MOL_PROTEIN
+            continue
+        end
+
+        for i_res in chain.first : chain.last - 2
+            coor1 = cg_bead_coor[:, i_res]
+            coor3 = cg_bead_coor[:, i_res + 2]
+            dist13 = compute_distance(coor1, coor3)
+            push!(top_cg_pro_angles, (i_res))
+            push!(top_cg_pro_aicg13, (i_res, dist13))
+
+            # count AICG2+ atomic contact
+            contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
+                                                       cg_residues[ i_res + 2 ],
+                                                       cg_resid_name[i_res],
+                                                       cg_resid_name[i_res + 2],
+                                                       aa_atom_name,
+                                                       aa_coor)
+
+            # calculate AICG2+ pairwise energy
+            e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
+            if e_local > AICG_ENE_UPPER_LIM
+                e_local = AICG_ENE_UPPER_LIM
+            end
+            if e_local < AICG_ENE_LOWER_LIM
+                e_local = AICG_ENE_LOWER_LIM
+            end
+            e_ground_local += e_local
+            e_ground_13    += e_local
+            num_angle      += 1
+            push!(param_cg_pro_e_13, e_local)
+        end
+    end
+    println(">           ... Angle: DONE!")
+
+    e_ground_14 = 0.0
+    num_dih = 0
+    for i_chain in 1:aa_num_chain
+        chain = cg_chains[i_chain]
+
+        if chain.moltype != MOL_PROTEIN
+            continue
+        end
+
+        for i_res in chain.first : chain.last - 3
+            coor1   = cg_bead_coor[:, i_res]
+            coor2   = cg_bead_coor[:, i_res + 1]
+            coor3   = cg_bead_coor[:, i_res + 2]
+            coor4   = cg_bead_coor[:, i_res + 3]
+            dihed = compute_dihedral(coor1, coor2, coor3, coor4)
+            push!(top_cg_pro_dihedrals, i_res)
+            push!(top_cg_pro_aicg14, (i_res, dihed))
+
+            # count AICG2+ atomic contact
+            contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
+                                                       cg_residues[ i_res + 3 ],
+                                                       cg_resid_name[i_res],
+                                                       cg_resid_name[i_res + 3],
+                                                       aa_atom_name,
+                                                       aa_coor)
+
+            # calculate AICG2+ pairwise energy
+            e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
+            if e_local > AICG_ENE_UPPER_LIM
+                e_local = AICG_ENE_UPPER_LIM
+            end
+            if e_local < AICG_ENE_LOWER_LIM
+                e_local = AICG_ENE_LOWER_LIM
+            end
+            e_ground_local += e_local
+            e_ground_14    += e_local
+            num_dih      += 1
+            push!(param_cg_pro_e_14, e_local)
+        end
+    end
+    println(">           ... Dihedral: DONE!")
+
+    # ------------------------
+    # Normalize local energies
+    # ------------------------
+    e_ground_local /= (num_angle + num_dih)
+    e_ground_13    /= num_angle
+    e_ground_14    /= num_dih
+    
+    if scale_scheme == 0
+        for i in 1:length(param_cg_pro_e_13)
+            param_cg_pro_e_13[i] *= AICG_13_AVE / e_ground_13
+        end
+        for i in 1:length(param_cg_pro_e_14)
+            param_cg_pro_e_14[i] *= AICG_14_AVE / e_ground_14
+        end
+    elseif scale_scheme == 1
+        for i in 1:length(param_cg_pro_e_13)
+            param_cg_pro_e_13[i] *= -AICG_13_GEN
+        end
+        for i in 1:length(param_cg_pro_e_14)
+            param_cg_pro_e_14[i] *= -AICG_14_GEN
+        end
+    end
+
+
+
+    # -----------------------
+    # Go type native contacts
+    # -----------------------
+    println(" - - - - - - - - - - - - - - - - - - - - - - - -")
+    println(">      4.2.2: AICG2+ Go-type native contacts.")
+    e_ground_contact = 0.0
+    num_contact = 0
+
+    # intra-molecular contacts
+    @showprogress 1 "        Calculating intra-molecular contacts..."   for i_chain in 1:aa_num_chain
+        chain = cg_chains[i_chain]
+
+        if chain.moltype != MOL_PROTEIN
+            continue
+        end
+
+        for i_res in chain.first : chain.last - 4
+            coor_cai = cg_bead_coor[:, i_res]
+            for j_res in i_res + 4 : chain.last
+                coor_caj = cg_bead_coor[:, j_res]
+                if is_protein_go_contact(cg_residues[i_res], cg_residues[j_res], aa_atom_name, aa_coor)
+                    native_dist = compute_distance(coor_cai, coor_caj)
+                    num_contact += 1
+                    push!(top_cg_pro_aicg_contact, (i_res, j_res, native_dist))
+
+                    # count AICG2+ atomic contact
+                    contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
+                                                               cg_residues[ j_res ],
+                                                               cg_resid_name[i_res],
+                                                               cg_resid_name[j_res],
+                                                               aa_atom_name,
+                                                               aa_coor)
+
+                    # calculate AICG2+ pairwise energy
+                    e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
+                    if e_local > AICG_ENE_UPPER_LIM
+                        e_local = AICG_ENE_UPPER_LIM
+                    end
+                    if e_local < AICG_ENE_LOWER_LIM
+                        e_local = AICG_ENE_LOWER_LIM
+                    end
+                    e_ground_contact += e_local
+                    num_contact      += 1
+                    push!(param_cg_pro_e_contact, e_local)
+                end
+            end
+        end
+    end
+    println(">           ... intra-molecular contacts: DONE!")
+
+    # inter-molecular ( protein-protein ) contacts
+    @showprogress 1 "        Calculating inter-molecular contacts..." for i_chain in 1 : aa_num_chain - 1
+        chain1 = cg_chains[i_chain]
+
+        if chain1.moltype != MOL_PROTEIN
+            continue
+        end
+
+        for j_chain in i_chain + 1 : aa_num_chain
+            chain2 = cg_chains[j_chain]
+
+            if chain2.moltype != MOL_PROTEIN
+                continue
+            end
+
+            for i_res in chain1.first : chain1.last
+                coor_cai = cg_bead_coor[:, i_res]
+                for j_res in chain2.first : chain2.last
+                    coor_caj = cg_bead_coor[:, j_res]
+                    if is_protein_go_contact(cg_residues[i_res], cg_residues[j_res], aa_atom_name, aa_coor)
+                        native_dist = compute_distance(coor_cai, coor_caj)
+                        num_contact += 1
+                        push!(top_cg_pro_aicg_contact, (i_res, j_res, native_dist))
+
+                        # count AICG2+ atomic contact
+                        contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
+                                                                   cg_residues[ j_res ],
+                                                                   cg_resid_name[i_res],
+                                                                   cg_resid_name[j_res],
+                                                                   aa_atom_name,
+                                                                   aa_coor)
+                        
+                        # calculate AICG2+ pairwise energy
+                        e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
+                        if e_local > AICG_ENE_UPPER_LIM
+                            e_local = AICG_ENE_UPPER_LIM
+                        end
+                        if e_local < AICG_ENE_LOWER_LIM
+                            e_local = AICG_ENE_LOWER_LIM
+                        end
+                        e_ground_contact += e_local
+                        num_contact      += 1
+                        push!(param_cg_pro_e_contact, e_local)
+                    end
+                end
+            end
+        end
+    end
+    println(">           ... inter-molecular contacts: DONE!")
+
+    # normalize
+    e_ground_contact /= num_contact
+
+    if scale_scheme == 0
+        for i in 1:length(param_cg_pro_e_contact)
+            param_cg_pro_e_contact[i] *= AICG_CONTACT_AVE / e_ground_contact
+        end
+    elseif scale_scheme == 1
+        for i in 1:length(param_cg_pro_e_contact)
+            param_cg_pro_e_contact[i] *= -AICG_CONTACT_GEN
+        end
+    end
+
+    println("------------------------------------------------------------")
+    @printf("          > Total number of protein contacts: %12d  \n",
+            length( top_cg_pro_aicg_contact ))
+
 
 
 end
@@ -633,12 +1079,25 @@ end
 # =============================
 function parse_commandline()
     s = ArgParseSettings()
+
     @add_arg_table s begin
+
         "pdb"
-            help     = "PDB file name."
-            required = true
-            arg_type = String
+        help     = "PDB file name."
+        required = true
+        arg_type = String
+
+        "--respac", "-c"
+        help = "RESPAC protein charge distribution data."
+        arg_type = String
+        default = ""
+
+        "--aicg-scale"
+        help = "Scale AICG2+ local interactions: 0) average; 1) general (default)."
+        arg_type = Int
+        default = 1
     end
+
     return parse_args(s)
 end
 
@@ -650,7 +1109,7 @@ function main()
     
     args = parse_commandline()
 
-    pdb_2_top(args["pdb"])
+    pdb_2_top(args["pdb"], args["respac"], args["aicg-scale"])
 
 end
 
