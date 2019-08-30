@@ -29,6 +29,15 @@ const CAL2JOU = 4.184
 # General Parameters: Mass, Charge, ...
 # =====================================
 
+ATOM_MASS_DICT = Dict(
+    'C' => 12.011,
+    'N' => 14.001,
+    'O' => 15.999,
+    'P' => 30.974,
+    'S' => 32.065,
+    'H' =>  1.008
+)
+
 RES_MASS_DICT = Dict(
     "ALA" =>  71.09,
     "ARG" => 156.19,
@@ -256,6 +265,23 @@ function compute_dihedral(coor1, coor2, coor3, coor4)
     return dih / pi * 180.0
 end
 
+
+# --------------
+# Center of mass
+# --------------
+function compute_center_of_mass(atom_indices, atom_names, atom_coors)
+    total_mass       = 0
+    tmp_coor         = zeros(Float64, 3)
+    for i in atom_indices
+        a_mass       = ATOM_MASS_DICT[atom_names[i][1]]
+        a_coor       = atom_coors[:, i]
+        total_mass  += a_mass
+        tmp_coor    += a_coor
+    end
+    com = tmp_coor / total_mass
+    return com
+end
+
 # ===============================
 # Structural Biological Functions
 # ===============================
@@ -459,6 +485,11 @@ function count_aicg_atomic_contact(resid1, resid2, res_name_1, res_name_2, atom_
 
     return contact_count
 end
+
+# -----------------
+# 3SPN.2C DNA model
+# -----------------
+
 
 
 ###############################################################################
@@ -746,6 +777,12 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     param_cg_pro_e_14       = []
     param_cg_pro_e_contact  = []
 
+    cg_resid_name  = fill("    ", cg_num_particles)
+    cg_resid_index = zeros(Int, cg_num_particles)
+    cg_bead_name   = fill("    ", cg_num_particles)
+    cg_bead_charge = zeros(Float64, cg_num_particles)
+    cg_bead_mass   = zeros(Float64, cg_num_particles)
+    cg_bead_coor   = zeros(Float64, (3, cg_num_particles))
 
 
     # =================================
@@ -753,13 +790,6 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     # =================================
     println("============================================================")
     println("> Step 4: processing proteins.")
-
-    cg_resid_name  = fill("    ", cg_num_particles)
-    cg_resid_index = zeros(Int, cg_num_particles)
-    cg_bead_name   = fill("    ", cg_num_particles)
-    cg_bead_charge = zeros(Float64, cg_num_particles)
-    cg_bead_mass   = zeros(Float64, cg_num_particles)
-    cg_bead_coor   = zeros(Float64, (3, cg_num_particles))
 
     # --------------------------------
     # Step 4.1: find out C-alpha atoms
@@ -1055,6 +1085,65 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     println("------------------------------------------------------------")
     @printf("          > Total number of protein contacts: %12d  \n",
             length( top_cg_pro_aicg_contact ))
+
+
+
+
+
+    # =============================
+    # Step 5: 3SPN.2C model for DNA
+    # =============================
+    println("============================================================")
+    println("> Step 5: processing DNA.")
+
+    # ---------------------------
+    # Step 5.1: determine P, S, B
+    # ---------------------------
+    println("------------------------------------------------------------")
+    println(">      5.1: determine P, S, B mass, charge, and coordinates.")
+
+    for i_chain in 1 : aa_num_chain
+        chain = cg_chains[i_chain]
+
+        if chain.moltype != MOL_DNA
+            continue
+        end
+
+        for i_res in chain.first : chain.last
+            res_name = cg_residues[i_res].res_name
+            bead_name = cg_residues[i_res].atm_name
+            bead_coor = compute_center_of_mass(cg_residues[i_res].atoms, aa_atom_name, aa_coor)
+            cg_resid_name[i_res]   = res_name
+            cg_resid_index[i_res]  = i_res
+            for i_atom in cg_residues[i_res].atoms
+                if aa_atom_name[i_atom] == "CA"
+                    cg_bead_name[i_res]    = "CA"
+                    cg_bead_charge[i_res]  = RES_CHARGE_DICT[res_name]
+                    cg_bead_mass[i_res]    = RES_MASS_DICT[res_name]
+                    cg_bead_coor[:, i_res] = aa_coor[:, i_atom]
+                    break
+                end
+            end
+        end
+    end
+
+    if length(protein_charge_filename) > 0
+        try
+            for line in eachline(protein_charge_filename)
+                charge_data = split(line)
+                if length(charge_data) < 1
+                    continue
+                end
+                i = parse(Int, charge_data[1])
+                c = parse(Float64, charge_data[2])
+                cg_bead_charge[i] = c
+            end
+        catch e
+            println(e)
+            error("ERROR in user-defined charge distribution.\n")
+        end
+    end
+    println(">           ... DONE!")
 
 
 
