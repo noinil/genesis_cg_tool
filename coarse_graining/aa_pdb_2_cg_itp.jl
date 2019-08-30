@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 
 ###############################################################################
-#                                    README                                   
+#                                    README
 # This program read PDB structures and prepare toppology and coordinate files
 # for CG MD simulations in Genesis.
 #
@@ -12,6 +12,7 @@
 
 using Printf
 using ArgParse
+using Formatting
 using LinearAlgebra
 using ProgressMeter
 
@@ -168,7 +169,7 @@ const AICG_ITYPE_SB_XX = 15 # S-B other
 const AICG_ITYPE_LR_CT = 16 # long range contacts
 const AICG_ITYPE_OFFST = 17  # offset
 
-AICG_PAIRWISE_ENERGY = zeros(Float64, (17, ))
+AICG_PAIRWISE_ENERGY = zeros(Float64, 17)
 AICG_PAIRWISE_ENERGY[AICG_ITYPE_BB_HB] = - 1.4247   # B-B hydrogen bonds
 AICG_PAIRWISE_ENERGY[AICG_ITYPE_BB_DA] = - 0.4921   # B-B donor-accetor contacts
 AICG_PAIRWISE_ENERGY[AICG_ITYPE_BB_CX] = - 0.2404   # B-B carbon-X contacts
@@ -290,8 +291,8 @@ function is_protein_hb_acceptor(atom_name)
 end
 function is_protein_cation(atom_name, res_name)
     if atom_name[1] == 'N'
-        if  ( res_name == "ARG" && atom_name == "NH1" ) || 
-            ( res_name == "ARG" && atom_name == "NH2" ) || 
+        if  ( res_name == "ARG" && atom_name == "NH1" ) ||
+            ( res_name == "ARG" && atom_name == "NH2" ) ||
             ( res_name == "LYS" && atom_name == "NZ"  )
             return true
         end
@@ -360,7 +361,7 @@ function is_protein_go_contact(resid1, resid2, atom_names, atom_coors)
     return false
 end
 function count_aicg_atomic_contact(resid1, resid2, res_name_1, res_name_2, atom_names, atom_coors)
-    contact_count                   = [0 for _ in 1:17]
+    contact_count                   = zeros(Int, 17)
     contact_count[AICG_ITYPE_OFFST] = 1
     num_short_range_contact         = 0
     for i in resid1.atoms
@@ -384,7 +385,8 @@ function count_aicg_atomic_contact(resid1, resid2, res_name_1, res_name_2, atom_
             is_2_backbone   = is_protein_backbone(atom_name_2)
             if dist_12 < AICG_GO_ATOMIC_CUTOFF
                 contact_count[AICG_ITYPE_LR_CT] += 1
-            elseif dist_12 < AICG_ATOMIC_CUTOFF
+            end
+            if dist_12 < AICG_ATOMIC_CUTOFF
                 num_short_range_contact += 1
                 if is_1_backbone && is_2_backbone
                     if is_hb
@@ -454,7 +456,7 @@ function count_aicg_atomic_contact(resid1, resid2, res_name_1, res_name_2, atom_
         contact_count[AICG_ITYPE_SS_QX] += contact_count[AICG_ITYPE_SS_SB] - 1
         contact_count[AICG_ITYPE_SS_SB] = 1
     end
-    
+
     return contact_count
 end
 
@@ -511,15 +513,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     end
 
     aa_atom_name   = fill("    ",       aa_num_atom)
-    # aa_resid_index = zeros(Int,         aa_num_atom)
-    # aa_resid_name  = fill("    ",       aa_num_atom)
-    # aa_chain_id    = fill('?',          aa_num_atom)
     aa_coor        = zeros(Float64, (3, aa_num_atom))
-    # aa_occupancy   = zeros(Float64,     aa_num_atom)
-    # aa_tempfactor  = zeros(Float64,     aa_num_atom)
-    # aa_segment_id  = fill("          ", aa_num_atom)
-    # aa_element     = fill("  ",         aa_num_atom)
-    # aa_charge      = zeros(Float64,     aa_num_atom)
 
     aa_residues = []
     aa_chains   = []
@@ -562,17 +556,9 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
         # charge            = parse(Float64, line[79:80])
 
         aa_atom_name[i_atom]   = atom_name
-        # aa_resid_index[i_atom] = residue_serial
-        # aa_resid_name[i_atom]  = residue_name
-        # aa_chain_id[i_atom]    = chain_id
         aa_coor[1, i_atom]     = coor_x
         aa_coor[2, i_atom]     = coor_y
         aa_coor[3, i_atom]     = coor_z
-        # aa_occupancy[i_atom]   = occupancy
-        # aa_tempfactor[i_atom]  = tempfactor
-        # aa_segment_id[i_atom]  = segment_id
-        # aa_element[i_atom]     = element_name
-        # aa_charge[i_atom]      = charge
 
         if residue_serial != curr_resid
             i_resid += 1
@@ -593,15 +579,15 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     println("          > Number of atoms:    $(aa_num_atom)")
     println("          > Number of residues: $(aa_num_residue)")
     println("          > Number of chains:   $(aa_num_chain)")
-    
+
     # ===============================
     # Step 2: find out molecule types
     # ===============================
     println("============================================================")
     println("> Step 2: set molecular types for every chain.")
-    
+
     cg_num_particles = 0
-    
+
     cg_chain_mol_types = zeros(Int, aa_num_chain)
     cg_chain_length    = zeros(Int, aa_num_chain)
 
@@ -731,7 +717,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
                 push!(cg_residues, CGResidue(res_name, "RS", cg_RS_idx))
                 i_bead += 1
                 push!(cg_residues, CGResidue(res_name, "RB", cg_RB_idx))
-            end       
+            end
         end
         push!(cg_chains, CGChain(i_offset_cg_particle + 1, i_bead, mol_type))
         i_offset_cg_particle += cg_chain_length[i_chain]
@@ -844,7 +830,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
         end
     end
     println(">           ... Bond: DONE!")
- 
+
     e_ground_local = 0.0
     e_ground_13    = 0.0
     num_angle      = 0
@@ -859,7 +845,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
             coor1 = cg_bead_coor[:, i_res]
             coor3 = cg_bead_coor[:, i_res + 2]
             dist13 = compute_distance(coor1, coor3)
-            push!(top_cg_pro_angles, (i_res))
+            push!(top_cg_pro_angles, i_res)
             push!(top_cg_pro_aicg13, (i_res, dist13))
 
             # count AICG2+ atomic contact
@@ -882,6 +868,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
             e_ground_13    += e_local
             num_angle      += 1
             push!(param_cg_pro_e_13, e_local)
+            println(i_res, " - ", contact_counts)
         end
     end
     println(">           ... Angle: DONE!")
@@ -934,7 +921,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     e_ground_local /= (num_angle + num_dih)
     e_ground_13    /= num_angle
     e_ground_14    /= num_dih
-    
+
     if scale_scheme == 0
         for i in 1:length(param_cg_pro_e_13)
             param_cg_pro_e_13[i] *= AICG_13_AVE / e_ground_13
@@ -1034,7 +1021,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
                                                                    cg_resid_name[j_res],
                                                                    aa_atom_name,
                                                                    aa_coor)
-                        
+
                         # calculate AICG2+ pairwise energy
                         e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
                         if e_local > AICG_ENE_UPPER_LIM
@@ -1072,6 +1059,186 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
 
 
 
+
+
+
+
+    # =======================
+    # Output: itp & gro files
+    # =======================
+    println("============================================================")
+    println("> Step 8: output .itp and .gro files.")
+
+    itp_mol_head = "[ moleculetype ]\n"
+    itp_mol_comm = format(";{1:15s} {2:6s}\n", "name", "nrexcl")
+    itp_mol_line = "{1:<16} {2:>6d}\n"
+
+    itp_atm_head = "[ atoms ]\n"
+    itp_atm_comm = format(";{:>9}{:>5}{:>10}{:>5}{:>5}{:>5} {:>8} {:>8}\n", "nr", "type", "resnr", "res", "atom", "cg", "charge", "mass")
+    itp_atm_line = "{:>10d}{:>5}{:>10d}{:>5}{:>5}{:>5d} {:>8.3f} {:>8.3f}\n"
+
+    itp_bnd_head = "[ bonds ]\n"
+    itp_bnd_comm = format(";{:>9}{:>10}{:>5}{:>18}{:>18}\n", "i", "j", "f", "eq", "k2")
+    itp_bnd_line = "{:>10d}{:>10d}{:>5d}{:>18.4E}{:>18.4E}\n"
+
+    itp_13_head = "[ angles ] ; AICG2+ 1-3 interaction\n"
+    itp_13_comm = format(";{:>9}{:>10}{:>10}{:>5}{:>15}{:>15}{:>15}\n", "i", "j", "k", "f", "eq", "k", "w")
+    itp_13_line = "{:>10d}{:>10d}{:>10d}{:>5d}{:>15.4E}{:>15.4E}{:>15.4E}\n"
+
+    itp_ang_head = "[ angles ] ; AICG2+ flexible local interaction\n"
+    itp_ang_comm = format(";{:>9}{:>10}{:>10}{:>5}\n", "i", "j", "k", "f")
+    itp_ang_line = "{:>10d}{:>10d}{:>10d}{:>5d}\n"
+
+    itp_dih_G_head = "[ dihedrals ] ; AICG2+ Gaussian dihedrals\n"
+    itp_dih_G_comm = format(";{:>9}{:>10}{:>10}{:>10}{:>5}{:>15}{:>15}{:>15}\n", "i", "j", "k", "l", "f", "eq", "k", "w")
+    itp_dih_G_line = "{:>10d}{:>10d}{:>10d}{:>10d}{:>5d}{:>15.4E}{:>15.4E}{:>15.4E}\n"
+
+    itp_dih_F_head = "[ dihedrals ] ; AICG2+ flexible local interation\n"
+    itp_dih_F_comm = format(";{:>9}{:>10}{:>10}{:>10}{:>5}\n", "i", "j", "k", "l", "f")
+    itp_dih_F_line = "{:>10d}{:>10d}{:>10d}{:>10d}{:>5d}\n"
+
+    itp_contact_head = "[ pairs ] ; Go-type native contact\n"
+    itp_contact_comm = format(";{:>9}{:>10}{:>10}{:>15}{:>15}\n", "i", "j", "f", "eq", "k")
+    itp_contact_line = "{:>10d}{:>10d}{:>10d}{:>15.4E}{:>15.4E}\n"
+
+    itp_exc_head = "[ exclusions ] ; Genesis exclusion list\n"
+    itp_exc_comm = format(";{:>9}{:>10}\n", "i", "j")
+    itp_exc_line = "{:>10d}{:>10d}\n"
+
+    # --------
+    # filename
+    # --------
+    itp_name = pdb_name[1:end-4] * ".itp"
+    itp_file = open(itp_name, "w")
+
+    # --------------------
+    # Writing CG particles
+    # --------------------
+    # write molecule type information
+    itp_system_name = pdb_name[1:end-4]
+    write(itp_file, itp_mol_head)
+    write(itp_file, itp_mol_comm)
+    printfmt(itp_file, itp_mol_line, itp_system_name, MOL_NR_EXCL)
+    write(itp_file,"\n")
+
+    # write atoms information
+    write(itp_file, itp_atm_head)
+    write(itp_file, itp_atm_comm)
+    for i_bead in 1 : cg_num_particles
+        printfmt(itp_file,
+                 itp_atm_line,
+                 i_bead,
+                 cg_resid_name[i_bead],
+                 cg_resid_index[i_bead],
+                 cg_resid_name[i_bead],
+                 cg_bead_name[i_bead],
+                 AICG_ATOM_FUNC_NR,
+                 cg_bead_charge[i_bead],
+                 cg_bead_mass[i_bead])
+    end
+    write(itp_file,"\n")
+
+    # write bond information
+    write(itp_file, itp_bnd_head)
+    write(itp_file, itp_bnd_comm)
+    for i_bond in 1 : length(top_cg_pro_bonds)
+        printfmt(itp_file,
+                 itp_bnd_line,
+                 top_cg_pro_bonds[i_bond][1],
+                 top_cg_pro_bonds[i_bond][1] + 1,
+                 AICG_BOND_FUNC_TYPE,
+                 top_cg_pro_bonds[i_bond][2] * 0.1,
+                 AICG_BOND_K)
+    end
+    write(itp_file, "\n")
+
+    # write 13 interaction information
+    write(itp_file, itp_13_head)
+    write(itp_file, itp_13_comm)
+    for i_13 in 1 : length(top_cg_pro_aicg13)
+        printfmt(itp_file,
+                 itp_13_line,
+                 top_cg_pro_aicg13[i_13][1],
+                 top_cg_pro_aicg13[i_13][1] + 1,
+                 top_cg_pro_aicg13[i_13][1] + 2,
+                 AICG_ANG_G_FUNC_TYPE,
+                 top_cg_pro_aicg13[i_13][2] * 0.1,
+                 param_cg_pro_e_13[i_13] * CAL2JOU,
+                 AICG_ANG_GAUSS_SIGMA)
+    end
+    write(itp_file, "\n")
+
+    # write angle interaction information
+    write(itp_file, itp_ang_head)
+    write(itp_file, itp_ang_comm)
+    for i_ang in 1 : length(top_cg_pro_angles)
+        printfmt(itp_file,
+                 itp_ang_line,
+                 top_cg_pro_angles[i_ang],
+                 top_cg_pro_angles[i_ang] + 1,
+                 top_cg_pro_angles[i_ang] + 2,
+                 AICG_ANG_F_FUNC_TYPE)
+    end
+    write(itp_file, "\n")
+
+    # write Gaussian dihedral information
+    write(itp_file, itp_dih_G_head)
+    write(itp_file, itp_dih_G_comm)
+    for i_dih in 1 : length(top_cg_pro_aicg14)
+        printfmt(itp_file,
+                 itp_dih_G_line,
+                 top_cg_pro_aicg14[i_dih][1],
+                 top_cg_pro_aicg14[i_dih][1] + 1,
+                 top_cg_pro_aicg14[i_dih][1] + 2,
+                 top_cg_pro_aicg14[i_dih][1] + 3,
+                 AICG_DIH_G_FUNC_TYPE,
+                 top_cg_pro_aicg14[i_dih][2],
+                 param_cg_pro_e_14[i_dih] * CAL2JOU,
+                 AICG_DIH_GAUSS_SIGMA)
+    end
+    write(itp_file, "\n")
+
+    # write local flexible dihedral information
+    write(itp_file, itp_dih_F_head)
+    write(itp_file, itp_dih_F_comm)
+    for i_dih in 1 : length(top_cg_pro_dihedrals)
+        printfmt(itp_file,
+                 itp_dih_F_line,
+                 top_cg_pro_dihedrals[i_dih],
+                 top_cg_pro_dihedrals[i_dih] + 1,
+                 top_cg_pro_dihedrals[i_dih] + 2,
+                 top_cg_pro_dihedrals[i_dih] + 3,
+                 AICG_DIH_F_FUNC_TYPE)
+    end
+    write(itp_file, "\n")
+
+    # write Go-type native contacts
+    write(itp_file, itp_contact_head)
+    write(itp_file, itp_contact_comm)
+    for i_c in 1 : length(top_cg_pro_aicg_contact)
+        printfmt(itp_file,
+                 itp_contact_line,
+                 top_cg_pro_aicg_contact[i_c][1],
+                 top_cg_pro_aicg_contact[i_c][2],
+                 AICG_CONTACT_FUNC_TYPE,
+                 top_cg_pro_aicg_contact[i_c][3] * 0.1,
+                 param_cg_pro_e_contact[i_c] * CAL2JOU)
+    end
+    write(itp_file, "\n")
+
+    # write Genesis local-exclusion list
+    write(itp_file, itp_exc_head)
+    write(itp_file, itp_exc_comm)
+    for i_c in 1 : length(top_cg_pro_aicg_contact)
+        printfmt(itp_file,
+                 itp_exc_line,
+                 top_cg_pro_aicg_contact[i_c][1],
+                 top_cg_pro_aicg_contact[i_c][2])
+    end
+    write(itp_file, "\n")
+
+    close(itp_file)
+
 end
 
 # =============================
@@ -1106,7 +1273,7 @@ end
 # ====
 
 function main()
-    
+
     args = parse_commandline()
 
     pdb_2_top(args["pdb"], args["respac"], args["aicg-scale"])
@@ -1114,4 +1281,3 @@ function main()
 end
 
 main()
-
