@@ -868,7 +868,6 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
             e_ground_13    += e_local
             num_angle      += 1
             push!(param_cg_pro_e_13, e_local)
-            println(i_res, " - ", contact_counts)
         end
     end
     println(">           ... Angle: DONE!")
@@ -1069,6 +1068,9 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     println("============================================================")
     println("> Step 8: output .itp and .gro files.")
 
+    # ------------------------------------------------------------
+    # itp ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # ------------------------------------------------------------
     itp_mol_head = "[ moleculetype ]\n"
     itp_mol_comm = format(";{1:15s} {2:6s}\n", "name", "nrexcl")
     itp_mol_line = "{1:<16} {2:>6d}\n"
@@ -1238,7 +1240,45 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     write(itp_file, "\n")
 
     close(itp_file)
+    println(">           ... .itp: DONE!")
 
+    # ------------------------------------------------------------
+    # itp ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # ------------------------------------------------------------
+    # HEAD: time in the unit of ps
+    GRO_HEAD_STR  = "{}, t= {:>16.3f} \n"
+    # ATOM NUM: free format int
+    GRO_ATOM_NUM  = "{:>12d} \n"
+    # XYZ: in the unit of nm!!!
+    GRO_ATOM_LINE = "{:>5d}{:>5}{:>5}{:>5d} {:>8.4f} {:>8.4f} {:>8.4f} {:>8.4f} {:>8.4f} {:>8.4f} \n"
+    GRO_BOX_LINE  = "{:>15.4f}{:>15.4f}{:>15.4f} \n\n"
+
+    gro_name = pdb_name[1:end-4] * ".gro"
+    gro_file = open(gro_name, "w")
+
+    printfmt(gro_file, GRO_HEAD_STR, "CG model for GENESIS: ", 0)
+    printfmt(gro_file, GRO_ATOM_NUM, cg_num_particles)
+
+    for i_bead in 1 : cg_num_particles
+        printfmt(gro_file, GRO_ATOM_LINE,
+                 cg_resid_index[i_bead],
+                 cg_resid_name[i_bead],
+                 cg_bead_name[i_bead],
+                 i_bead,
+                 cg_bead_coor[1 , i_bead] * 0.1,
+                 cg_bead_coor[2 , i_bead] * 0.1,
+                 cg_bead_coor[3 , i_bead] * 0.1,
+                 0.0, 0.0, 0.0)
+    end
+    printfmt(gro_file, GRO_BOX_LINE, 0.0, 0.0, 0.0)
+
+    close(gro_file)
+    println(">           ... .gro: DONE!")
+    println("------------------------------------------------------------")
+
+    println("[1;32m DONE! [0m ")
+    println(" Please check the .itp and .gro files.")
+    println("============================================================")
 end
 
 # =============================
