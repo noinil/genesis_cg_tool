@@ -19,6 +19,14 @@ using ProgressMeter
 ###########################################################################
 #                          Force Field Parameters                         #
 ###########################################################################
+#      ____   _    ____      _    __  __ _____ _____ _____ ____  ____  
+#     |  _ \ / \  |  _ \    / \  |  \/  | ____|_   _| ____|  _ \/ ___| 
+#     | |_) / _ \ | |_) |  / _ \ | |\/| |  _|   | | |  _| | |_) \___ \ 
+#     |  __/ ___ \|  _ <  / ___ \| |  | | |___  | | | |___|  _ < ___) |
+#     |_| /_/   \_\_| \_\/_/   \_\_|  |_|_____| |_| |_____|_| \_\____/ 
+#     
+###########################################################################
+ 
 
 # ==================
 # Physical Constants
@@ -137,9 +145,9 @@ MOL_TYPE_LIST = ["DNA", "RNA", "protein", "other", "unknown"]
 # AICG2+ bond force constant
 const AICG_BOND_K               = 110.40 * CAL2JOU * 100 * 2
 # AICG2+ sigma for Gaussian angle
-const AICG_ANG_GAUSS_SIGMA      = 0.15 * 0.1  # nm
+const AICG_13_SIGMA             = 0.15 * 0.1  # nm
 # AICG2+ sigma for Gaussian dihedral
-const AICG_DIH_GAUSS_SIGMA      = 0.15        # Rad ??
+const AICG_14_SIGMA             = 0.15        # Rad ??
 # AICG2+ atomistic contact cutoff
 const AICG_GO_ATOMIC_CUTOFF     = 6.5
 # AICG2+ pairwise interaction cutoff
@@ -197,31 +205,61 @@ AICG_PAIRWISE_ENERGY[AICG_ITYPE_SB_XX] = - 0.0487   # S-B other
 AICG_PAIRWISE_ENERGY[AICG_ITYPE_LR_CT] = - 0.0395   # long range contacts
 AICG_PAIRWISE_ENERGY[AICG_ITYPE_OFFST] = - 0.1051   # offset
 
+# ============================
+# DNA 3SPN.2C Model Parameters
+# ============================
+
+# 3SPN.2C bond force constant
+DNA3SPN_BOND_K_2    = 60.0
+DNA3SPN_BOND_K_4    = 600000.0
+# 3SPN.2C force constant for Gaussian dihedral
+DNA3SPN_DIH_G_K     = 7.0
+# 3SPN.2C sigma for Gaussian dihedral
+DNA3SPN_DIH_G_SIGMA = 0.3
+# 3SPN.2C force constant for Gaussian dihedral
+DNA3SPN_DIH_P_K     = 2.0
 
 # ====================
 # GRO TOP File Options
 # ====================
 
 # "NREXCL" in "[moleculetype]"
-const MOL_NR_EXCL            = 3
+const MOL_NR_EXCL             = 3
 # "CGNR" in "[atoms]"
-const AICG_ATOM_FUNC_NR      = 1
+const AICG_ATOM_FUNC_NR       = 1
+const DNA3SPN_ATOM_FUNC_NR    = 1
 # "f" in "[bonds]"
-const AICG_BOND_FUNC_TYPE    = 1
+const AICG_BOND_FUNC_TYPE     = 1
+const DNA3SPN_BOND_FUNC2_TYPE = 1
+const DNA3SPN_BOND_FUNC4_TYPE = 21
 # "f" in AICG-type "[angles]"
-const AICG_ANG_G_FUNC_TYPE   = 21
+const AICG_ANG_G_FUNC_TYPE    = 21
 # "f" in Flexible-type "[angles]"
-const AICG_ANG_F_FUNC_TYPE   = 22
+const AICG_ANG_F_FUNC_TYPE    = 22
+# "f" in DNA "[angles]"
+const DNA3SPN_ANG_FUNC_TYPE   = 1
 # "f" in AICG-type "[dihedral]"
-const AICG_DIH_G_FUNC_TYPE   = 21
+const AICG_DIH_G_FUNC_TYPE    = 21
 # "f" in Flexible-type "[dihedral]"
-const AICG_DIH_F_FUNC_TYPE   = 22
+const AICG_DIH_F_FUNC_TYPE    = 22
+# "f" in DNA Gaussian "[dihedral]"
+const DNA3SPN_DIH_G_FUNC_TYPE = 21
+# "f" in DNA Periodic "[dihedral]"
+const DNA3SPN_DIH_P_FUNC_TYPE = 1
+const DNA3SPN_DIH_P_FUNC_PERI = 1
 # "f" in Go-contacts "[pairs]"
-const AICG_CONTACT_FUNC_TYPE = 2
+const AICG_CONTACT_FUNC_TYPE  = 2
 
 
 ###############################################################################
 #                                  Functions                                  #
+###############################################################################
+#          ____    _    ____ ___ ____   _____ _   _ _   _  ____ 
+#         | __ )  / \  / ___|_ _/ ___| |  ___| | | | \ | |/ ___|
+#         |  _ \ / _ \ \___ \| | |     | |_  | | | |  \| | |    
+#         | |_) / ___ \ ___) | | |___  |  _| | |_| | |\  | |___ 
+#         |____/_/   \_\____/___\____| |_|    \___/|_| \_|\____|
+#         
 ###############################################################################
 
 # ===================
@@ -506,6 +544,7 @@ struct AAChain
 end
 
 struct CGResidue
+    res_idx::Int
     res_name::String
     atm_name::String
     atoms::Array{Int64, 1}
@@ -517,6 +556,14 @@ struct CGChain
     moltype::Int
 end
 
+###############################################################################
+#                            ____ ___  ____  _____ 
+#                           / ___/ _ \|  _ \| ____|
+#                          | |  | | | | |_) |  _|  
+#                          | |__| |_| |  _ <| |___ 
+#                           \____\___/|_| \_\_____|
+# 
+###############################################################################
 function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
 
     # ===============
@@ -672,11 +719,13 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     cg_chains   = []
 
     i_offset_cg_particle = 0
+    i_offset_cg_residue  = 0
     for i_chain in 1:aa_num_chain
         chain = aa_chains[i_chain]
         mol_type = cg_chain_mol_types[i_chain]
 
         i_bead = i_offset_cg_particle
+        i_resi = i_offset_cg_residue
         if mol_type == MOL_PROTEIN
             for i_res in chain.residues
                 cg_idx = []
@@ -690,7 +739,8 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
                     end
                 end
                 i_bead += 1
-                push!(cg_residues, CGResidue(res_name, "CA", cg_idx))
+                i_resi += 1
+                push!(cg_residues, CGResidue(i_resi, res_name, "CA", cg_idx))
             end
         elseif mol_type == MOL_DNA
             tmp_atom_index_O3p = 0
@@ -713,14 +763,15 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
                         push!(cg_DB_idx, i_atom)
                     end
                 end
+                i_resi += 1
                 if i_local_index > 1
                     i_bead += 1
-                    push!(cg_residues, CGResidue(res_name, "DP", cg_DP_idx))
+                    push!(cg_residues, CGResidue(i_resi, res_name, "DP", cg_DP_idx))
                 end
                 i_bead += 1
-                push!(cg_residues, CGResidue(res_name, "DS", cg_DS_idx))
+                push!(cg_residues, CGResidue(i_resi, res_name, "DS", cg_DS_idx))
                 i_bead += 1
-                push!(cg_residues, CGResidue(res_name, "DB", cg_DB_idx))
+                push!(cg_residues, CGResidue(i_resi, res_name, "DB", cg_DB_idx))
             end
         elseif mol_type == MOL_RNA
             for (i_local_index, i_res) in enumerate( chain.residues )
@@ -740,18 +791,20 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
                         push!(cg_RB_idx, i_atom)
                     end
                 end
+                i_resi += 1
                 if i_local_index > 1
                     i_bead += 1
-                    push!(cg_residues, CGResidue(res_name, "RP", cg_RP_idx))
+                    push!(cg_residues, CGResidue(i_resi, res_name, "RP", cg_RP_idx))
                 end
                 i_bead += 1
-                push!(cg_residues, CGResidue(res_name, "RS", cg_RS_idx))
+                push!(cg_residues, CGResidue(i_resi, res_name, "RS", cg_RS_idx))
                 i_bead += 1
-                push!(cg_residues, CGResidue(res_name, "RB", cg_RB_idx))
+                push!(cg_residues, CGResidue(i_resi, res_name, "RB", cg_RB_idx))
             end
         end
         push!(cg_chains, CGChain(i_offset_cg_particle + 1, i_bead, mol_type))
         i_offset_cg_particle += cg_chain_length[i_chain]
+        i_offset_cg_residue  += length(chain.residues)
     end
     for i_chain in 1:aa_num_chain
         @printf("          > Chain %3d | # particles: %5d | %5d -- %5d \n",
@@ -764,18 +817,14 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
 
 
 
-    # ==============================
-    # CG topology structure data !!!
-    # ==============================
-    top_cg_pro_bonds        = []
-    top_cg_pro_angles       = []
-    top_cg_pro_dihedrals    = []
-    top_cg_pro_aicg13       = []
-    top_cg_pro_aicg14       = []
-    top_cg_pro_aicg_contact = []
-    param_cg_pro_e_13       = []
-    param_cg_pro_e_14       = []
-    param_cg_pro_e_contact  = []
+    # =========================================================================
+    #        ____ ____   _____ ___  ____   ___  _     ___   ______   __
+    #       / ___/ ___| |_   _/ _ \|  _ \ / _ \| |   / _ \ / ___\ \ / /
+    #      | |  | |  _    | || | | | |_) | | | | |  | | | | |  _ \ V / 
+    #      | |__| |_| |   | || |_| |  __/| |_| | |__| |_| | |_| | | |  
+    #       \____\____|   |_| \___/|_|    \___/|_____\___/ \____| |_|  
+    # 
+    # =========================================================================
 
     cg_resid_name  = fill("    ", cg_num_particles)
     cg_resid_index = zeros(Int, cg_num_particles)
@@ -784,9 +833,34 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     cg_bead_mass   = zeros(Float64, cg_num_particles)
     cg_bead_coor   = zeros(Float64, (3, cg_num_particles))
 
+    # protein
+    top_cg_pro_bonds        = []
+    top_cg_pro_angles       = []
+    top_cg_pro_dihedrals    = []
+    top_cg_pro_aicg13       = []
+    top_cg_pro_aicg14       = []
+    top_cg_pro_aicg_contact = []
+
+    param_cg_pro_e_13       = []
+    param_cg_pro_e_14       = []
+    param_cg_pro_e_contact  = []
+
+    # DNA
+    top_cg_DNA_bonds        = []
+    top_cg_DNA_angles       = []
+    top_cg_DNA_dih_Gaussian = []
+    top_cg_DNA_dih_periodic = []
 
     # =================================
     # Step 4: AICG2+ model for proteins
+    # =================================
+    #                  _       _       
+    #  _ __  _ __ ___ | |_ ___(_)_ __  
+    # | '_ \| '__/ _ \| __/ _ \ | '_ \ 
+    # | |_) | | | (_) | ||  __/ | | | |
+    # | .__/|_|  \___/ \__\___|_|_| |_|
+    # |_|  
+    # 
     # =================================
     println("============================================================")
     println("> Step 4: processing proteins.")
@@ -809,7 +883,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
             for i_atom in cg_residues[i_res].atoms
                 if aa_atom_name[i_atom] == "CA"
                     cg_resid_name[i_res]   = res_name
-                    cg_resid_index[i_res]  = i_res
+                    cg_resid_index[i_res]  = cg_residues[i_res].res_idx
                     cg_bead_name[i_res]    = "CA"
                     cg_bead_charge[i_res]  = RES_CHARGE_DICT[res_name]
                     cg_bead_mass[i_res]    = RES_MASS_DICT[res_name]
@@ -1093,6 +1167,13 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     # =============================
     # Step 5: 3SPN.2C model for DNA
     # =============================
+    #         _             
+    #      __| |_ __   __ _ 
+    #     / _` | '_ \ / _` |
+    #    | (_| | | | | (_| |
+    #     \__,_|_| |_|\__,_|
+    #    
+    # =============================
     println("============================================================")
     println("> Step 5: processing DNA.")
 
@@ -1110,39 +1191,18 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
         end
 
         for i_res in chain.first : chain.last
-            res_name = cg_residues[i_res].res_name
+            res_name  = cg_residues[i_res].res_name
             bead_name = cg_residues[i_res].atm_name
             bead_coor = compute_center_of_mass(cg_residues[i_res].atoms, aa_atom_name, aa_coor)
             cg_resid_name[i_res]   = res_name
-            cg_resid_index[i_res]  = i_res
-            for i_atom in cg_residues[i_res].atoms
-                if aa_atom_name[i_atom] == "CA"
-                    cg_bead_name[i_res]    = "CA"
-                    cg_bead_charge[i_res]  = RES_CHARGE_DICT[res_name]
-                    cg_bead_mass[i_res]    = RES_MASS_DICT[res_name]
-                    cg_bead_coor[:, i_res] = aa_coor[:, i_atom]
-                    break
-                end
-            end
+            cg_resid_index[i_res]  = cg_residues[i_res].res_idx
+            cg_bead_name[i_res]    = bead_name
+            cg_bead_charge[i_res]  = RES_CHARGE_DICT[res_name]
+            cg_bead_mass[i_res]    = RES_MASS_DICT[res_name]
+            cg_bead_coor[:, i_res] = bead_coor
         end
     end
 
-    if length(protein_charge_filename) > 0
-        try
-            for line in eachline(protein_charge_filename)
-                charge_data = split(line)
-                if length(charge_data) < 1
-                    continue
-                end
-                i = parse(Int, charge_data[1])
-                c = parse(Float64, charge_data[2])
-                cg_bead_charge[i] = c
-            end
-        catch e
-            println(e)
-            error("ERROR in user-defined charge distribution.\n")
-        end
-    end
     println(">           ... DONE!")
 
 
@@ -1255,7 +1315,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
                  AICG_ANG_G_FUNC_TYPE,
                  top_cg_pro_aicg13[i_13][2] * 0.1,
                  param_cg_pro_e_13[i_13] * CAL2JOU,
-                 AICG_ANG_GAUSS_SIGMA)
+                 AICG_13_SIGMA)
     end
     write(itp_file, "\n")
 
@@ -1285,7 +1345,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
                  AICG_DIH_G_FUNC_TYPE,
                  top_cg_pro_aicg14[i_dih][2],
                  param_cg_pro_e_14[i_dih] * CAL2JOU,
-                 AICG_DIH_GAUSS_SIGMA)
+                 AICG_14_SIGMA)
     end
     write(itp_file, "\n")
 
