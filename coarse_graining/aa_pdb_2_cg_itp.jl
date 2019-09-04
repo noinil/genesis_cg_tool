@@ -76,7 +76,13 @@ RES_MASS_DICT = Dict(
     "DG"  => 150.10,
     "DT"  => 125.10,
     "DP"  =>  94.97,
-    "DS"  =>  83.11
+    "DS"  =>  83.11,
+    "RA"  => 134.10,
+    "RC"  => 110.10,
+    "RG"  => 150.10,
+    "RU"  => 111.10,
+    "RP"  =>  62.97,
+    "RS"  => 131.11
 )
 
 RES_CHARGE_DICT = Dict(
@@ -107,7 +113,13 @@ RES_CHARGE_DICT = Dict(
     "DG"  =>  0.0,
     "DT"  =>  0.0,
     "DP"  => -0.6,
-    "DS"  =>  0.0
+    "DS"  =>  0.0,
+    "RA"  =>  0.0,
+    "RC"  =>  0.0,
+    "RG"  =>  0.0,
+    "RU"  =>  0.0,
+    "RP"  => -1.0,
+    "RS"  =>  0.0
 )
 
 RES_NAME_LIST_PROTEIN = (
@@ -220,6 +232,48 @@ DNA3SPN_DIH_G_SIGMA = 0.3
 # 3SPN.2C force constant for Gaussian dihedral
 DNA3SPN_DIH_P_K     = 2.0
 
+# ====================================
+# RNA Structure-based Model Parameters
+# ====================================
+
+# RNA atomistic contact cutoff
+const RNA_GO_ATOMIC_CUTOFF  = 5.5
+# RNA stacking interaction dihedral cutoff
+const RNA_STACK_DIH_CUTOFF  = 40.0
+# RNA stacking interaction distance cutoff
+const RNA_STACK_DIST_CUTOFF = 6.0
+# RNA stacking interaction epsilon
+const RNA_STACK_EPSILON     = 2.06
+# RNA base pairing epsilon
+const RNA_bpair_epsilon_2hb = 2.94
+const RNA_bpair_epsilon_3hb = 5.37
+
+RNA_BOND_K_LIST = Dict(
+    "PS" => 26.5,
+    "SR" => 40.3,
+    "SY" => 62.9,
+    "SP" => 84.1
+)
+RNA_ANGLE_K_LIST = Dict(
+    "PSR" => 18.0,
+    "PSY" => 22.8,
+    "PSP" => 22.1,
+    "SPS" => 47.8
+)
+RNA_DIHEDRAL_K_LIST = Dict(
+    "PSPS" => 1.64,
+    "SPSR" => 1.88,
+    "SPSY" => 2.82,
+    "SPSP" => 2.98
+)
+RNA_PAIR_EPSILON_OTHER = Dict(
+    "SS" => 1.48,
+    "BS" => 0.98,
+    "SB" => 0.98,
+    "BB" => 0.93
+)
+
+
 # ====================
 # GRO TOP File Options
 # ====================
@@ -229,16 +283,20 @@ const MOL_NR_EXCL             = 3
 # "CGNR" in "[atoms]"
 const AICG_ATOM_FUNC_NR       = 1
 const DNA3SPN_ATOM_FUNC_NR    = 1
+const RNA_ATOM_FUNC_NR    = 1
 # "f" in "[bonds]"
 const AICG_BOND_FUNC_TYPE     = 1
 const DNA3SPN_BOND_FUNC2_TYPE = 1
 const DNA3SPN_BOND_FUNC4_TYPE = 21
+const RNA_BOND_FUNC_TYPE = 1
 # "f" in AICG-type "[angles]"
 const AICG_ANG_G_FUNC_TYPE    = 21
 # "f" in Flexible-type "[angles]"
 const AICG_ANG_F_FUNC_TYPE    = 22
 # "f" in DNA "[angles]"
 const DNA3SPN_ANG_FUNC_TYPE   = 1
+# "f" in RNA "[angles]"
+const RNA_ANG_FUNC_TYPE   = 1
 # "f" in AICG-type "[dihedral]"
 const AICG_DIH_G_FUNC_TYPE    = 21
 # "f" in Flexible-type "[dihedral]"
@@ -248,8 +306,13 @@ const DNA3SPN_DIH_G_FUNC_TYPE = 21
 # "f" in DNA Periodic "[dihedral]"
 const DNA3SPN_DIH_P_FUNC_TYPE = 1
 const DNA3SPN_DIH_P_FUNC_PERI = 1
+# "f" in RNA Periodic "[dihedral]"
+const RNA_DIH_FUNC_TYPE = 1
 # "f" in Go-contacts "[pairs]"
 const AICG_CONTACT_FUNC_TYPE  = 2
+# "f" in RNA Go-contacts "[pairs]"
+const RNA_CONTACT_FUNC_TYPE  = 2
+
 
 
 ###############################################################################
@@ -543,7 +606,7 @@ end
 # 3SPN.2C DNA model
 # -----------------
 
-function get_angle_param(angle_type, base_step)
+function get_DNA3SPN_angle_param(angle_type, base_step)
     # Base-Sugar-Phosphate
     BSP_params = Dict(
         "AA" => 460, "AT" => 370, "AC" => 442, "AG" => 358,
@@ -578,7 +641,6 @@ function get_angle_param(angle_type, base_step)
 
     return angle_params[angle_type][base_step]
 end
-
 
 
 ###############################################################################
@@ -641,7 +703,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
         if startswith(line, "ATOM")
             push!(aa_pdb_lines, rpad(line, 80))
             aa_num_atom += 1
-        elseif startswith(line, "TER")
+        elseif startswith(line, "TER") || startswith(line, "END")
             push!(aa_pdb_lines, rpad(line, 80))
         end
     end
@@ -1319,7 +1381,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                             resname3 = cg_resid_name[i_res + 3][end]
                             coor_s3 = cg_bead_coor[:, i_res + 3]
                             ang_sp3s3 = compute_angle(coor_s, coor_p3, coor_s3)
-                            k = get_angle_param("SPS", resname5 * resname3)
+                            k = get_DNA3SPN_angle_param("SPS", resname5 * resname3)
                             push!(top_cg_DNA_angles, ( i_res, i_res + 2, i_res + 3, ang_sp3s3, k * 2 ))
                             # Dihedral S--P+1--S+1--B+1
                             coor_b3 = cg_bead_coor[:, i_res + 4]
@@ -1344,13 +1406,13 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                         resname3 = cg_resid_name[i_res + 2][end]
                         coor_b   = cg_bead_coor[:, i_res + 2]
                         ang_psb  = compute_angle(coor_p, coor_s, coor_b)
-                        k = get_angle_param("PSB", resname5 * resname3)
+                        k = get_DNA3SPN_angle_param("PSB", resname5 * resname3)
                         push!(top_cg_DNA_angles, ( i_res, i_res + 1, i_res + 2, ang_psb, k * 2 ))
                         if i_res + 4 < chain.last
                             # angle P--S--P+1
                             coor_p3  = cg_bead_coor[:, i_res + 3]
                             ang_psp3 = compute_angle(coor_p, coor_s, coor_p3)
-                            k = get_angle_param("PSP", "all")
+                            k = get_DNA3SPN_angle_param("PSP", "all")
                             push!(top_cg_DNA_angles, ( i_res, i_res + 1, i_res + 3, ang_psp3, k * 2 ))
                             # Dihedral P--S--P+1--S+1
                             coor_s3 = cg_bead_coor[:, i_res + 4]
@@ -1367,7 +1429,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                             coor_s   = cg_bead_coor[:, i_res - 1]
                             coor_p3  = cg_bead_coor[:, i_res + 1]
                             ang_bsp3 = compute_angle(coor_b, coor_s, coor_p3)
-                            k = get_angle_param("BSP", resname5 * resname3)
+                            k = get_DNA3SPN_angle_param("BSP", resname5 * resname3)
                             push!(top_cg_DNA_angles, ( i_res, i_res - 1, i_res + 1, ang_bsp3, k * 2 ))
                             # Dihedral B--S--P+1--S+1
                             coor_s3 = cg_bead_coor[:, i_res + 2]
@@ -1386,6 +1448,97 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
             println(">           ... Bond, Angle, Dihedral: DONE!")
         end
     end
+
+
+    # =========================
+    # RNA structure based model
+    # =========================
+    #     ____  _   _    _    
+    #    |  _ \| \ | |  / \   
+    #    | |_) |  \| | / _ \  
+    #    |  _ <| |\  |/ ___ \ 
+    #    |_| \_\_| \_/_/   \_\
+    # 
+    # =========================
+
+    if num_chain_RNA > 0
+        i_step += 1
+        println("============================================================")
+        println("> Step $(i_step): processing RNA.")
+
+        # ----------------------------------
+        #         determine P, S, B
+        # ----------------------------------
+        println("------------------------------------------------------------")
+        println(">      $(i_step).1: determine P, S, B mass, charge, and coordinates.")
+
+        for i_chain in 1 : aa_num_chain
+            chain = cg_chains[i_chain]
+
+            if chain.moltype != MOL_RNA
+                continue
+            end
+
+            for i_res in chain.first : chain.last
+                res_name  = cg_residues[i_res].res_name
+                bead_name = cg_residues[i_res].atm_name
+                bead_type = bead_name == "RP" || bead_name == "RS" ? bead_name : res_name
+                # bead_coor = compute_center_of_mass(cg_residues[i_res].atoms, aa_atom_name, aa_coor)
+                cg_resid_name[i_res]   = res_name
+                cg_resid_index[i_res]  = cg_residues[i_res].res_idx
+                cg_bead_name[i_res]    = bead_name
+                cg_bead_type[i_res]    = bead_type
+                cg_bead_charge[i_res]  = RES_CHARGE_DICT[bead_type]
+                cg_bead_mass[i_res]    = RES_MASS_DICT[bead_type]
+                if bead_name == "RP"
+                    for i_atom in cg_residues[i_res].atoms
+                        if aa_atom_name[i_atom][1] == 'P'
+                            bead_coor = aa_coor[:, i_atom]
+                        end
+                    end
+                elseif bead_name == "RS"
+                    total_mass      = 0
+                    tmp_coor        = zeros(Float64, 3)
+                    for i_atom in cg_residues[i_res].atoms
+                        a_name = aa_atom_name[i_atom]
+                        if in(a_name, ["C1'", "C2'", "C3'", "C4'", "O4'"] )
+                            a_mass      = ATOM_MASS_DICT[a_name[1]]
+                            a_coor      = aa_coor[:, i_atom]
+                            total_mass += a_mass
+                            tmp_coor   += a_coor * a_mass
+                        end
+                    end
+                    bead_coor = tmp_coor / total_mass
+                elseif bead_name == "RB"
+                    if res_name[end] in ['A', 'G']
+                        for i_atom in cg_residues[i_res].atoms
+                            if aa_atom_name[i_atom] == "N1"
+                                bead_coor = aa_coor[:, i_atom]
+                            end
+                        end
+                    else
+                        for i_atom in cg_residues[i_res].atoms
+                            if aa_atom_name[i_atom] == "N3"
+                                bead_coor = aa_coor[:, i_atom]
+                            end
+                        end
+                    end
+                end
+                cg_bead_coor[:, i_res] = bead_coor[:]
+            end
+        end
+
+        println(">           ... DONE!")
+
+        # ---------------------------------
+        #        Step 5.2: 3SPN.2C topology
+        # ---------------------------------
+
+    end
+
+
+
+
 
     # =========================================================================
     #   ___  _   _ _____ ____  _   _ _____ 
