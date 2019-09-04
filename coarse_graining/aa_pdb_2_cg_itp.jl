@@ -723,7 +723,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
     chain_id      = '?'
     tmp_res_atoms = []
     tmp_chain_res = []
-
+    
     for line in aa_pdb_lines
         if startswith(line, "TER") || startswith(line, "END")
             if length(tmp_res_atoms) > 0
@@ -987,6 +987,11 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
     top_cg_DNA_angles       = []
     top_cg_DNA_dih_Gaussian = []
     top_cg_DNA_dih_periodic = []
+
+    # RNA
+    top_cg_RNA_bonds        = []
+    top_cg_RNA_angles       = []
+    top_cg_RNA_dihedrals    = []
 
     # =================================
     # Step 4: AICG2+ model for proteins
@@ -1510,7 +1515,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                     end
                     bead_coor = tmp_coor / total_mass
                 elseif bead_name == "RB"
-                    if res_name[end] in ['A', 'G']
+                    if res_name[end] == 'A' || res_name[end] == 'G'
                         for i_atom in cg_residues[i_res].atoms
                             if aa_atom_name[i_atom] == "N1"
                                 bead_coor = aa_coor[:, i_atom]
@@ -1530,9 +1535,98 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
 
         println(">           ... DONE!")
 
-        # ---------------------------------
-        #        Step 5.2: 3SPN.2C topology
-        # ---------------------------------
+        # -------------------------
+        # Step 6.2: RNA topology
+        # -------------------------
+        println("------------------------------------------------------------")
+        println(">      $(i_step).2: RNA topology.")
+        println(" - - - - - - - - - - - - - - - - - - - - - - - -")
+        println(">      $(i_step).2.1: RNA local interactions.")
+
+        for i_chain in 1:aa_num_chain
+            chain = cg_chains[i_chain]
+
+            if chain.moltype != MOL_RNA
+                continue
+            end
+
+            for i_res in chain.first : chain.last
+                if cg_bead_name[i_res] == "RS"
+                    # bond S--B
+                    coor_s    = cg_bead_coor[i_res]
+                    coor_b    = cg_bead_coor[i_res + 1]
+                    r_sb      = compute_distance(coor_s, coor_b)
+                    base_type = cg_resid_name[i_res] in ["RA", "RG"] ? "R" : "Y"
+                    bond_type = "S" * base_type
+                    k         = RNA_BOND_K_LIST[bond_type] * CAL2JOU
+                    push!(top_cg_RNA_bonds, (i_res, i_res + 1, r_sb / 10.0, k * 2 * 100.0))
+                    # bond S--P+1
+                    if i_res + 2 < chain.last
+                        coor_p3 = cg_bead_coor[i_res + 2]
+                        r_sp3   = compute_distance(coor_s, coor_p3)
+                        k       = RNA_BOND_K_LIST["SP"] * CAL2JOU
+                        push!(top_cg_RNA_bonds, (i_res, i_res + 2, r_sp3 / 10.0, k * 2 * 100.0))
+                    end
+                    if i_rna + 4 <= chain.last
+                        # Angle S--P+1--S+1
+                        coor_s3   = cg_bead_coor[i_res + 3]
+                        ang_sp3s3 = compute_angle(coor_s, coor_p3, coor_s3)
+                        k         = RNA_ANGLE_K_LIST["SPS"] * CAL2JOU
+                        push!(top_cg_RNA_angles, (i_res, i_res + 2, i_res + 3, ang_sp3s3, k * 2))
+                        # Dihedral S--P+1--S+1--B+1
+                        coor_b3     = cg_bead_coor[i_res + 4]
+                        dih_sp3s3b3 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_b3)
+                        base_type = cg_resid_name[i_res + 4] in ["RA", "RG"] ? "R" : "Y"
+                        dihe_type   = "SPS" * base_type
+                        k           = RNA_DIHEDRAL_K_LIST[dihe_type] * CAL2JOU
+                        push!(top_cg_RNA_dihedrals, (i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3, k))
+                    end
+                    # Dihedral S--P+1--S+1--P+2
+                    if i_rna + 5 < chain.last
+                        coor_p33     = cg_bead_coor[i_res + 5]
+                        dih_sp3s3p33 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_p33)
+                        k            = RNA_DIHEDRAL_K_LIST["SPSP"] * CAL2JOU
+                        push!(top_cg_RNA_dihedrals, (i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33, k))
+                    end
+                elseif cg_bead_name[i_res] == "RP"
+                    # bond P--S
+                    coor_p = cg_bead_coor[i_res]
+                    coor_s = cg_bead_coor[i_res + 1]
+                    r_ps   = compute_distance(coor_p, coor_s)
+                    k      = RNA_BOND_K_LIST["PS"] * CAL2JOU
+                    push!(top_cg_RNA_bonds, (i_res, i_res + 1, r_ps / 10.0, k * 2 * 100.0))
+                    # angle P--S--B
+                    coor_b    = cg_bead_coor[i_res + 2]
+                    ang_psb   = compute_angle(coor_p, coor_s, coor_b)
+                    base_type = cg_resid_name[i_res + 2] in ["RA", "RG"] ? "R" : "Y"
+                    angl_type = "PS" * base_type
+                    k         = RNA_ANGLE_K_LIST[angl_type] * CAL2JOU
+                    push!(top_cg_RNA_angles, (i_res, i_res + 1, i_res + 2, ang_psb, k * 2))
+                    if i_res + 4 < chain.last
+                        # angle P--S--P+1
+                        coor_p3  = cg_bead_coor[i_res + 3]
+                        ang_psp3 = compute_angle(coor_p, coor_s, coor_p3)
+                        k        = RNA_ANGLE_K_LIST["PSP"] * CAL2JOU
+                        push!(top_cg_RNA_angles, (i_res, i_res + 1, i_res + 3, ang_psp3, k * 2))
+                        # Dihedral P--S--P+1--S+1
+                        coor_s3    = cg_bead_coor[i_res + 4]
+                        dih_psp3s3 = compute_dihedral(coor_p, coor_s, coor_p3, coor_s3)
+                        k          = RNA_DIHEDRAL_K_LIST["PSPS"] * CAL2JOU
+                        push!(top_cg_RNA_dihedrals, (i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3, k))
+                    end
+                elseif cg_bead_name[i_res] == "RB"
+                    # do nothing...
+                end
+            end
+        end
+
+ 
+        # -----------------------
+        # Go type native contacts
+        # -----------------------
+        println(" - - - - - - - - - - - - - - - - - - - - - - - -")
+        println(">      $(i_step).2.2: RNA Go-type native contacts.")
+ 
 
     end
 
