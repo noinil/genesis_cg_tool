@@ -2,12 +2,14 @@
 
 ###############################################################################
 #                                    README
+# 
 # This program read PDB structures and prepare toppology and coordinate files
 # for CG MD simulations in Genesis.
 #
 # PDB format:
 # 1. Atoms startswith "ATOM  "
 # 2. Chains should end with "TER" and have different IDs
+# 
 ###############################################################################
 
 using Printf
@@ -268,6 +270,7 @@ const AICG_CONTACT_FUNC_TYPE  = 2
 # --------
 # Distance
 # --------
+
 function compute_distance(coor1, coor2)
     d = coor1 - coor2
     return norm(d)
@@ -276,6 +279,7 @@ end
 # -----
 # Angle
 # -----
+
 function compute_angle(coor1, coor2, coor3)
     v1 = coor1 - coor2
     v2 = coor3 - coor2
@@ -287,6 +291,7 @@ end
 # --------
 # Dihedral
 # --------
+
 function compute_dihedral(coor1, coor2, coor3, coor4)
     v12   = coor2 - coor1
     v23   = coor3 - coor2
@@ -306,6 +311,7 @@ end
 # --------------
 # Center of mass
 # --------------
+
 function compute_center_of_mass(atom_indices, atom_names, atom_coors)
     total_mass      = 0
     tmp_coor        = zeros(Float64, 3)
@@ -326,12 +332,14 @@ end
 # --------------------
 # AICG2+ Protein Model
 # --------------------
+
 function is_protein_backbone(atom_name)
     if in(atom_name, ("N", "C", "O", "OXT", "CA"))
         return true
     end
     return false
 end
+
 function is_protein_hb_donor(atom_name, res_name)
     if atom_name[1] == 'N'
         return true
@@ -346,12 +354,14 @@ function is_protein_hb_donor(atom_name, res_name)
     end
     return false
 end
+
 function is_protein_hb_acceptor(atom_name)
     if atom_name[1] == 'O' || atom_name[1] == 'S'
         return true
     end
     return false
 end
+
 function is_protein_cation(atom_name, res_name)
     if atom_name[1] == 'N'
         if  ( res_name == "ARG" && atom_name == "NH1" ) ||
@@ -362,6 +372,7 @@ function is_protein_cation(atom_name, res_name)
     end
     return false
 end
+
 function is_protein_anion(atom_name, res_name)
     if atom_name[1] == 'O'
         if  ( res_name == "GLU" && atom_name == "OE1" ) ||
@@ -373,6 +384,7 @@ function is_protein_anion(atom_name, res_name)
     end
     return false
 end
+
 function is_protein_hb_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
     if  is_protein_hb_acceptor(atom_name_1) &&
         is_protein_hb_donor(atom_name_2, res_name_2)
@@ -383,6 +395,7 @@ function is_protein_hb_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
     end
     return false
 end
+
 function is_protein_sb_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
     if  is_protein_cation(atom_name_1, res_name_1) &&
         is_protein_anion(atom_name_2,  res_name_2)
@@ -393,6 +406,7 @@ function is_protein_sb_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
     end
     return false
 end
+
 function is_protein_nonsb_charge_pair(atom_name_1, res_name_1, atom_name_2, res_name_2)
     if  is_protein_cation(atom_name_1, res_name_1) ||
         is_protein_anion(atom_name_1,  res_name_1) ||
@@ -402,6 +416,7 @@ function is_protein_nonsb_charge_pair(atom_name_1, res_name_1, atom_name_2, res_
     end
     return false
 end
+
 function is_protein_go_contact(resid1, resid2, atom_names, atom_coors)
     for i in resid1.atoms
         atom_name_1 = atom_names[i]
@@ -423,6 +438,7 @@ function is_protein_go_contact(resid1, resid2, atom_names, atom_coors)
     end
     return false
 end
+
 function count_aicg_atomic_contact(resid1, resid2, res_name_1, res_name_2, atom_names, atom_coors)
     contact_count                   = zeros(Int, 17)
     contact_count[AICG_ITYPE_OFFST] = 1
@@ -511,13 +527,13 @@ function count_aicg_atomic_contact(resid1, resid2, res_name_1, res_name_2, atom_
     if AICG_GO_ATOMIC_CUTOFF > AICG_ATOMIC_CUTOFF
         contact_count[AICG_ITYPE_LR_CT] -= num_short_range_contact
     else
-        contact_count[AICG_ITYPE_LR_CT] = 0
+        contact_count[AICG_ITYPE_LR_CT]  = 0
     end
 
     # control the number of salty bridge
-    if contact_count[AICG_ITYPE_SS_SB] >= 2
+    if contact_count[AICG_ITYPE_SS_SB]  >= 2
         contact_count[AICG_ITYPE_SS_QX] += contact_count[AICG_ITYPE_SS_SB] - 1
-        contact_count[AICG_ITYPE_SS_SB] = 1
+        contact_count[AICG_ITYPE_SS_SB]  = 1
     end
 
     return contact_count
@@ -526,6 +542,7 @@ end
 # -----------------
 # 3SPN.2C DNA model
 # -----------------
+
 function get_angle_param(angle_type, base_step)
     # Base-Sugar-Phosphate
     BSP_params = Dict(
@@ -560,7 +577,6 @@ function get_angle_param(angle_type, base_step)
     )
 
     return angle_params[angle_type][base_step]
-
 end
 
 
@@ -599,7 +615,8 @@ end
 #                           \____\___/|_| \_\_____|
 #
 ###############################################################################
-function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
+# core function
+function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp)
 
     aa_num_atom    = 0
     aa_num_residue = 0
@@ -619,6 +636,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     println("> Step $(i_step): open PDB file.")
 
     aa_pdb_lines = []
+
     for line in eachline(pdb_name)
         if startswith(line, "ATOM")
             push!(aa_pdb_lines, rpad(line, 80))
@@ -643,6 +661,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     chain_id      = '?'
     tmp_res_atoms = []
     tmp_chain_res = []
+
     for line in aa_pdb_lines
         if startswith(line, "TER") || startswith(line, "END")
             if length(tmp_res_atoms) > 0
@@ -690,8 +709,10 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
         push!(tmp_res_atoms, i_atom)
 
     end
+
     aa_num_residue = length(aa_residues)
     aa_num_chain = length(aa_chains)
+
     println("          > Number of atoms:    $(aa_num_atom)")
     println("          > Number of residues: $(aa_num_residue)")
     println("          > Number of chains:   $(aa_num_chain)")
@@ -752,6 +773,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
         @printf("          > Chain %3d | %7s \n",
                 i_chain, MOL_TYPE_LIST[ mol_type ])
     end
+
     println("------------------------------------------------------------")
     @printf("          In total: %5d protein chains,\n", num_chain_pro)
     @printf("                    %5d DNA strands,\n", num_chain_DNA)
@@ -769,6 +791,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
 
     i_offset_cg_particle = 0
     i_offset_cg_residue  = 0
+
     for i_chain in 1:aa_num_chain
         chain = aa_chains[i_chain]
         mol_type = cg_chain_mol_types[i_chain]
@@ -855,11 +878,13 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
         i_offset_cg_particle += cg_chain_length[i_chain]
         i_offset_cg_residue  += length(chain.residues)
     end
+
     for i_chain in 1:aa_num_chain
         @printf("          > Chain %3d | # particles: %5d | %5d -- %5d \n",
                 i_chain, cg_chain_length[i_chain],
                 cg_chains[i_chain].first, cg_chains[i_chain].last)
     end
+
     println("------------------------------------------------------------")
     println("          In total: $(cg_num_particles) CG particles.")
 
@@ -912,6 +937,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     # |_|
     #
     # =================================
+
     if num_chain_pro > 0
         i_step += 1
         println("============================================================")
@@ -1039,10 +1065,10 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
             end
 
             for i_res in chain.first : chain.last - 3
-                coor1   = cg_bead_coor[:, i_res]
-                coor2   = cg_bead_coor[:, i_res + 1]
-                coor3   = cg_bead_coor[:, i_res + 2]
-                coor4   = cg_bead_coor[:, i_res + 3]
+                coor1 = cg_bead_coor[:, i_res]
+                coor2 = cg_bead_coor[:, i_res + 1]
+                coor3 = cg_bead_coor[:, i_res + 2]
+                coor4 = cg_bead_coor[:, i_res + 3]
                 dihed = compute_dihedral(coor1, coor2, coor3, coor4)
                 push!(top_cg_pro_dihedrals, i_res)
                 push!(top_cg_pro_aicg14, (i_res, dihed))
@@ -1093,8 +1119,6 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
                 param_cg_pro_e_14[i] *= -AICG_14_GEN
             end
         end
-
-
 
         # -----------------------
         # Go type native contacts
@@ -1213,8 +1237,6 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
         @printf("          > Total number of protein contacts: %12d  \n",
                 length( top_cg_pro_aicg_contact ))
 
-
-
     end
 
 
@@ -1229,6 +1251,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     #     \__,_|_| |_|\__,_|
     #
     # =============================
+
     if num_chain_DNA > 0
         i_step += 1
         println("============================================================")
@@ -1267,100 +1290,101 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
         # ---------------------------------
         #        Step 5.2: 3SPN.2C topology
         # ---------------------------------
-        println("------------------------------------------------------------")
-        println(">      $(i_step).2: 3SPN.2C topology.")
-        println(" - - - - - - - - - - - - - - - - - - - - - - - -")
-        println(">      $(i_step).2.1: 3SPN.2C local interactions.")
-        for i_chain in 1:aa_num_chain
-            chain = cg_chains[i_chain]
+        if gen_3spn_itp
+            println("------------------------------------------------------------")
+            println(">      $(i_step).2: 3SPN.2C topology.")
+            println(" - - - - - - - - - - - - - - - - - - - - - - - -")
+            println(">      $(i_step).2.1: 3SPN.2C local interactions.")
+            for i_chain in 1:aa_num_chain
+                chain = cg_chains[i_chain]
 
-            if chain.moltype != MOL_DNA
-                continue
-            end
+                if chain.moltype != MOL_DNA
+                    continue
+                end
 
-            for i_res in chain.first : chain.last
-                if cg_bead_name[i_res] == "DS"
-                    # bond S--B
-                    coor_s = cg_bead_coor[:, i_res]
-                    coor_b = cg_bead_coor[:, i_res + 1]
-                    r_sb = compute_distance(coor_s, coor_b)
-                    push!(top_cg_DNA_bonds, ( i_res, i_res + 1, r_sb / 10.0 ))
-                    if i_res + 3 < chain.last
-                        # bond S--P+1
-                        coor_p3 = cg_bead_coor[:, i_res + 2]
-                        r_sp3 = compute_distance(coor_s, coor_p3)
-                        push!(top_cg_DNA_bonds, ( i_res, i_res + 2, r_sp3 / 10.0 ))
-                        # Angle S--P+1--S+1
-                        resname5 = cg_resid_name[i_res][end]
-                        resname3 = cg_resid_name[i_res + 3][end]
-                        coor_s3 = cg_bead_coor[:, i_res + 3]
-                        ang_sp3s3 = compute_angle(coor_s, coor_p3, coor_s3)
-                        k = get_angle_param("SPS", resname5 * resname3)
-                        push!(top_cg_DNA_angles, ( i_res, i_res + 2, i_res + 3, ang_sp3s3, k * 2 ))
-                        # Dihedral S--P+1--S+1--B+1
-                        coor_b3 = cg_bead_coor[:, i_res + 4]
-                        dih_sp3s3b3 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_b3)
-                        push!(top_cg_DNA_dih_periodic, ( i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3 -180.0))
-                        # Dihedral S--P+1--S+1--P+2
-                        if i_res + 6 < chain.last
-                            coor_p33 = cg_bead_coor[:, i_res + 5]
-                            dih_sp3s3p33 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_p33)
-                            push!(top_cg_DNA_dih_periodic, ( i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33 - 180.0))
-                            push!(top_cg_DNA_dih_Gaussian, ( i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33 ))
+                for i_res in chain.first : chain.last
+                    if cg_bead_name[i_res] == "DS"
+                        # bond S--B
+                        coor_s = cg_bead_coor[:, i_res]
+                        coor_b = cg_bead_coor[:, i_res + 1]
+                        r_sb = compute_distance(coor_s, coor_b)
+                        push!(top_cg_DNA_bonds, ( i_res, i_res + 1, r_sb / 10.0 ))
+                        if i_res + 3 < chain.last
+                            # bond S--P+1
+                            coor_p3 = cg_bead_coor[:, i_res + 2]
+                            r_sp3 = compute_distance(coor_s, coor_p3)
+                            push!(top_cg_DNA_bonds, ( i_res, i_res + 2, r_sp3 / 10.0 ))
+                            # Angle S--P+1--S+1
+                            resname5 = cg_resid_name[i_res][end]
+                            resname3 = cg_resid_name[i_res + 3][end]
+                            coor_s3 = cg_bead_coor[:, i_res + 3]
+                            ang_sp3s3 = compute_angle(coor_s, coor_p3, coor_s3)
+                            k = get_angle_param("SPS", resname5 * resname3)
+                            push!(top_cg_DNA_angles, ( i_res, i_res + 2, i_res + 3, ang_sp3s3, k * 2 ))
+                            # Dihedral S--P+1--S+1--B+1
+                            coor_b3 = cg_bead_coor[:, i_res + 4]
+                            dih_sp3s3b3 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_b3)
+                            push!(top_cg_DNA_dih_periodic, ( i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3 -180.0))
+                            # Dihedral S--P+1--S+1--P+2
+                            if i_res + 6 < chain.last
+                                coor_p33 = cg_bead_coor[:, i_res + 5]
+                                dih_sp3s3p33 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_p33)
+                                push!(top_cg_DNA_dih_periodic, ( i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33 - 180.0))
+                                push!(top_cg_DNA_dih_Gaussian, ( i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33 ))
+                            end
                         end
+                    elseif cg_bead_name[i_res] == "DP"
+                        # bond P--S
+                        coor_p = cg_bead_coor[:, i_res]
+                        coor_s = cg_bead_coor[:, i_res + 1]
+                        r_ps = compute_distance(coor_p, coor_s)
+                        push!(top_cg_DNA_bonds, ( i_res, i_res + 1, r_ps / 10.0 ))
+                        # angle P--S--B
+                        resname5 = cg_resid_name[i_res - 1][end]
+                        resname3 = cg_resid_name[i_res + 2][end]
+                        coor_b   = cg_bead_coor[:, i_res + 2]
+                        ang_psb  = compute_angle(coor_p, coor_s, coor_b)
+                        k = get_angle_param("PSB", resname5 * resname3)
+                        push!(top_cg_DNA_angles, ( i_res, i_res + 1, i_res + 2, ang_psb, k * 2 ))
+                        if i_res + 4 < chain.last
+                            # angle P--S--P+1
+                            coor_p3  = cg_bead_coor[:, i_res + 3]
+                            ang_psp3 = compute_angle(coor_p, coor_s, coor_p3)
+                            k = get_angle_param("PSP", "all")
+                            push!(top_cg_DNA_angles, ( i_res, i_res + 1, i_res + 3, ang_psp3, k * 2 ))
+                            # Dihedral P--S--P+1--S+1
+                            coor_s3 = cg_bead_coor[:, i_res + 4]
+                            dih_psp3s3 = compute_dihedral(coor_p, coor_s, coor_p3, coor_s3)
+                            push!(top_cg_DNA_dih_periodic, ( i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3 - 180.0))
+                            push!(top_cg_DNA_dih_Gaussian, ( i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3 ))
+                        end
+                    elseif cg_bead_name[i_res] == "DB"
+                        if i_res + 2 < chain.last
+                            # angle B--S--P+1
+                            resname5 = cg_resid_name[i_res][end]
+                            resname3 = cg_resid_name[i_res + 1][end]
+                            coor_b   = cg_bead_coor[:, i_res]
+                            coor_s   = cg_bead_coor[:, i_res - 1]
+                            coor_p3  = cg_bead_coor[:, i_res + 1]
+                            ang_bsp3 = compute_angle(coor_b, coor_s, coor_p3)
+                            k = get_angle_param("BSP", resname5 * resname3)
+                            push!(top_cg_DNA_angles, ( i_res, i_res - 1, i_res + 1, ang_bsp3, k * 2 ))
+                            # Dihedral B--S--P+1--S+1
+                            coor_s3 = cg_bead_coor[:, i_res + 2]
+                            dih_bsp3s3 = compute_dihedral(coor_b, coor_s, coor_p3, coor_s3)
+                            push!(top_cg_DNA_dih_periodic, ( i_res, i_res - 1, i_res + 1, i_res + 2, dih_bsp3s3 - 180.0))
+                        end
+                    else
+                        errmsg = @sprintf("BUG: Wrong DNA particle type in chain %d, residue %d : %s ",
+                                          i_chain,
+                                          i_res,
+                                          res_name)
+                        error(errmsg)
                     end
-                elseif cg_bead_name[i_res] == "DP"
-                    # bond P--S
-                    coor_p = cg_bead_coor[:, i_res]
-                    coor_s = cg_bead_coor[:, i_res + 1]
-                    r_ps = compute_distance(coor_p, coor_s)
-                    push!(top_cg_DNA_bonds, ( i_res, i_res + 1, r_ps / 10.0 ))
-                    # angle P--S--B
-                    resname5 = cg_resid_name[i_res - 1][end]
-                    resname3 = cg_resid_name[i_res + 2][end]
-                    coor_b   = cg_bead_coor[:, i_res + 2]
-                    ang_psb  = compute_angle(coor_p, coor_s, coor_b)
-                    k = get_angle_param("PSB", resname5 * resname3)
-                    push!(top_cg_DNA_angles, ( i_res, i_res + 1, i_res + 2, ang_psb, k * 2 ))
-                    if i_res + 4 < chain.last
-                        # angle P--S--P+1
-                        coor_p3  = cg_bead_coor[:, i_res + 3]
-                        ang_psp3 = compute_angle(coor_p, coor_s, coor_p3)
-                        k = get_angle_param("PSP", "all")
-                        push!(top_cg_DNA_angles, ( i_res, i_res + 1, i_res + 3, ang_psp3, k * 2 ))
-                        # Dihedral P--S--P+1--S+1
-                        coor_s3 = cg_bead_coor[:, i_res + 4]
-                        dih_psp3s3 = compute_dihedral(coor_p, coor_s, coor_p3, coor_s3)
-                        push!(top_cg_DNA_dih_periodic, ( i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3 - 180.0))
-                        push!(top_cg_DNA_dih_Gaussian, ( i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3 ))
-                    end
-                elseif cg_bead_name[i_res] == "DB"
-                    if i_res + 2 < chain.last
-                        # angle B--S--P+1
-                        resname5 = cg_resid_name[i_res][end]
-                        resname3 = cg_resid_name[i_res + 1][end]
-                        coor_b   = cg_bead_coor[:, i_res]
-                        coor_s   = cg_bead_coor[:, i_res - 1]
-                        coor_p3  = cg_bead_coor[:, i_res + 1]
-                        ang_bsp3 = compute_angle(coor_b, coor_s, coor_p3)
-                        k = get_angle_param("BSP", resname5 * resname3)
-                        push!(top_cg_DNA_angles, ( i_res, i_res - 1, i_res + 1, ang_bsp3, k * 2 ))
-                        # Dihedral B--S--P+1--S+1
-                        coor_s3 = cg_bead_coor[:, i_res + 2]
-                        dih_bsp3s3 = compute_dihedral(coor_b, coor_s, coor_p3, coor_s3)
-                        push!(top_cg_DNA_dih_periodic, ( i_res, i_res - 1, i_res + 1, i_res + 2, dih_bsp3s3 - 180.0))
-                    end
-                else
-                    errmsg = @sprintf("BUG: Wrong DNA particle type in chain %d, residue %d : %s ",
-                                      i_chain,
-                                      i_res,
-                                      res_name)
-                    error(errmsg)
                 end
             end
+            println(">           ... Bond, Angle, Dihedral: DONE!")
         end
-        println(">           ... Bond, Angle, Dihedral: DONE!")
-
     end
 
     # =========================================================================
@@ -1371,6 +1395,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     #  \___/ \___/  |_| |_|    \___/  |_|  
     # 
     # =========================================================================
+
     i_step += 1
     println("============================================================")
     println("> Step $(i_step): output .itp and .gro files.")
@@ -1462,81 +1487,87 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     # [ bonds ]
     # ---------
 
-    # AICG2+ bonds
-    write(itp_file, itp_bnd_head)
-    write(itp_file, itp_bnd_comm)
-    for i_bond in 1 : length(top_cg_pro_bonds)
-        printfmt(itp_file,
-                 itp_bnd_line,
-                 top_cg_pro_bonds[i_bond][1],
-                 top_cg_pro_bonds[i_bond][1] + 1,
-                 AICG_BOND_FUNC_TYPE,
-                 top_cg_pro_bonds[i_bond][2] * 0.1,
-                 AICG_BOND_K)
-    end
-    write(itp_file, "\n")
+    if length(top_cg_pro_bonds) + length(top_cg_DNA_bonds) > 0
+        write(itp_file, itp_bnd_head)
+        write(itp_file, itp_bnd_comm)
 
-    # 3SPN.2C bonds
-    write(itp_file, itp_bnd_head)
-    write(itp_file, itp_bnd_comm)
-    for i_bond in 1 : length(top_cg_DNA_bonds)
-        printfmt(itp_file,
-                 itp_bnd_line,
-                 top_cg_DNA_bonds[i_bond][1],
-                 top_cg_DNA_bonds[i_bond][2],
-                 DNA3SPN_BOND_FUNC4_TYPE,
-                 top_cg_DNA_bonds[i_bond][3] * 0.1,
-                 DNA3SPN_BOND_K_2)
+        # AICG2+ bonds
+        for i_bond in 1 : length(top_cg_pro_bonds)
+            printfmt(itp_file,
+                     itp_bnd_line,
+                     top_cg_pro_bonds[i_bond][1],
+                     top_cg_pro_bonds[i_bond][1] + 1,
+                     AICG_BOND_FUNC_TYPE,
+                     top_cg_pro_bonds[i_bond][2] * 0.1,
+                     AICG_BOND_K)
+        end
+
+        # 3SPN.2C bonds
+        for i_bond in 1 : length(top_cg_DNA_bonds)
+            printfmt(itp_file,
+                     itp_bnd_line,
+                     top_cg_DNA_bonds[i_bond][1],
+                     top_cg_DNA_bonds[i_bond][2],
+                     DNA3SPN_BOND_FUNC4_TYPE,
+                     top_cg_DNA_bonds[i_bond][3] * 0.1,
+                     DNA3SPN_BOND_K_2)
+        end
+        write(itp_file, "\n")
     end
-    write(itp_file, "\n")
 
     # ----------
     # [ angles ]
     # ----------
 
     # AICG2+ 1-3
-    write(itp_file, itp_13_head)
-    write(itp_file, itp_13_comm)
-    for i_13 in 1 : length(top_cg_pro_aicg13)
-        printfmt(itp_file,
-                 itp_13_line,
-                 top_cg_pro_aicg13[i_13][1],
-                 top_cg_pro_aicg13[i_13][1] + 1,
-                 top_cg_pro_aicg13[i_13][1] + 2,
-                 AICG_ANG_G_FUNC_TYPE,
-                 top_cg_pro_aicg13[i_13][2] * 0.1,
-                 param_cg_pro_e_13[i_13] * CAL2JOU,
-                 AICG_13_SIGMA)
+    if length(top_cg_pro_aicg13) > 0
+        write(itp_file, itp_13_head)
+        write(itp_file, itp_13_comm)
+        for i_13 in 1 : length(top_cg_pro_aicg13)
+            printfmt(itp_file,
+                     itp_13_line,
+                     top_cg_pro_aicg13[i_13][1],
+                     top_cg_pro_aicg13[i_13][1] + 1,
+                     top_cg_pro_aicg13[i_13][1] + 2,
+                     AICG_ANG_G_FUNC_TYPE,
+                     top_cg_pro_aicg13[i_13][2] * 0.1,
+                     param_cg_pro_e_13[i_13] * CAL2JOU,
+                     AICG_13_SIGMA)
+        end
+        write(itp_file, "\n")
     end
-    write(itp_file, "\n")
 
     # AICG2+ flexible
-    write(itp_file, itp_ang_f_head)
-    write(itp_file, itp_ang_f_comm)
-    for i_ang in 1 : length(top_cg_pro_angles)
-        printfmt(itp_file,
-                 itp_ang_f_line,
-                 top_cg_pro_angles[i_ang],
-                 top_cg_pro_angles[i_ang] + 1,
-                 top_cg_pro_angles[i_ang] + 2,
-                 AICG_ANG_F_FUNC_TYPE)
+    if length(top_cg_pro_angles) > 0
+        write(itp_file, itp_ang_f_head)
+        write(itp_file, itp_ang_f_comm)
+        for i_ang in 1 : length(top_cg_pro_angles)
+            printfmt(itp_file,
+                     itp_ang_f_line,
+                     top_cg_pro_angles[i_ang],
+                     top_cg_pro_angles[i_ang] + 1,
+                     top_cg_pro_angles[i_ang] + 2,
+                     AICG_ANG_F_FUNC_TYPE)
+        end
+        write(itp_file, "\n")
     end
-    write(itp_file, "\n")
 
     # 3SPN.2C angles
-    write(itp_file, itp_ang_head)
-    write(itp_file, itp_ang_comm)
-    for i_ang in 1 : length(top_cg_DNA_angles)
-        printfmt(itp_file,
-                 itp_ang_line,
-                 top_cg_DNA_angles[i_ang][1],
-                 top_cg_DNA_angles[i_ang][2],
-                 top_cg_DNA_angles[i_ang][3],
-                 DNA3SPN_ANG_FUNC_TYPE,
-                 top_cg_DNA_angles[i_ang][4],
-                 top_cg_DNA_angles[i_ang][5])
+    if length(top_cg_DNA_angles) > 0
+        write(itp_file, itp_ang_head)
+        write(itp_file, itp_ang_comm)
+        for i_ang in 1 : length(top_cg_DNA_angles)
+            printfmt(itp_file,
+                     itp_ang_line,
+                     top_cg_DNA_angles[i_ang][1],
+                     top_cg_DNA_angles[i_ang][2],
+                     top_cg_DNA_angles[i_ang][3],
+                     DNA3SPN_ANG_FUNC_TYPE,
+                     top_cg_DNA_angles[i_ang][4],
+                     top_cg_DNA_angles[i_ang][5])
+        end
+        write(itp_file, "\n")
     end
-    write(itp_file, "\n")
 
 
     # -------------
@@ -1544,98 +1575,110 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme)
     # -------------
 
     # AICG2+ Gaussian dihedrals
-    write(itp_file, itp_dih_G_head)
-    write(itp_file, itp_dih_G_comm)
-    for i_dih in 1 : length(top_cg_pro_aicg14)
-        printfmt(itp_file,
-                 itp_dih_G_line,
-                 top_cg_pro_aicg14[i_dih][1],
-                 top_cg_pro_aicg14[i_dih][1] + 1,
-                 top_cg_pro_aicg14[i_dih][1] + 2,
-                 top_cg_pro_aicg14[i_dih][1] + 3,
-                 AICG_DIH_G_FUNC_TYPE,
-                 top_cg_pro_aicg14[i_dih][2],
-                 param_cg_pro_e_14[i_dih] * CAL2JOU,
-                 AICG_14_SIGMA)
+    if length(top_cg_pro_aicg14) > 0
+        write(itp_file, itp_dih_G_head)
+        write(itp_file, itp_dih_G_comm)
+        for i_dih in 1 : length(top_cg_pro_aicg14)
+            printfmt(itp_file,
+                     itp_dih_G_line,
+                     top_cg_pro_aicg14[i_dih][1],
+                     top_cg_pro_aicg14[i_dih][1] + 1,
+                     top_cg_pro_aicg14[i_dih][1] + 2,
+                     top_cg_pro_aicg14[i_dih][1] + 3,
+                     AICG_DIH_G_FUNC_TYPE,
+                     top_cg_pro_aicg14[i_dih][2],
+                     param_cg_pro_e_14[i_dih] * CAL2JOU,
+                     AICG_14_SIGMA)
+        end
+        write(itp_file, "\n")
     end
-    write(itp_file, "\n")
 
     # AICG2+ flexible dihedrals
-    write(itp_file, itp_dih_F_head)
-    write(itp_file, itp_dih_F_comm)
-    for i_dih in 1 : length(top_cg_pro_dihedrals)
-        printfmt(itp_file,
-                 itp_dih_F_line,
-                 top_cg_pro_dihedrals[i_dih],
-                 top_cg_pro_dihedrals[i_dih] + 1,
-                 top_cg_pro_dihedrals[i_dih] + 2,
-                 top_cg_pro_dihedrals[i_dih] + 3,
-                 AICG_DIH_F_FUNC_TYPE)
+    if length(top_cg_pro_dihedrals) > 0
+        write(itp_file, itp_dih_F_head)
+        write(itp_file, itp_dih_F_comm)
+        for i_dih in 1 : length(top_cg_pro_dihedrals)
+            printfmt(itp_file,
+                     itp_dih_F_line,
+                     top_cg_pro_dihedrals[i_dih],
+                     top_cg_pro_dihedrals[i_dih] + 1,
+                     top_cg_pro_dihedrals[i_dih] + 2,
+                     top_cg_pro_dihedrals[i_dih] + 3,
+                     AICG_DIH_F_FUNC_TYPE)
+        end
+        write(itp_file, "\n")
     end
-    write(itp_file, "\n")
 
     # 3SPN.2C Gaussian dihedrals
-    write(itp_file, itp_dih_G_head)
-    write(itp_file, itp_dih_G_comm)
-    for i_dih in 1 : length(top_cg_DNA_dih_Gaussian)
-        printfmt(itp_file,
-                 itp_dih_G_line,
-                 top_cg_DNA_dih_Gaussian[i_dih][1],
-                 top_cg_DNA_dih_Gaussian[i_dih][2],
-                 top_cg_DNA_dih_Gaussian[i_dih][3],
-                 top_cg_DNA_dih_Gaussian[i_dih][4],
-                 DNA3SPN_DIH_G_FUNC_TYPE,
-                 top_cg_DNA_dih_Gaussian[i_dih][5],
-                 DNA3SPN_DIH_G_K,
-                 DNA3SPN_DIH_G_SIGMA)
+    if length(top_cg_DNA_dih_Gaussian) > 0
+        write(itp_file, itp_dih_G_head)
+        write(itp_file, itp_dih_G_comm)
+        for i_dih in 1 : length(top_cg_DNA_dih_Gaussian)
+            printfmt(itp_file,
+                     itp_dih_G_line,
+                     top_cg_DNA_dih_Gaussian[i_dih][1],
+                     top_cg_DNA_dih_Gaussian[i_dih][2],
+                     top_cg_DNA_dih_Gaussian[i_dih][3],
+                     top_cg_DNA_dih_Gaussian[i_dih][4],
+                     DNA3SPN_DIH_G_FUNC_TYPE,
+                     top_cg_DNA_dih_Gaussian[i_dih][5],
+                     DNA3SPN_DIH_G_K,
+                     DNA3SPN_DIH_G_SIGMA)
+        end
+        write(itp_file, "\n")
     end
-    write(itp_file, "\n")
 
     # 3SPN.2C Periodic dihedrals
-    write(itp_file, itp_dih_P_head)
-    write(itp_file, itp_dih_P_comm)
-    for i_dih in 1 : length(top_cg_DNA_dih_periodic)
-        printfmt(itp_file,
-                 itp_dih_P_line,
-                 top_cg_DNA_dih_periodic[i_dih][1],
-                 top_cg_DNA_dih_periodic[i_dih][2],
-                 top_cg_DNA_dih_periodic[i_dih][3],
-                 top_cg_DNA_dih_periodic[i_dih][4],
-                 DNA3SPN_DIH_P_FUNC_TYPE,
-                 top_cg_DNA_dih_periodic[i_dih][5],
-                 DNA3SPN_DIH_P_K,
-                 DNA3SPN_DIH_P_FUNC_PERI)
+    if length(top_cg_DNA_dih_periodic) > 0
+        write(itp_file, itp_dih_P_head)
+        write(itp_file, itp_dih_P_comm)
+        for i_dih in 1 : length(top_cg_DNA_dih_periodic)
+            printfmt(itp_file,
+                     itp_dih_P_line,
+                     top_cg_DNA_dih_periodic[i_dih][1],
+                     top_cg_DNA_dih_periodic[i_dih][2],
+                     top_cg_DNA_dih_periodic[i_dih][3],
+                     top_cg_DNA_dih_periodic[i_dih][4],
+                     DNA3SPN_DIH_P_FUNC_TYPE,
+                     top_cg_DNA_dih_periodic[i_dih][5],
+                     DNA3SPN_DIH_P_K,
+                     DNA3SPN_DIH_P_FUNC_PERI)
+        end
+        write(itp_file, "\n")
     end
-    write(itp_file, "\n")
 
     # ---------
     # [ pairs ]
     # ---------
 
     # write Go-type native contacts
-    write(itp_file, itp_contact_head)
-    write(itp_file, itp_contact_comm)
-    for i_c in 1 : length(top_cg_pro_aicg_contact)
-        printfmt(itp_file,
-                 itp_contact_line,
-                 top_cg_pro_aicg_contact[i_c][1],
-                 top_cg_pro_aicg_contact[i_c][2],
-                 AICG_CONTACT_FUNC_TYPE,
-                 top_cg_pro_aicg_contact[i_c][3] * 0.1,
-                 param_cg_pro_e_contact[i_c] * CAL2JOU)
+    if length(top_cg_pro_aicg_contact) > 0
+        write(itp_file, itp_contact_head)
+        write(itp_file, itp_contact_comm)
+        for i_c in 1 : length(top_cg_pro_aicg_contact)
+            printfmt(itp_file,
+                     itp_contact_line,
+                     top_cg_pro_aicg_contact[i_c][1],
+                     top_cg_pro_aicg_contact[i_c][2],
+                     AICG_CONTACT_FUNC_TYPE,
+                     top_cg_pro_aicg_contact[i_c][3] * 0.1,
+                     param_cg_pro_e_contact[i_c] * CAL2JOU)
+        end
+        write(itp_file, "\n")
     end
-    write(itp_file, "\n")
 
     # write Genesis local-exclusion list
-    write(itp_file, itp_exc_head)
-    write(itp_file, itp_exc_comm)
-    for i_c in 1 : length(top_cg_pro_aicg_contact)
-        printfmt(itp_file,
-                 itp_exc_line,
-                 top_cg_pro_aicg_contact[i_c][1],
-                 top_cg_pro_aicg_contact[i_c][2])
+    if length(top_cg_pro_aicg_contact) > 0
+        write(itp_file, itp_exc_head)
+        write(itp_file, itp_exc_comm)
+        for i_c in 1 : length(top_cg_pro_aicg_contact)
+            printfmt(itp_file,
+                     itp_exc_line,
+                     top_cg_pro_aicg_contact[i_c][1],
+                     top_cg_pro_aicg_contact[i_c][2])
+        end
+        write(itp_file, "\n")
     end
-    write(itp_file, "\n")
 
     close(itp_file)
     println(">           ... .itp: DONE!")
@@ -1702,6 +1745,10 @@ function parse_commandline()
         help = "Scale AICG2+ local interactions: 0) average; 1) general (default)."
         arg_type = Int
         default = 1
+
+        "--3spn-param"
+        help = "Generate 3SPN.2C parameters from x3DNA generated PDB structure."
+        action = :store_true
     end
 
     return parse_args(s)
@@ -1715,7 +1762,7 @@ function main()
 
     args = parse_commandline()
 
-    pdb_2_top(args["pdb"], args["respac"], args["aicg-scale"])
+    pdb_2_top(args["pdb"], args["respac"], args["aicg-scale"], args["3spn-param"])
 
 end
 
