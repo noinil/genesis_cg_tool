@@ -1801,7 +1801,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
     # --------
     # filename
     # --------
-    itp_name = pdb_name[1:end-4] * ".itp"
+    itp_name = pdb_name[1:end-4] * "_cg.itp"
     itp_file = open(itp_name, "w")
 
     # --------------------
@@ -2172,7 +2172,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
     GRO_ATOM_LINE = "{:>5d}{:>5}{:>5}{:>5d} {:>8.4f} {:>8.4f} {:>8.4f} {:>8.4f} {:>8.4f} {:>8.4f} \n"
     GRO_BOX_LINE  = "{:>15.4f}{:>15.4f}{:>15.4f} \n\n"
 
-    gro_name = pdb_name[1:end-4] * ".gro"
+    gro_name = pdb_name[1:end-4] * "_cg.gro"
     gro_file = open(gro_name, "w")
 
     printfmt(gro_file, GRO_HEAD_STR, "CG model for GENESIS ", 0)
