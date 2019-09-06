@@ -245,8 +245,8 @@ const RNA_STACK_DIST_CUTOFF = 6.0
 # RNA stacking interaction epsilon
 const RNA_STACK_EPSILON     = 2.06
 # RNA base pairing epsilon
-const RNA_bpair_epsilon_2hb = 2.94
-const RNA_bpair_epsilon_3hb = 5.37
+const RNA_BPAIR_EPSILON_2HB = 2.94
+const RNA_BPAIR_EPSILON_3HB = 5.37
 
 RNA_BOND_K_LIST = Dict(
     "PS" => 26.5,
@@ -642,10 +642,49 @@ function get_DNA3SPN_angle_param(angle_type, base_step)
     return angle_params[angle_type][base_step]
 end
 
+# -------------------------
+# RNA structure-based model
+# -------------------------
+function is_RNA_hydrogen_bond(atom_name_1, atom_name_2)
+    special_atom_list = ['F', 'O', 'N']
+    if atom_name_1 in special_atom_list && atom_name_2 in special_atom_list
+        return true
+    end
+    return false
+end
 
-###############################################################################
-#                                Core Function                                #
-###############################################################################
+function compute_RNA_Go_contact(resid1, resid2, atom_names, atom_coors)
+    hb_count = 0
+    min_dist = 1e50
+    for i in resid1.atoms
+        atom_name_1 = atom_names[i]
+        if atom_name_1[1] == 'H'
+            continue
+        end
+        coor_1 = atom_coors[:, i]
+        for j in resid2.atoms
+            atom_name_2 = atom_names[j]
+            if atom_name_2[1] == 'H'
+                continue
+            end
+            coor_2 = atom_coors[:, j]
+            dist_12 = compute_distance(coor_1, coor_2)
+            if dist_12 < RNA_GO_ATOMIC_CUTOFF && is_RNA_hydrogen_bond(atom_name_1[1], atom_name_2[1])
+                hb_count += 1
+            end
+            if dist_12 < min_dist
+                min_dist = dist_12
+            end
+        end
+    end
+    return (min_dist, hb_count)
+end
+
+
+# =============================
+# Coarse-Graining Structures!!!
+# =============================
+
 struct AAResidue
     name::String
     atoms::Array{Int64, 1}
@@ -971,27 +1010,30 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
     cg_bead_coor   = zeros(Float64, (3, cg_num_particles))
 
     # protein
-    top_cg_pro_bonds        = []
-    top_cg_pro_angles       = []
-    top_cg_pro_dihedrals    = []
-    top_cg_pro_aicg13       = []
-    top_cg_pro_aicg14       = []
-    top_cg_pro_aicg_contact = []
+    top_cg_pro_bonds         = []
+    top_cg_pro_angles        = []
+    top_cg_pro_dihedrals     = []
+    top_cg_pro_aicg13        = []
+    top_cg_pro_aicg14        = []
+    top_cg_pro_aicg_contact  = []
 
-    param_cg_pro_e_13       = []
-    param_cg_pro_e_14       = []
-    param_cg_pro_e_contact  = []
+    param_cg_pro_e_13        = []
+    param_cg_pro_e_14        = []
+    param_cg_pro_e_contact   = []
 
     # DNA
-    top_cg_DNA_bonds        = []
-    top_cg_DNA_angles       = []
-    top_cg_DNA_dih_Gaussian = []
-    top_cg_DNA_dih_periodic = []
+    top_cg_DNA_bonds         = []
+    top_cg_DNA_angles        = []
+    top_cg_DNA_dih_Gaussian  = []
+    top_cg_DNA_dih_periodic  = []
 
     # RNA
-    top_cg_RNA_bonds        = []
-    top_cg_RNA_angles       = []
-    top_cg_RNA_dihedrals    = []
+    top_cg_RNA_bonds         = []
+    top_cg_RNA_angles        = []
+    top_cg_RNA_dihedrals     = []
+    top_cg_RNA_base_stack    = []
+    top_cg_RNA_base_pair     = []
+    top_cg_RNA_other_contact = []
 
     # =================================
     # Step 4: AICG2+ model for proteins
@@ -1375,12 +1417,12 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                         coor_s = cg_bead_coor[:, i_res]
                         coor_b = cg_bead_coor[:, i_res + 1]
                         r_sb = compute_distance(coor_s, coor_b)
-                        push!(top_cg_DNA_bonds, ( i_res, i_res + 1, r_sb / 10.0 ))
+                        push!(top_cg_DNA_bonds, ( i_res, i_res + 1, r_sb ))
                         if i_res + 3 < chain.last
                             # bond S--P+1
                             coor_p3 = cg_bead_coor[:, i_res + 2]
                             r_sp3 = compute_distance(coor_s, coor_p3)
-                            push!(top_cg_DNA_bonds, ( i_res, i_res + 2, r_sp3 / 10.0 ))
+                            push!(top_cg_DNA_bonds, ( i_res, i_res + 2, r_sp3 ))
                             # Angle S--P+1--S+1
                             resname5 = cg_resid_name[i_res][end]
                             resname3 = cg_resid_name[i_res + 3][end]
@@ -1405,7 +1447,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                         coor_p = cg_bead_coor[:, i_res]
                         coor_s = cg_bead_coor[:, i_res + 1]
                         r_ps = compute_distance(coor_p, coor_s)
-                        push!(top_cg_DNA_bonds, ( i_res, i_res + 1, r_ps / 10.0 ))
+                        push!(top_cg_DNA_bonds, ( i_res, i_res + 1, r_ps ))
                         # angle P--S--B
                         resname5 = cg_resid_name[i_res - 1][end]
                         resname3 = cg_resid_name[i_res + 2][end]
@@ -1553,28 +1595,28 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
             for i_res in chain.first : chain.last
                 if cg_bead_name[i_res] == "RS"
                     # bond S--B
-                    coor_s    = cg_bead_coor[i_res]
-                    coor_b    = cg_bead_coor[i_res + 1]
+                    coor_s    = cg_bead_coor[:, i_res]
+                    coor_b    = cg_bead_coor[:, i_res + 1]
                     r_sb      = compute_distance(coor_s, coor_b)
                     base_type = cg_resid_name[i_res] in ["RA", "RG"] ? "R" : "Y"
                     bond_type = "S" * base_type
                     k         = RNA_BOND_K_LIST[bond_type] * CAL2JOU
-                    push!(top_cg_RNA_bonds, (i_res, i_res + 1, r_sb / 10.0, k * 2 * 100.0))
+                    push!(top_cg_RNA_bonds, (i_res, i_res + 1, r_sb , k * 2 * 100.0))
                     # bond S--P+1
                     if i_res + 2 < chain.last
-                        coor_p3 = cg_bead_coor[i_res + 2]
+                        coor_p3 = cg_bead_coor[:, i_res + 2]
                         r_sp3   = compute_distance(coor_s, coor_p3)
                         k       = RNA_BOND_K_LIST["SP"] * CAL2JOU
-                        push!(top_cg_RNA_bonds, (i_res, i_res + 2, r_sp3 / 10.0, k * 2 * 100.0))
+                        push!(top_cg_RNA_bonds, (i_res, i_res + 2, r_sp3 , k * 2 * 100.0))
                     end
-                    if i_rna + 4 <= chain.last
+                    if i_res + 4 <= chain.last
                         # Angle S--P+1--S+1
-                        coor_s3   = cg_bead_coor[i_res + 3]
+                        coor_s3   = cg_bead_coor[:, i_res + 3]
                         ang_sp3s3 = compute_angle(coor_s, coor_p3, coor_s3)
                         k         = RNA_ANGLE_K_LIST["SPS"] * CAL2JOU
                         push!(top_cg_RNA_angles, (i_res, i_res + 2, i_res + 3, ang_sp3s3, k * 2))
                         # Dihedral S--P+1--S+1--B+1
-                        coor_b3     = cg_bead_coor[i_res + 4]
+                        coor_b3     = cg_bead_coor[:, i_res + 4]
                         dih_sp3s3b3 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_b3)
                         base_type = cg_resid_name[i_res + 4] in ["RA", "RG"] ? "R" : "Y"
                         dihe_type   = "SPS" * base_type
@@ -1582,21 +1624,21 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                         push!(top_cg_RNA_dihedrals, (i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3, k))
                     end
                     # Dihedral S--P+1--S+1--P+2
-                    if i_rna + 5 < chain.last
-                        coor_p33     = cg_bead_coor[i_res + 5]
+                    if i_res + 5 < chain.last
+                        coor_p33     = cg_bead_coor[:, i_res + 5]
                         dih_sp3s3p33 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_p33)
                         k            = RNA_DIHEDRAL_K_LIST["SPSP"] * CAL2JOU
                         push!(top_cg_RNA_dihedrals, (i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33, k))
                     end
                 elseif cg_bead_name[i_res] == "RP"
                     # bond P--S
-                    coor_p = cg_bead_coor[i_res]
-                    coor_s = cg_bead_coor[i_res + 1]
+                    coor_p = cg_bead_coor[:, i_res]
+                    coor_s = cg_bead_coor[:, i_res + 1]
                     r_ps   = compute_distance(coor_p, coor_s)
                     k      = RNA_BOND_K_LIST["PS"] * CAL2JOU
-                    push!(top_cg_RNA_bonds, (i_res, i_res + 1, r_ps / 10.0, k * 2 * 100.0))
+                    push!(top_cg_RNA_bonds, (i_res, i_res + 1, r_ps , k * 2 * 100.0))
                     # angle P--S--B
-                    coor_b    = cg_bead_coor[i_res + 2]
+                    coor_b    = cg_bead_coor[:, i_res + 2]
                     ang_psb   = compute_angle(coor_p, coor_s, coor_b)
                     base_type = cg_resid_name[i_res + 2] in ["RA", "RG"] ? "R" : "Y"
                     angl_type = "PS" * base_type
@@ -1604,12 +1646,12 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                     push!(top_cg_RNA_angles, (i_res, i_res + 1, i_res + 2, ang_psb, k * 2))
                     if i_res + 4 < chain.last
                         # angle P--S--P+1
-                        coor_p3  = cg_bead_coor[i_res + 3]
+                        coor_p3  = cg_bead_coor[:, i_res + 3]
                         ang_psp3 = compute_angle(coor_p, coor_s, coor_p3)
                         k        = RNA_ANGLE_K_LIST["PSP"] * CAL2JOU
                         push!(top_cg_RNA_angles, (i_res, i_res + 1, i_res + 3, ang_psp3, k * 2))
                         # Dihedral P--S--P+1--S+1
-                        coor_s3    = cg_bead_coor[i_res + 4]
+                        coor_s3    = cg_bead_coor[:, i_res + 4]
                         dih_psp3s3 = compute_dihedral(coor_p, coor_s, coor_p3, coor_s3)
                         k          = RNA_DIHEDRAL_K_LIST["PSPS"] * CAL2JOU
                         push!(top_cg_RNA_dihedrals, (i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3, k))
@@ -1620,13 +1662,75 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
             end
         end
 
- 
         # -----------------------
         # Go type native contacts
         # -----------------------
         println(" - - - - - - - - - - - - - - - - - - - - - - - -")
         println(">      $(i_step).2.2: RNA Go-type native contacts.")
+        for i_chain in 1:aa_num_chain
+            chain = cg_chains[i_chain]
+
+            if chain.moltype != MOL_RNA
+                continue
+            end
+
+            for i_res in chain.first : chain.last - 3
+
+                if cg_bead_name[i_res] == "RP"
+                    continue
+                end
+
+                coor_i = cg_bead_coor[:, i_res]
+
+                for j_res in i_res + 3 : chain.last
+
+                    if cg_bead_name[j_res] == "RP"
+                        continue
+                    end
+
+                    if cg_bead_name[i_res] == "RS" || cg_bead_name[j_res] == "RS"
+                        if j_res < i_res + 6
+                            continue
+                        end
+                    end
+
+                    coor_j = cg_bead_coor[:, j_res]
+                    native_dist = compute_distance(coor_i, coor_j)
+                    adist, nhb  = compute_RNA_Go_contact(cg_residues[i_res],
+                                                         cg_residues[j_res],
+                                                         aa_atom_name,
+                                                         aa_coor)
+
+                    if adist > RNA_GO_ATOMIC_CUTOFF
+                        continue
+                    end
+                    
+                    if j_res == i_res + 3 && cg_bead_name[i_res] == "RB"
+                        coor_i_sug = cg_bead_coor[:, i_res - 1]
+                        coor_j_sug = cg_bead_coor[:, j_res - 1]
+                        st_dih = compute_dihedral(coor_i, coor_i_sug, coor_j_sug, coor_j)
+                        if abs( st_dih ) < RNA_STACK_DIH_CUTOFF && adist < RNA_STACK_DIST_CUTOFF
+                            push!(top_cg_RNA_base_stack, (i_res, j_res, native_dist, RNA_STACK_EPSILON))
+                        else
+                            push!(top_cg_RNA_other_contact, (i_res, j_res, native_dist, RNA_PAIR_EPSILON_OTHER["BB"]))
+                        end
+                    elseif cg_bead_name[i_res] == "RB" && cg_bead_name[j_res] == "RB"
+                        if nhb == 2
+                            push!(top_cg_RNA_base_pair, (i_res, j_res, native_dist, RNA_BPAIR_EPSILON_2HB))
+                        elseif nhb >= 3
+                            push!(top_cg_RNA_base_pair, (i_res, j_res, native_dist, RNA_BPAIR_EPSILON_3HB))
+                        else
+                            push!(top_cg_RNA_other_contact, (i_res, j_res, native_dist, RNA_PAIR_EPSILON_OTHER["BB"]))
+                        end
+                    else
+                        contact_type = cg_bead_name[i_res][end] * cg_bead_name[j_res][end]
+                        push!(top_cg_RNA_other_contact, (i_res, j_res, native_dist, RNA_PAIR_EPSILON_OTHER[contact_type]))
+                    end
+                end
+            end
+        end
  
+        println(">           ... DONE!")
 
     end
 
@@ -1734,7 +1838,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
     # [ bonds ]
     # ---------
 
-    if length(top_cg_pro_bonds) + length(top_cg_DNA_bonds) > 0
+    if length(top_cg_pro_bonds) + length(top_cg_DNA_bonds) + length(top_cg_RNA_bonds) > 0
         write(itp_file, itp_bnd_head)
         write(itp_file, itp_bnd_comm)
 
@@ -1759,7 +1863,19 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                      top_cg_DNA_bonds[i_bond][3] * 0.1,
                      DNA3SPN_BOND_K_2)
         end
+
+        # Structure-based RNA bonds
+        for i_bond in 1 : length(top_cg_RNA_bonds)
+            printfmt(itp_file,
+                     itp_bnd_line,
+                     top_cg_RNA_bonds[i_bond][1],
+                     top_cg_RNA_bonds[i_bond][2],
+                     RNA_BOND_FUNC_TYPE,
+                     top_cg_RNA_bonds[i_bond][3] * 0.1,
+                     top_cg_RNA_bonds[i_bond][4])
+        end
         write(itp_file, "\n")
+
     end
 
     # ----------
@@ -1812,6 +1928,23 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                      DNA3SPN_ANG_FUNC_TYPE,
                      top_cg_DNA_angles[i_ang][4],
                      top_cg_DNA_angles[i_ang][5])
+        end
+        write(itp_file, "\n")
+    end
+
+    # RNA structure-based angles
+    if length(top_cg_RNA_angles) > 0
+        write(itp_file, itp_ang_head)
+        write(itp_file, itp_ang_comm)
+        for i_ang in 1 : length(top_cg_RNA_angles)
+            printfmt(itp_file,
+                     itp_ang_line,
+                     top_cg_RNA_angles[i_ang][1],
+                     top_cg_RNA_angles[i_ang][2],
+                     top_cg_RNA_angles[i_ang][3],
+                     RNA_ANG_FUNC_TYPE,
+                     top_cg_RNA_angles[i_ang][4],
+                     top_cg_RNA_angles[i_ang][5])
         end
         write(itp_file, "\n")
     end
@@ -1894,11 +2027,43 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
         write(itp_file, "\n")
     end
 
+    # RNA structure-based Periodic dihedrals
+    if length(top_cg_RNA_dihedrals) > 0
+        write(itp_file, itp_dih_P_head)
+        write(itp_file, itp_dih_P_comm)
+        for i_dih in 1 : length(top_cg_RNA_dihedrals)
+            printfmt(itp_file,
+                     itp_dih_P_line,
+                     top_cg_RNA_dihedrals[i_dih][1],
+                     top_cg_RNA_dihedrals[i_dih][2],
+                     top_cg_RNA_dihedrals[i_dih][3],
+                     top_cg_RNA_dihedrals[i_dih][4],
+                     RNA_DIH_FUNC_TYPE,
+                     top_cg_RNA_dihedrals[i_dih][5] - 180,
+                     top_cg_RNA_dihedrals[i_dih][6],
+                     1)
+        end
+        for i_dih in 1 : length(top_cg_RNA_dihedrals)
+            printfmt(itp_file,
+                     itp_dih_P_line,
+                     top_cg_RNA_dihedrals[i_dih][1],
+                     top_cg_RNA_dihedrals[i_dih][2],
+                     top_cg_RNA_dihedrals[i_dih][3],
+                     top_cg_RNA_dihedrals[i_dih][4],
+                     RNA_DIH_FUNC_TYPE,
+                     3 * top_cg_RNA_dihedrals[i_dih][5] - 180,
+                     top_cg_RNA_dihedrals[i_dih][6] / 2,
+                     3)
+        end
+        write(itp_file, "\n")
+    end
+
+
     # ---------
     # [ pairs ]
     # ---------
 
-    # write Go-type native contacts
+    # write protein Go-type native contacts
     if length(top_cg_pro_aicg_contact) > 0
         write(itp_file, itp_contact_head)
         write(itp_file, itp_contact_comm)
@@ -1914,7 +2079,46 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
         write(itp_file, "\n")
     end
 
-    # write Genesis local-exclusion list
+    # write RNA Go-type native contacts
+    if length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) > 0
+        write(itp_file, itp_contact_head)
+        write(itp_file, itp_contact_comm)
+        for i_c in 1 : length(top_cg_RNA_base_stack)
+            printfmt(itp_file,
+                     itp_contact_line,
+                     top_cg_RNA_base_stack[i_c][1],
+                     top_cg_RNA_base_stack[i_c][2],
+                     RNA_CONTACT_FUNC_TYPE,
+                     top_cg_RNA_base_stack[i_c][3] * 0.1,
+                     top_cg_RNA_base_stack[i_c][4] * CAL2JOU)
+        end
+        for i_c in 1 : length(top_cg_RNA_base_pair)
+            printfmt(itp_file,
+                     itp_contact_line,
+                     top_cg_RNA_base_pair[i_c][1],
+                     top_cg_RNA_base_pair[i_c][2],
+                     RNA_CONTACT_FUNC_TYPE,
+                     top_cg_RNA_base_pair[i_c][3] * 0.1,
+                     top_cg_RNA_base_pair[i_c][4] * CAL2JOU)
+        end
+        for i_c in 1 : length(top_cg_RNA_other_contact)
+            printfmt(itp_file,
+                     itp_contact_line,
+                     top_cg_RNA_other_contact[i_c][1],
+                     top_cg_RNA_other_contact[i_c][2],
+                     RNA_CONTACT_FUNC_TYPE,
+                     top_cg_RNA_other_contact[i_c][3] * 0.1,
+                     top_cg_RNA_other_contact[i_c][4] * CAL2JOU)
+        end
+        write(itp_file, "\n")
+    end
+
+
+    # --------------
+    # [ exclusions ]
+    # --------------
+
+    # write Protein local-exclusion list
     if length(top_cg_pro_aicg_contact) > 0
         write(itp_file, itp_exc_head)
         write(itp_file, itp_exc_comm)
@@ -1926,6 +2130,33 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
         end
         write(itp_file, "\n")
     end
+
+    # write RNA local-exclusion list
+    if length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) > 0
+        write(itp_file, itp_exc_head)
+        write(itp_file, itp_exc_comm)
+        for i_c in 1 : length(top_cg_RNA_base_stack)
+            printfmt(itp_file,
+                     itp_exc_line,
+                     top_cg_RNA_base_stack[i_c][1],
+                     top_cg_RNA_base_stack[i_c][2])
+        end
+        for i_c in 1 : length(top_cg_RNA_base_pair)
+            printfmt(itp_file,
+                     itp_exc_line,
+                     top_cg_RNA_base_pair[i_c][1],
+                     top_cg_RNA_base_pair[i_c][2])
+        end
+        for i_c in 1 : length(top_cg_RNA_other_contact)
+            printfmt(itp_file,
+                     itp_exc_line,
+                     top_cg_RNA_other_contact[i_c][1],
+                     top_cg_RNA_other_contact[i_c][2])
+        end
+        write(itp_file, "\n")
+    end
+
+
 
     close(itp_file)
     println(">           ... .itp: DONE!")
