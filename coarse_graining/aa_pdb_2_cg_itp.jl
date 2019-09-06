@@ -1404,7 +1404,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
             println(">      $(i_step).2: 3SPN.2C topology.")
             println(" - - - - - - - - - - - - - - - - - - - - - - - -")
             println(">      $(i_step).2.1: 3SPN.2C local interactions.")
-            for i_chain in 1:aa_num_chain
+            @showprogress 1 "        Calculating intra-molecular contacts..."   for i_chain in 1:aa_num_chain
                 chain = cg_chains[i_chain]
 
                 if chain.moltype != MOL_DNA
@@ -1592,7 +1592,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                 continue
             end
 
-            for i_res in chain.first : chain.last
+            @showprogress 1 "        Calculating intra-molecular contacts..."   for i_res in chain.first : chain.last
                 if cg_bead_name[i_res] == "RS"
                     # bond S--B
                     coor_s    = cg_bead_coor[:, i_res]
@@ -1667,7 +1667,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
         # -----------------------
         println(" - - - - - - - - - - - - - - - - - - - - - - - -")
         println(">      $(i_step).2.2: RNA Go-type native contacts.")
-        for i_chain in 1:aa_num_chain
+        @showprogress 1 "        Calculating intra-molecular contacts..." for i_chain in 1:aa_num_chain
             chain = cg_chains[i_chain]
 
             if chain.moltype != MOL_RNA
