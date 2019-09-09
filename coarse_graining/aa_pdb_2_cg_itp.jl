@@ -273,6 +273,12 @@ RNA_PAIR_EPSILON_OTHER = Dict(
     "BB" => 0.93
 )
 
+# =================
+# PWMcos parameters
+# =================
+# PWMcos atomistic contact cutoff
+const PWMCOS_ATOMIC_CUTOFF    = 4.0
+
 
 # ====================
 # GRO TOP File Options
@@ -349,6 +355,12 @@ function compute_angle(coor1, coor2, coor3)
     n1 = norm(v1)
     n2 = norm(v2)
     return acos( dot(v1, v2) / n1 / n2) / pi * 180.0
+end
+
+function compute_vec_angle(vec1, vec2)
+    n1 = norm(vec1)
+    n2 = norm(vec2)
+    return acos( dot(vec1, vec2) / n1 / n2) / pi * 180.0
 end
 
 # --------
@@ -680,6 +692,67 @@ function compute_RNA_Go_contact(resid1, resid2, atom_names, atom_coors)
     return (min_dist, hb_count)
 end
 
+# ------------------------
+# protein-DNA interactions
+# ------------------------
+
+function is_PWMcos_contact(resid1, resid2, atom_names, atom_coors)
+    for i in resid1.atoms
+        atom_name_1 = atom_names[i]
+        if atom_name_1[1] == 'H'
+            continue
+        end
+        coor_1 = atom_coors[:, i]
+        for j in resid2.atoms
+            atom_name_2 = atom_names[j]
+            if atom_name_2[1] == 'H'
+                continue
+            end
+            coor_2  = atom_coors[:, j]
+            dist_12 = compute_distance(coor_1, coor_2)
+            if dist_12 < PWMCOS_ATOMIC_CUTOFF
+                return true
+            end
+        end
+    end
+    return false
+end
+
+# ------------------
+# Other file formats
+# ------------------
+
+function read_modified_pfm(pfm_filename)
+    pfm = Dict()
+    for line in eachline(pfm_filename)
+        words = split(line)
+        if length(words) < 1
+            continue
+        end
+        w1 = words[1]
+        if occursin(w1, "ACGT")
+            local_list = []
+            for p in words[2:end]
+                push!( local_list, parse(Float64, p) )
+            end
+            pfm[w1] = local_list
+        elseif in(w1, ["CHAIN_A", "CHAIN_B"])
+            local_list = []
+            for dna_id in words[2:end]
+                push!( local_list, parse(Int, dna_id) )
+            end
+            pfm[w1] = local_list
+        end
+    end
+
+    pfmat = [pfm["A"]  pfm["C"]  pfm["G"]  pfm["T"]]
+    ppmat = pfmat ./ sum(pfmat, dims=2)
+    pwmat0 = -log.(ppmat)
+    pwmat = pwmat0 .- sum(pwmat0, dims=2) ./ 4
+
+    return (pwmat, pfm["CHAIN_A"], pfm["CHAIN_B"])
+end
+
 
 # =============================
 # Coarse-Graining Structures!!!
@@ -717,7 +790,7 @@ end
 #
 ###############################################################################
 # core function
-function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp)
+function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp, gen_pwmcos_itp, pfm_filename)
 
     aa_num_atom    = 0
     aa_num_residue = 0
@@ -1735,6 +1808,89 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
     end
 
 
+    if gen_pwmcos_itp
+        pwmcos_native_contacts = []
+
+        if num_chain_pro == 0
+            error("Cannot generate PWMcos parameters without protein...")
+        end
+        if num_chain_DNA != 2
+            error("Cannot generate PWMcos parameters from more or less than two DNA chains...")
+        end
+
+        i_step += 1
+        println("============================================================")
+        println("> Step $(i_step): Generating PWMcos parameters.")
+
+        # ----------------------------------
+        #        Step 7.1: determine P, S, B
+        # ----------------------------------
+        println("------------------------------------------------------------")
+        println(">      $(i_step).1: determine contacts between protein and DNA.")
+
+        i_count_DNA = 0
+        for i_chain in 1:aa_num_chain
+            chain_pro = cg_chains[i_chain]
+
+            if chain_pro.moltype != MOL_PROTEIN
+                continue
+            end
+
+            for j_chain in 1:aa_num_chain
+                chain_DNA = cg_chains[j_chain]
+
+                if chain_DNA.moltype != MOL_DNA
+                    continue
+                end
+
+                i_count_DNA += 1
+                for i_res in chain_pro.first : chain_pro.last
+                    i_res_N = i_res == chain_pro.first ? i_res : i_res - 1
+                    i_res_C = i_res == chain_pro.last  ? i_res : i_res + 1
+                    coor_pro_i = cg_bead_coor[:, i_res]
+                    coor_pro_N = cg_bead_coor[:, i_res_N]
+                    coor_pro_C = cg_bead_coor[:, i_res_C]
+                    for j_res in chain_DNA.first + 3 : chain_DNA.last - 3
+                        if cg_bead_name[j_res] != "DB"
+                            continue
+                        end
+                        if !is_PWMcos_contact(cg_residues[i_res], cg_residues[j_res], aa_atom_name, aa_coor)
+                            continue
+                        end
+
+                        j_res_5, j_res_3 = j_res - 3, j_res + 3
+                        coor_dna_j = cg_bead_coor[:, j_res]
+                        coor_dna_5 = cg_bead_coor[:, j_res_5]
+                        coor_dna_3 = cg_bead_coor[:, j_res_3]
+                        coor_dna_S = cg_bead_coor[:, j_res - 1]
+
+                        vec0 = coor_pro_i - coor_dna_j
+                        vec1 = coor_dna_S - coor_dna_j
+                        vec2 = coor_dna_3 - coor_dna_5
+                        vec3 = coor_pro_N - coor_pro_C
+                        r0 = norm(vec0)
+                        theta1 = compute_vec_angle(vec0, vec1)
+                        theta2 = compute_vec_angle(vec0, vec2)
+                        theta3 = compute_vec_angle(vec0, vec3)
+
+                        push!(pwmcos_native_contacts, (i_res, j_res, r0, theta1, theta2, theta3))
+                    end
+                end
+            end
+        end
+
+        # ------------------------------------------------
+        #        Step 7.2: Read in PFM and convert to PWM
+        # ------------------------------------------------
+        println("------------------------------------------------------------")
+        println(">      $(i_step).2: read in position frequency matrix (PFM).")
+
+        pwmcos_pwm, pwmcos_chain_a, pwmcos_chain_b = read_modified_pfm(pfm_filename)
+
+
+    end
+
+
 
 
 
@@ -2227,6 +2383,15 @@ function parse_commandline()
         "--3spn-param"
         help = "Generate 3SPN.2C parameters from x3DNA generated PDB structure."
         action = :store_true
+
+        "--pwmcos"
+        help = "Generate parameters for protein-DNA sequence-specific interactions."
+        action = :store_true
+
+        "--pfm", "-p"
+        help = "Position frequency matrix file for protein-DNA sequence-specific interactions."
+        arg_type = String
+        default = ""
     end
 
     return parse_args(s)
@@ -2240,8 +2405,7 @@ function main()
 
     args = parse_commandline()
 
-    pdb_2_top(args["pdb"], args["respac"], args["aicg-scale"], args["3spn-param"])
-
+    pdb_2_top(args["pdb"], args["respac"], args["aicg-scale"], args["3spn-param"], args["pwmcos"], args["pfm"])
 end
 
 main()
