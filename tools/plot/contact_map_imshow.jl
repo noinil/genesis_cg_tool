@@ -83,7 +83,7 @@ function plot_contact_map(itp_filename, do_dist_matrix, cmap_name, do_debug)
     # -----------
     # Plotting...
     # -----------
-    fig, ax = plt.subplots(figsize=(12, 12))
+    fig, ax = plt.subplots(figsize=(16, 16))
     if do_dist_matrix
         ax.imshow(contact_matrix, cmap=cmap_name, vmin=r_min, vmax=r_max, aspect="equal", origin="lower")
     else
