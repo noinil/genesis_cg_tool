@@ -1982,10 +1982,12 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
     # =========================================================================
 
     if gen_pwmcos_itp
+        do_output_top    = false
         do_output_itp    = false
         do_output_gro    = false
         do_output_pwmcos = true
     else
+        do_output_top    = true
         do_output_itp    = true
         do_output_gro    = true
         do_output_pwmcos = false
@@ -1994,6 +1996,48 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
     i_step += 1
     println("============================================================")
     println("> Step $(i_step): output .itp and .gro files.")
+
+    # -------------------------------------------------------------------
+    #        top ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # -------------------------------------------------------------------
+    if do_output_top
+        # ---------------
+        #        filename
+        # ---------------
+        top_name = pdb_name[1:end-4] * "_cg.top"
+        top_file = open(top_name, "w")
+
+        itp_name = pdb_name[1:end-4] * "_cg.itp"
+        itp_system_name = pdb_name[1:end-4]
+
+        write(top_file, "; atom types for coarse-grained models\n")
+        write(top_file, "#include \"./lib/atom_types.itp\" \n")
+        if num_chain_pro > 0
+            write(top_file, "; AICG2+ flexible local angle parameters \n")
+            write(top_file, "#include \"./lib/flexible_local_angle.itp\" \n")
+            write(top_file, "; AICG2+ flexible local dihedral parameters \n")
+            write(top_file, "#include \"./lib/flexible_local_dihedral.itp\" \n")
+        end
+        write(top_file, "\n")
+
+        write(top_file, "; Molecule topology \n")
+        @printf(top_file, "#include \"./top/%s.itp\" \n\n", itp_name)
+
+        write(top_file, "[ system ] \n")
+        @printf(top_file, "%s \n\n", itp_system_name)
+
+        write(top_file, "[ molecules ] \n")
+        @printf(top_file, "%s  1 \n\n", itp_system_name)
+
+        write(top_file, "; [ cg_ele_mol_pairs ] \n")
+        @printf(top_file, "; ON 1 - 2 : 3 - 4 \n")
+        @printf(top_file, "; OFF 1 - 1 : 3 - 3 \n\n")
+
+        write(top_file, "; [ pwmcos_mol_pairs ] \n")
+        @printf(top_file, "; ON 1 - 2 : 3 - 4 \n")
+        @printf(top_file, "; OFF 1 - 1 : 3 - 3 \n\n")
+    end
+
 
     # -------------------------------------------------------------------
     #        itp ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
