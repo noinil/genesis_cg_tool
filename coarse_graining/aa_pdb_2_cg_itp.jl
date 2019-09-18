@@ -2021,7 +2021,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
         write(top_file, "\n")
 
         write(top_file, "; Molecule topology \n")
-        @printf(top_file, "#include \"./top/%s.itp\" \n\n", itp_name)
+        @printf(top_file, "#include \"./top/%s\" \n\n", itp_name)
 
         write(top_file, "[ system ] \n")
         @printf(top_file, "%s \n\n", itp_system_name)
