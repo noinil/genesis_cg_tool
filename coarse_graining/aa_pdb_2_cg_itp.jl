@@ -792,7 +792,7 @@ end
 #
 ###############################################################################
 # core function
-function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp, gen_pwmcos_itp, pfm_filename, appendto_filename, do_debug)
+function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp, gen_pwmcos_itp, pfm_filename, appendto_filename, do_output_psf, do_debug)
 
     aa_num_atom    = 0
     aa_num_residue = 0
@@ -1083,6 +1083,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
     cg_bead_charge = zeros(Float64, cg_num_particles)
     cg_bead_mass   = zeros(Float64, cg_num_particles)
     cg_bead_coor   = zeros(Float64, (3, cg_num_particles))
+    cg_chain_id    = zeros(Int, cg_num_particles)
 
     # protein
     top_cg_pro_bonds         = []
@@ -1154,6 +1155,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                         cg_bead_charge[i_res]  = RES_CHARGE_DICT[res_name]
                         cg_bead_mass[i_res]    = RES_MASS_DICT[res_name]
                         cg_bead_coor[:, i_res] = aa_coor[:, i_atom]
+                        cg_chain_id[i_res]     = i_chain
                         break
                     end
                 end
@@ -1469,6 +1471,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                 cg_bead_charge[i_res]  = RES_CHARGE_DICT[bead_type]
                 cg_bead_mass[i_res]    = RES_MASS_DICT[bead_type]
                 cg_bead_coor[:, i_res] = bead_coor[:]
+                cg_chain_id[i_res]     = i_chain
             end
         end
 
@@ -1615,6 +1618,7 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
                 cg_bead_type[i_res]    = bead_type
                 cg_bead_charge[i_res]  = RES_CHARGE_DICT[bead_type]
                 cg_bead_mass[i_res]    = RES_MASS_DICT[bead_type]
+                cg_chain_id[i_res]     = i_chain
                 if bead_name == "RP"
                     for i_atom in cg_residues[i_res].atoms
                         if aa_atom_name[i_atom][1] == 'P'
@@ -2486,6 +2490,9 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
     end
 
 
+    # ------------------------------------------------------------
+    # PWMcos ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # ------------------------------------------------------------
     if do_output_pwmcos
         itp_pwmcos_head = "[ pwmcos ]\n"
         itp_pwmcos_comm     = format(";{:>5}{:>4}{:>9}{:>9}{:>9}{:>9}{:>12}{:>12}{:>12}{:>12}{:>8}{:>8}\n",
@@ -2527,6 +2534,44 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
         println(">           ... ", itp_pwmcos_name, " pwmcos.itp: DONE!")
     end
 
+    # ------------------------------------------------------------
+    # psf ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # ------------------------------------------------------------
+    if do_output_psf
+        psf_head_str = "PSF CMAP \n\n"
+        psf_title_str0 = "      3 !NTITLE \n"
+        psf_title_str1 = "REMARKS PSF file created with Julia. \n"
+        psf_title_str2 = "REMARKS System: {1}  \n"
+        psf_title_str5 = "REMARKS ======================================== \n"
+        psf_title_str6 = "       \n"
+        psf_title_str = psf_title_str0 * psf_title_str1 * psf_title_str2 * psf_title_str5 * psf_title_str6
+        psf_atom_title = " {:>6d} !NATOM \n"
+        # PSF_ATOM_LINE = " {atom_ser} {seg_id} {res_ser} {res_name} {atom_name} {atom_type}  {charge}  {mass}   0"
+        psf_atom_line = " {:>6d} {:>3} {:>5d} {:>3} {:>3} {:>5}  {:>10.6f}  {:>10.6f}          0 \n"
+        chain_id_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+
+        psf_name = pdb_name[1:end-4] * "_cg.psf"
+        psf_file = open(psf_name, "w")
+        write(psf_file, psf_head_str)
+        printfmt(psf_file, psf_title_str, pdb_name[1:end-4])
+        printfmt(psf_file, psf_atom_title, cg_num_particles)
+        for i_bead in 1 : cg_num_particles
+            printfmt(psf_file,
+                     psf_atom_line,
+                     i_bead,
+                     chain_id_set[cg_chain_id[i_bead]],
+                     cg_resid_index[i_bead],
+                     cg_resid_name[i_bead],
+                     cg_bead_name[i_bead],
+                     cg_bead_type[i_bead],
+                     cg_bead_charge[i_bead],
+                     cg_bead_mass[i_bead])
+        end
+        write(psf_file,"\n")
+
+        close(psf_file)
+        println(">           ... ", psf_name, ": DONE!")
+    end
 
     println("------------------------------------------------------------")
     println("------------------------------------------------------------")
@@ -2566,6 +2611,10 @@ function parse_commandline()
         help = "Generate parameters for protein-DNA sequence-specific interactions."
         action = :store_true
 
+        "--psf"
+        help = "Prepare psf file."
+        action = :store_true
+
         "--pfm", "-p"
         help = "Position frequency matrix file for protein-DNA sequence-specific interactions."
         arg_type = String
@@ -2599,6 +2648,7 @@ function main()
               args["pwmcos"],
               args["pfm"],
               args["patch"],
+              args["psf"],
               args["debug"])
 end
 
