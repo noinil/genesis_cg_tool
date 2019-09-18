@@ -792,7 +792,25 @@ end
 #
 ###############################################################################
 # core function
-function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp, gen_pwmcos_itp, pfm_filename, appendto_filename, do_output_psf, do_debug)
+function pdb_2_top(args)
+
+    # -----------------
+    # Parsing arguments
+    # -----------------
+    pdb_name                = args["pdb"]
+    protein_charge_filename = args["respac"]
+    scale_scheme            = args["aicg-scale"]
+    gen_3spn_itp            = args["3spn-param"]
+    gen_pwmcos_itp          = args["pwmcos"]
+    pfm_filename            = args["pfm"]
+    appendto_filename       = args["patch"]
+    do_output_psf           = args["psf"]
+    do_output_cgpdb         = args["cgpdb"]
+    do_debug                = args["debug"]
+
+    # ===============
+    # Step 0: numbers
+    # ===============
 
     aa_num_atom    = 0
     aa_num_residue = 0
@@ -2570,7 +2588,40 @@ function pdb_2_top(pdb_name, protein_charge_filename, scale_scheme, gen_3spn_itp
         write(psf_file,"\n")
 
         close(psf_file)
-        println(">           ... ", psf_name, ": DONE!")
+        println(">           ... .psf: DONE!")
+    end
+
+    # ------------------------------------------------------------
+    # cgpdb ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # ------------------------------------------------------------
+    if do_output_cgpdb
+        cg_pdb_name = pdb_name[1:end-4] * "_cg.pdb"
+        cg_pdb_file = open(cg_pdb_name, "w")
+        cg_pdb_atom_line = "ATOM  {:>5d} {:>4s}{:1}{:<4s}{:1}{:>4d}{:1}   {:>8.3f}{:>8.3f}{:>8.3f}{:>6.2f}{:>6.2f}{:>10s}{:2s}{:2s} \n"
+        chain_id_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+        for i_bead in 1 : cg_num_particles
+            printfmt(cg_pdb_file,
+                     cg_pdb_atom_line,
+                     i_bead,
+                     cg_bead_name[i_bead],
+                     ' ',
+                     cg_resid_name[i_bead],
+                     chain_id_set[cg_chain_id[i_bead]],
+                     cg_resid_index[i_bead],
+                     ' ',
+                     cg_bead_coor[1 , i_bead],
+                     cg_bead_coor[2 , i_bead],
+                     cg_bead_coor[3 , i_bead],
+                     0.0,
+                     0.0,
+                     "",
+                     "",
+                     "")
+        end
+        write(cg_pdb_file,"\n")
+
+        close(cg_pdb_file)
+        println(">           ... .pdb (CG) : DONE!")
     end
 
     println("------------------------------------------------------------")
@@ -2612,7 +2663,11 @@ function parse_commandline()
         action = :store_true
 
         "--psf"
-        help = "Prepare psf file."
+        help = "Prepare PSF file."
+        action = :store_true
+
+        "--cgpdb"
+        help = "Prepare CG PDB file."
         action = :store_true
 
         "--pfm", "-p"
@@ -2641,15 +2696,8 @@ function main()
 
     args = parse_commandline()
 
-    pdb_2_top(args["pdb"],
-              args["respac"],
-              args["aicg-scale"],
-              args["3spn-param"],
-              args["pwmcos"],
-              args["pfm"],
-              args["patch"],
-              args["psf"],
-              args["debug"])
+    pdb_2_top(args)
+
 end
 
 main()
