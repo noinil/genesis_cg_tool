@@ -2599,7 +2599,14 @@ function pdb_2_top(args)
         cg_pdb_file = open(cg_pdb_name, "w")
         cg_pdb_atom_line = "ATOM  {:>5d} {:>4s}{:1}{:<4s}{:1}{:>4d}{:1}   {:>8.3f}{:>8.3f}{:>8.3f}{:>6.2f}{:>6.2f}{:>10s}{:2s}{:2s} \n"
         chain_id_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+        tmp_chain_id = 0
         for i_bead in 1 : cg_num_particles
+            if cg_chain_id[i_bead] > tmp_chain_id
+                if tmp_chain_id > 0
+                    write(cg_pdb_file, "TER\n")
+                end
+                tmp_chain_id = cg_chain_id[i_bead]
+            end
             printfmt(cg_pdb_file,
                      cg_pdb_atom_line,
                      i_bead,
@@ -2618,6 +2625,8 @@ function pdb_2_top(args)
                      "",
                      "")
         end
+        write(cg_pdb_file,"TER\n")
+        write(cg_pdb_file,"END\n")
         write(cg_pdb_file,"\n")
 
         close(cg_pdb_file)
