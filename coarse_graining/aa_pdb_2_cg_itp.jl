@@ -122,6 +122,39 @@ RES_CHARGE_DICT = Dict(
     "RS"  =>  0.0
 )
 
+RES_SHORTNAME_DICT = Dict(
+    "ALA" => "A",
+    "ARG" => "R",
+    "ASN" => "N",
+    "ASP" => "D",
+    "CYS" => "C",
+    "CYM" => "C",
+    "CYT" => "C",
+    "GLN" => "Q",
+    "GLU" => "E",
+    "GLY" => "G",
+    "HIS" => "H",
+    "ILE" => "I",
+    "LEU" => "L",
+    "LYS" => "K",
+    "MET" => "M",
+    "PHE" => "F",
+    "PRO" => "P",
+    "SER" => "S",
+    "THR" => "T",
+    "TRP" => "W",
+    "TYR" => "Y",
+    "VAL" => "V",
+    "DA"  => "A",
+    "DC"  => "C",
+    "DG"  => "G",
+    "DT"  => "T",
+    "RA"  => "A",
+    "RC"  => "C",
+    "RG"  => "G",
+    "RU"  => "U"
+)
+
 RES_NAME_LIST_PROTEIN = (
     "ALA", "ARG", "ASN", "ASP",
     "CYS", "GLN", "GLU", "GLY",
@@ -807,6 +840,7 @@ function pdb_2_top(args)
     do_output_psf           = args["psf"]
     do_output_cgpdb         = args["cgpdb"]
     do_debug                = args["debug"]
+    do_output_sequence      = args["show-sequence"]
 
     # ===============
     # Step 0: numbers
@@ -2015,6 +2049,14 @@ function pdb_2_top(args)
         do_output_pwmcos = false
     end
 
+    if do_output_sequence
+        do_output_top    = false
+        do_output_itp    = false
+        do_output_gro    = false
+        do_output_pwmcos = false
+    end
+
+
     i_step += 1
     println("============================================================")
     println("> Step $(i_step): output .itp and .gro files.")
@@ -2592,7 +2634,7 @@ function pdb_2_top(args)
     end
 
     # ------------------------------------------------------------
-    # cgpdb ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # cgpdb ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # ------------------------------------------------------------
     if do_output_cgpdb
         cg_pdb_name = pdb_name[1:end-4] * "_cg.pdb"
@@ -2631,6 +2673,34 @@ function pdb_2_top(args)
 
         close(cg_pdb_file)
         println(">           ... .pdb (CG) : DONE!")
+    end
+
+    # --------------------------------------------------------------
+    # show sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # --------------------------------------------------------------
+    if do_output_sequence
+        chain_id_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+        cg_seq_name = pdb_name[1:end-4] * "_cg.fasta"
+        cg_seq_file = open(cg_seq_name, "w")
+
+        for i_chain in 1:aa_num_chain
+            chain = aa_chains[i_chain]
+            mol_type = cg_chain_mol_types[i_chain]
+            printfmt(cg_seq_file,
+                     "> Chain {1} : {2} \n",
+                     chain_id_set[i_chain],
+                     MOL_TYPE_LIST[mol_type])
+
+            for i_res in chain.residues
+                res_name = aa_residues[i_res].name
+                write(cg_seq_file, RES_SHORTNAME_DICT[res_name])
+            end
+
+            write(cg_seq_file, "\n")
+        end
+
+        close(cg_seq_file)
+        println(">           ... sequence output : DONE!")
     end
 
     println("------------------------------------------------------------")
@@ -2688,6 +2758,10 @@ function parse_commandline()
         help = "Append (apply patch) to .itp file."
         arg_type = String
         default = ""
+
+        "--show-sequence"
+        help = "Show sequence of molecules in PDB."
+        action = :store_true
 
         "--debug"
         help = "DEBUG."
