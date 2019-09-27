@@ -1952,7 +1952,7 @@ function pdb_2_top(args)
  
         println(">           ... DONE!")
         println("------------------------------------------------------------")
-        @printf("          > Total number of RNA contacts: %12d  \n",
+        @printf("          > Total number of RNA contacts:     %12d  \n",
                 length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) )
 
     end
@@ -2009,7 +2009,7 @@ function pdb_2_top(args)
 
         println(">           ... DONE!")
         println("------------------------------------------------------------")
-        @printf("          > Total number of protein-RNA contacts: %12d  \n",
+        @printf("          > Total number of protein-RNA contacts: %8d  \n",
                 length(top_cg_pro_RNA_contact) )
     end
 
@@ -2631,7 +2631,7 @@ function pdb_2_top(args)
         #        [ exclusions ]
         # ---------------------
 
-        # write Protein local-exclusion list
+        # write Protein exclusion list
         if length(top_cg_pro_aicg_contact) > 0
             write(itp_file, itp_exc_head)
             write(itp_file, itp_exc_comm)
@@ -2644,7 +2644,7 @@ function pdb_2_top(args)
             write(itp_file, "\n")
         end
 
-        # write RNA local-exclusion list
+        # write RNA exclusion list
         if length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) > 0
             write(itp_file, itp_exc_head)
             write(itp_file, itp_exc_comm)
@@ -2668,6 +2668,21 @@ function pdb_2_top(args)
             end
             write(itp_file, "\n")
         end
+
+        # write protein-RNA exclusion contacts
+        if length(top_cg_pro_RNA_contact) > 0
+            write(itp_file, itp_exc_head)
+            write(itp_file, itp_exc_comm)
+            for i_c in 1 : length(top_cg_pro_RNA_contact)
+                printfmt(itp_file,
+                         itp_exc_line,
+                         top_cg_pro_RNA_contact[i_c][1],
+                         top_cg_pro_RNA_contact[i_c][2])
+            end
+            write(itp_file, "\n")
+        end
+
+
 
         close(itp_file)
         println(">           ... .itp: DONE!")
