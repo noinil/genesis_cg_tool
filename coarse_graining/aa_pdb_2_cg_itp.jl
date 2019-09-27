@@ -312,6 +312,13 @@ RNA_PAIR_EPSILON_OTHER = Dict(
 # PWMcos atomistic contact cutoff
 const PWMCOS_ATOMIC_CUTOFF    = 4.0
 
+# ======================
+# Protein-RNA parameters
+# ======================
+# protein-RNA Go-term coefficient
+const PRO_RNA_GO_EPSILON_B    = 0.62
+const PRO_RNA_GO_EPSILON_S    = 0.74
+
 
 # ====================
 # GRO TOP File Options
@@ -351,6 +358,8 @@ const RNA_DIH_FUNC_TYPE       = 1
 const AICG_CONTACT_FUNC_TYPE  = 2
 # "f" in RNA Go-contacts "[pairs]"
 const RNA_CONTACT_FUNC_TYPE   = 2
+# "f" in pro-RNA Go-contacts "[pairs]"
+const RNP_CONTACT_FUNC_TYPE   = 2
 # "f" in protein-DNA PWMcos "[pwmcos]"
 const PWMCOS_FUNC_TYPE        = 1
 
@@ -752,6 +761,33 @@ function is_PWMcos_contact(resid1, resid2, atom_names, atom_coors)
     end
     return false
 end
+
+# ------------------------
+# protein-RNA interactions
+# ------------------------
+
+function is_protein_RNA_go_contact(resid1, resid2, atom_names, atom_coors)
+    for i in resid1.atoms
+        atom_name_1 = atom_names[i]
+        if atom_name_1[1] == 'H'
+            continue
+        end
+        coor_1 = atom_coors[:, i]
+        for j in resid2.atoms
+            atom_name_2 = atom_names[j]
+            if atom_name_2[1] == 'H'
+                continue
+            end
+            coor_2  = atom_coors[:, j]
+            dist_12 = compute_distance(coor_1, coor_2)
+            if dist_12 < AICG_GO_ATOMIC_CUTOFF
+                return true
+            end
+        end
+    end
+    return false
+end
+
 
 # ------------------
 # Other file formats
@@ -1167,6 +1203,9 @@ function pdb_2_top(args)
 
     # protein-DNA
     top_cg_pro_DNA_pwmcos    = []
+
+    # protein-RNA
+    top_cg_pro_RNA_contact   = []
 
     # =================================
     # Step 4: AICG2+ model for proteins
@@ -1912,9 +1951,67 @@ function pdb_2_top(args)
         end
  
         println(">           ... DONE!")
+        println("------------------------------------------------------------")
+        @printf("          > Total number of RNA contacts: %12d  \n",
+                length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) )
 
     end
 
+
+    # ===========================================================
+    # Protein-RNA structure-based interactions: Go-like potential
+    # ===========================================================
+    #                  _       _             ____  _   _    _    
+    #  _ __  _ __ ___ | |_ ___(_)_ __       |  _ \| \ | |  / \   
+    # | '_ \| '__/ _ \| __/ _ \ | '_ \ _____| |_) |  \| | / _ \  
+    # | |_) | | | (_) | ||  __/ | | | |_____|  _ <| |\  |/ ___ \ 
+    # | .__/|_|  \___/ \__\___|_|_| |_|     |_| \_\_| \_/_/   \_\
+    # |_|                                                        
+    # 
+    # ============================================================
+
+    if num_chain_RNA > 0 && num_chain_pro > 0
+        i_step += 1
+        println("============================================================")
+        println("> Step $(i_step): Generating protein-RNA native contacts.")
+
+        @showprogress 1 "        Calculating protein-RNA contacts..." for i_chain in 1:aa_num_chain
+            chain_pro = cg_chains[i_chain]
+            if chain_pro.moltype != MOL_PROTEIN
+                continue
+            end
+            for i_res in chain_pro.first : chain_pro.last
+                coor_i = cg_bead_coor[:, i_res]
+
+                for j_chain in 1 : aa_num_chain
+                    chain_RNA = cg_chains[j_chain]
+                    if chain_RNA.moltype != MOL_RNA
+                        continue
+                    end
+                    for j_res in chain_RNA.first : chain_RNA.last
+                        if cg_bead_name[j_res] == "RP"
+                            continue
+                        end
+                        if !is_protein_RNA_go_contact(cg_residues[i_res], cg_residues[j_res], aa_atom_name, aa_coor)
+                            continue
+                        end
+                        coor_j = cg_bead_coor[:, j_res]
+                        native_dist = compute_distance(coor_i, coor_j)
+                        if cg_bead_name[j_res] == "RS"
+                            push!(top_cg_pro_RNA_contact, (i_res, j_res, native_dist, PRO_RNA_GO_EPSILON_S))
+                        elseif cg_bead_name[j_res] == "RB"
+                            push!(top_cg_pro_RNA_contact, (i_res, j_res, native_dist, PRO_RNA_GO_EPSILON_B))
+                        end
+                    end
+                end
+            end
+        end
+
+        println(">           ... DONE!")
+        println("------------------------------------------------------------")
+        @printf("          > Total number of protein-RNA contacts: %12d  \n",
+                length(top_cg_pro_RNA_contact) )
+    end
 
 
     # ============================================================
@@ -2513,6 +2610,22 @@ function pdb_2_top(args)
             write(itp_file, "\n")
         end
 
+        # write protein-RNA native contacts
+        if length(top_cg_pro_RNA_contact) > 0
+            write(itp_file, itp_contact_head)
+            write(itp_file, itp_contact_comm)
+            for i_c in 1 : length(top_cg_pro_RNA_contact)
+                printfmt(itp_file,
+                         itp_contact_line,
+                         top_cg_pro_RNA_contact[i_c][1],
+                         top_cg_pro_RNA_contact[i_c][2],
+                         RNP_CONTACT_FUNC_TYPE,
+                         top_cg_pro_RNA_contact[i_c][3] * 0.1,
+                         top_cg_pro_RNA_contact[i_c][4] * CAL2JOU)
+            end
+            write(itp_file, "\n")
+        end
+
 
         # ---------------------
         #        [ exclusions ]
@@ -2752,7 +2865,7 @@ function pdb_2_top(args)
 
     println("------------------------------------------------------------")
     println("------------------------------------------------------------")
-    println("[1;32m DONE! [0m ")
+    println("[1;32m FINISH! [0m ")
     println(" Please check the .itp and .gro files.")
     println("============================================================")
 end
