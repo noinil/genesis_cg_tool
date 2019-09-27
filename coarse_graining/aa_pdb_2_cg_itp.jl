@@ -835,6 +835,8 @@ function pdb_2_top(args)
     scale_scheme            = args["aicg-scale"]
     gen_3spn_itp            = args["3spn-param"]
     gen_pwmcos_itp          = args["pwmcos"]
+    pwmcos_gamma            = args["pwmcos-scale"]
+    pwmcos_epsil            = args["pwmcos-shift"]
     pfm_filename            = args["pfm"]
     appendto_filename       = args["patch"]
     do_output_psf           = args["psf"]
@@ -1864,6 +1866,51 @@ function pdb_2_top(args)
             end
         end
  
+        @showprogress 1 "        Calculating inter-molecular contacts..." for i_chain in 1:aa_num_chain
+            chain_1 = cg_chains[i_chain]
+            if chain_1.moltype != MOL_RNA
+                continue
+            end
+            for i_res in chain_1.first : chain_1.last
+                if cg_bead_name[i_res] == "RP"
+                    continue
+                end
+                coor_i = cg_bead_coor[:, i_res]
+                for j_chain in i_chain + 1 : aa_num_chain
+                    chain_2 = cg_chains[j_chain]
+                    if chain_2.moltype != MOL_RNA
+                        continue
+                    end
+                    for j_res in chain_2.first : chain_2.last
+                        if cg_bead_name[j_res] == "RP"
+                            continue
+                        end
+                        coor_j = cg_bead_coor[:, j_res]
+                        native_dist = compute_distance(coor_i, coor_j)
+                        adist, nhb  = compute_RNA_Go_contact(cg_residues[i_res],
+                                                             cg_residues[j_res],
+                                                             aa_atom_name,
+                                                             aa_coor)
+                        if adist > RNA_GO_ATOMIC_CUTOFF
+                            continue
+                        end
+                        if cg_bead_name[i_res] == "RB" && cg_bead_name[j_res] == "RB"
+                            if nhb == 2
+                                push!(top_cg_RNA_base_pair, (i_res, j_res, native_dist, RNA_BPAIR_EPSILON_2HB))
+                            elseif nhb >= 3
+                                push!(top_cg_RNA_base_pair, (i_res, j_res, native_dist, RNA_BPAIR_EPSILON_3HB))
+                            else
+                                push!(top_cg_RNA_other_contact, (i_res, j_res, native_dist, RNA_PAIR_EPSILON_OTHER["BB"]))
+                            end
+                        else
+                            contact_type = cg_bead_name[i_res][end] * cg_bead_name[j_res][end]
+                            push!(top_cg_RNA_other_contact, (i_res, j_res, native_dist, RNA_PAIR_EPSILON_OTHER[contact_type]))
+                        end
+                    end
+                end
+            end
+        end
+ 
         println(">           ... DONE!")
 
     end
@@ -2585,8 +2632,8 @@ function pdb_2_top(args)
                     itpterm[7],
                     itpterm[8],
                     itpterm[9],
-                    0.0,
-                    0.0)
+                    pwmcos_gamma,
+                    pwmcos_epsil)
         end
         write(itp_pwmcos_file, "\n")
 
@@ -2740,6 +2787,16 @@ function parse_commandline()
         "--pwmcos"
         help = "Generate parameters for protein-DNA sequence-specific interactions."
         action = :store_true
+
+        "--pwmcos-scale"
+        help = "Energy scaling factor for PWMcos."
+        arg_type = Float64
+        default = 1.0
+
+        "--pwmcos-shift"
+        help = "Energy shifting factor for PWMcos."
+        arg_type = Float64
+        default = 0.0
 
         "--psf"
         help = "Prepare PSF file."
