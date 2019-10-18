@@ -979,9 +979,9 @@ function pdb_2_top(args)
     aa_num_residue = length(aa_residues)
     aa_num_chain = length(aa_chains)
 
-    println("          > Number of atoms:    $(aa_num_atom)")
-    println("          > Number of residues: $(aa_num_residue)")
-    println("          > Number of chains:   $(aa_num_chain)")
+    println("          > Number of atoms    : $(aa_num_atom)")
+    println("          > Number of residues : $(aa_num_residue)")
+    println("          > Number of chains   : $(aa_num_chain)")
 
     # ===============================
     # Step 2: find out molecule types
@@ -1036,8 +1036,7 @@ function pdb_2_top(args)
         end
         cg_chain_length[i_chain] = n_particles
         cg_num_particles += n_particles
-        @printf("          > Chain %3d | %7s \n",
-                i_chain, MOL_TYPE_LIST[ mol_type ])
+        @printf("          > Chain %3d | %7s \n", i_chain, MOL_TYPE_LIST[ mol_type ])
     end
 
     println("------------------------------------------------------------")
