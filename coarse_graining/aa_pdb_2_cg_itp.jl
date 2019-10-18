@@ -2218,32 +2218,32 @@ function pdb_2_top(args)
         itp_name = pdb_name[1:end-4] * "_cg.itp"
         itp_system_name = pdb_name[1:end-4]
 
-        write(top_file, "; atom types for coarse-grained models\n")
-        write(top_file, "#include \"./lib/atom_types.itp\" \n")
+        print(top_file, "; atom types for coarse-grained models\n")
+        print(top_file, "#include \"./lib/atom_types.itp\" \n")
         if num_chain_pro > 0
-            write(top_file, "; AICG2+ flexible local angle parameters \n")
-            write(top_file, "#include \"./lib/flexible_local_angle.itp\" \n")
-            write(top_file, "; AICG2+ flexible local dihedral parameters \n")
-            write(top_file, "#include \"./lib/flexible_local_dihedral.itp\" \n")
+            print(top_file, "; AICG2+ flexible local angle parameters \n")
+            print(top_file, "#include \"./lib/flexible_local_angle.itp\" \n")
+            print(top_file, "; AICG2+ flexible local dihedral parameters \n")
+            print(top_file, "#include \"./lib/flexible_local_dihedral.itp\" \n")
         end
-        write(top_file, "\n")
+        print(top_file, "\n")
 
-        write(top_file, "; Molecule topology \n")
-        @printf(top_file, "#include \"./top/%s\" \n\n", itp_name)
+        print(top_file, "; Molecule topology \n")
+        print(top_file, "#include \"./top/", itp_name, "\" \n\n")
 
-        write(top_file, "[ system ] \n")
-        @printf(top_file, "%s \n\n", itp_system_name)
+        print(top_file, "[ system ] \n")
+        print(top_file, itp_system_name, " \n\n")
 
-        write(top_file, "[ molecules ] \n")
-        @printf(top_file, "%s  1 \n\n", itp_system_name)
+        print(top_file, "[ molecules ] \n")
+        print(top_file, itp_system_name, "  1 \n\n")
 
-        write(top_file, "; [ cg_ele_mol_pairs ] \n")
-        @printf(top_file, "; ON 1 - 2 : 3 - 4 \n")
-        @printf(top_file, "; OFF 1 - 1 : 3 - 3 \n\n")
+        print(top_file, "; [ cg_ele_mol_pairs ] \n")
+        print(top_file, "; ON 1 - 2 : 3 - 4 \n")
+        print(top_file, "; OFF 1 - 1 : 3 - 3 \n\n")
 
-        write(top_file, "; [ pwmcos_mol_pairs ] \n")
-        @printf(top_file, "; ON 1 - 2 : 3 - 4 \n")
-        @printf(top_file, "; OFF 1 - 1 : 3 - 3 \n\n")
+        print(top_file, "; [ pwmcos_mol_pairs ] \n")
+        print(top_file, "; ON 1 - 2 : 3 - 4 \n")
+        print(top_file, "; OFF 1 - 1 : 3 - 3 \n\n")
     end
 
 
@@ -2304,19 +2304,19 @@ function pdb_2_top(args)
         # --------------------
         # Writing CG particles
         # --------------------
-        # write molecule type information
+        # print molecule type information
         itp_system_name = pdb_name[1:end-4]
-        write(itp_file, itp_mol_head)
-        write(itp_file, itp_mol_comm)
+        print(itp_file, itp_mol_head)
+        print(itp_file, itp_mol_comm)
         printfmt(itp_file, itp_mol_line, itp_system_name, MOL_NR_EXCL)
-        write(itp_file,"\n")
+        print(itp_file,"\n")
 
         # -----------------------
         #               [ atoms ]
         # -----------------------
 
-        write(itp_file, itp_atm_head)
-        write(itp_file, itp_atm_comm)
+        print(itp_file, itp_atm_head)
+        print(itp_file, itp_atm_comm)
         for i_bead in 1 : cg_num_particles
             printfmt(itp_file,
                      itp_atm_line,
@@ -2329,15 +2329,15 @@ function pdb_2_top(args)
                      cg_bead_charge[i_bead],
                      cg_bead_mass[i_bead])
         end
-        write(itp_file,"\n")
+        print(itp_file,"\n")
 
         # ----------------
         #        [ bonds ]
         # ----------------
 
         if length(top_cg_pro_bonds) + length(top_cg_DNA_bonds) + length(top_cg_RNA_bonds) > 0
-            write(itp_file, itp_bnd_head)
-            write(itp_file, itp_bnd_comm)
+            print(itp_file, itp_bnd_head)
+            print(itp_file, itp_bnd_comm)
 
             # AICG2+ bonds
             for i_bond in 1 : length(top_cg_pro_bonds)
@@ -2371,7 +2371,7 @@ function pdb_2_top(args)
                          top_cg_RNA_bonds[i_bond][3] * 0.1,
                          top_cg_RNA_bonds[i_bond][4])
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
 
         end
 
@@ -2381,8 +2381,8 @@ function pdb_2_top(args)
 
         # AICG2+ 1-3
         if length(top_cg_pro_aicg13) > 0
-            write(itp_file, itp_13_head)
-            write(itp_file, itp_13_comm)
+            print(itp_file, itp_13_head)
+            print(itp_file, itp_13_comm)
             for i_13 in 1 : length(top_cg_pro_aicg13)
                 printfmt(itp_file,
                          itp_13_line,
@@ -2394,13 +2394,13 @@ function pdb_2_top(args)
                          param_cg_pro_e_13[i_13] * CAL2JOU,
                          AICG_13_SIGMA)
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
         # AICG2+ flexible
         if length(top_cg_pro_angles) > 0
-            write(itp_file, itp_ang_f_head)
-            write(itp_file, itp_ang_f_comm)
+            print(itp_file, itp_ang_f_head)
+            print(itp_file, itp_ang_f_comm)
             for i_ang in 1 : length(top_cg_pro_angles)
                 printfmt(itp_file,
                          itp_ang_f_line,
@@ -2409,13 +2409,13 @@ function pdb_2_top(args)
                          top_cg_pro_angles[i_ang] + 2,
                          AICG_ANG_F_FUNC_TYPE)
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
         # 3SPN.2C angles
         if length(top_cg_DNA_angles) > 0
-            write(itp_file, itp_ang_head)
-            write(itp_file, itp_ang_comm)
+            print(itp_file, itp_ang_head)
+            print(itp_file, itp_ang_comm)
             for i_ang in 1 : length(top_cg_DNA_angles)
                 printfmt(itp_file,
                          itp_ang_line,
@@ -2426,13 +2426,13 @@ function pdb_2_top(args)
                          top_cg_DNA_angles[i_ang][4],
                          top_cg_DNA_angles[i_ang][5])
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
         # RNA structure-based angles
         if length(top_cg_RNA_angles) > 0
-            write(itp_file, itp_ang_head)
-            write(itp_file, itp_ang_comm)
+            print(itp_file, itp_ang_head)
+            print(itp_file, itp_ang_comm)
             for i_ang in 1 : length(top_cg_RNA_angles)
                 printfmt(itp_file,
                          itp_ang_line,
@@ -2443,7 +2443,7 @@ function pdb_2_top(args)
                          top_cg_RNA_angles[i_ang][4],
                          top_cg_RNA_angles[i_ang][5])
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
 
@@ -2453,8 +2453,8 @@ function pdb_2_top(args)
 
         # AICG2+ Gaussian dihedrals
         if length(top_cg_pro_aicg14) > 0
-            write(itp_file, itp_dih_G_head)
-            write(itp_file, itp_dih_G_comm)
+            print(itp_file, itp_dih_G_head)
+            print(itp_file, itp_dih_G_comm)
             for i_dih in 1 : length(top_cg_pro_aicg14)
                 printfmt(itp_file,
                          itp_dih_G_line,
@@ -2467,13 +2467,13 @@ function pdb_2_top(args)
                          param_cg_pro_e_14[i_dih] * CAL2JOU,
                          AICG_14_SIGMA)
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
         # AICG2+ flexible dihedrals
         if length(top_cg_pro_dihedrals) > 0
-            write(itp_file, itp_dih_F_head)
-            write(itp_file, itp_dih_F_comm)
+            print(itp_file, itp_dih_F_head)
+            print(itp_file, itp_dih_F_comm)
             for i_dih in 1 : length(top_cg_pro_dihedrals)
                 printfmt(itp_file,
                          itp_dih_F_line,
@@ -2483,13 +2483,13 @@ function pdb_2_top(args)
                          top_cg_pro_dihedrals[i_dih] + 3,
                          AICG_DIH_F_FUNC_TYPE)
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
         # 3SPN.2C Gaussian dihedrals
         if length(top_cg_DNA_dih_Gaussian) > 0
-            write(itp_file, itp_dih_G_head)
-            write(itp_file, itp_dih_G_comm)
+            print(itp_file, itp_dih_G_head)
+            print(itp_file, itp_dih_G_comm)
             for i_dih in 1 : length(top_cg_DNA_dih_Gaussian)
                 printfmt(itp_file,
                          itp_dih_G_line,
@@ -2502,13 +2502,13 @@ function pdb_2_top(args)
                          DNA3SPN_DIH_G_K,
                          DNA3SPN_DIH_G_SIGMA)
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
         # 3SPN.2C Periodic dihedrals
         if length(top_cg_DNA_dih_periodic) > 0
-            write(itp_file, itp_dih_P_head)
-            write(itp_file, itp_dih_P_comm)
+            print(itp_file, itp_dih_P_head)
+            print(itp_file, itp_dih_P_comm)
             for i_dih in 1 : length(top_cg_DNA_dih_periodic)
                 printfmt(itp_file,
                          itp_dih_P_line,
@@ -2521,13 +2521,13 @@ function pdb_2_top(args)
                          DNA3SPN_DIH_P_K,
                          DNA3SPN_DIH_P_FUNC_PERI)
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
         # RNA structure-based Periodic dihedrals
         if length(top_cg_RNA_dihedrals) > 0
-            write(itp_file, itp_dih_P_head)
-            write(itp_file, itp_dih_P_comm)
+            print(itp_file, itp_dih_P_head)
+            print(itp_file, itp_dih_P_comm)
             for i_dih in 1 : length(top_cg_RNA_dihedrals)
                 printfmt(itp_file,
                          itp_dih_P_line,
@@ -2552,7 +2552,7 @@ function pdb_2_top(args)
                          top_cg_RNA_dihedrals[i_dih][6] / 2,
                          3)
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
 
@@ -2560,10 +2560,10 @@ function pdb_2_top(args)
         #        [ pairs ]
         # ----------------
 
-        # write protein Go-type native contacts
+        # print protein Go-type native contacts
         if length(top_cg_pro_aicg_contact) > 0
-            write(itp_file, itp_contact_head)
-            write(itp_file, itp_contact_comm)
+            print(itp_file, itp_contact_head)
+            print(itp_file, itp_contact_comm)
             for i_c in 1 : length(top_cg_pro_aicg_contact)
                 printfmt(itp_file,
                          itp_contact_line,
@@ -2573,13 +2573,13 @@ function pdb_2_top(args)
                          top_cg_pro_aicg_contact[i_c][3] * 0.1,
                          param_cg_pro_e_contact[i_c] * CAL2JOU)
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
-        # write RNA Go-type native contacts
+        # print RNA Go-type native contacts
         if length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) > 0
-            write(itp_file, itp_contact_head)
-            write(itp_file, itp_contact_comm)
+            print(itp_file, itp_contact_head)
+            print(itp_file, itp_contact_comm)
             for i_c in 1 : length(top_cg_RNA_base_stack)
                 printfmt(itp_file,
                          itp_contact_line,
@@ -2607,13 +2607,13 @@ function pdb_2_top(args)
                          top_cg_RNA_other_contact[i_c][3] * 0.1,
                          top_cg_RNA_other_contact[i_c][4] * CAL2JOU)
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
-        # write protein-RNA native contacts
+        # print protein-RNA native contacts
         if length(top_cg_pro_RNA_contact) > 0
-            write(itp_file, itp_contact_head)
-            write(itp_file, itp_contact_comm)
+            print(itp_file, itp_contact_head)
+            print(itp_file, itp_contact_comm)
             for i_c in 1 : length(top_cg_pro_RNA_contact)
                 printfmt(itp_file,
                          itp_contact_line,
@@ -2623,7 +2623,7 @@ function pdb_2_top(args)
                          top_cg_pro_RNA_contact[i_c][3] * 0.1,
                          top_cg_pro_RNA_contact[i_c][4] * CAL2JOU)
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
 
@@ -2631,23 +2631,23 @@ function pdb_2_top(args)
         #        [ exclusions ]
         # ---------------------
 
-        # write Protein exclusion list
+        # print Protein exclusion list
         if length(top_cg_pro_aicg_contact) > 0
-            write(itp_file, itp_exc_head)
-            write(itp_file, itp_exc_comm)
+            print(itp_file, itp_exc_head)
+            print(itp_file, itp_exc_comm)
             for i_c in 1 : length(top_cg_pro_aicg_contact)
                 printfmt(itp_file,
                          itp_exc_line,
                          top_cg_pro_aicg_contact[i_c][1],
                          top_cg_pro_aicg_contact[i_c][2])
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
-        # write RNA exclusion list
+        # print RNA exclusion list
         if length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) > 0
-            write(itp_file, itp_exc_head)
-            write(itp_file, itp_exc_comm)
+            print(itp_file, itp_exc_head)
+            print(itp_file, itp_exc_comm)
             for i_c in 1 : length(top_cg_RNA_base_stack)
                 printfmt(itp_file,
                          itp_exc_line,
@@ -2666,20 +2666,20 @@ function pdb_2_top(args)
                          top_cg_RNA_other_contact[i_c][1],
                          top_cg_RNA_other_contact[i_c][2])
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
-        # write protein-RNA exclusion contacts
+        # print protein-RNA exclusion contacts
         if length(top_cg_pro_RNA_contact) > 0
-            write(itp_file, itp_exc_head)
-            write(itp_file, itp_exc_comm)
+            print(itp_file, itp_exc_head)
+            print(itp_file, itp_exc_comm)
             for i_c in 1 : length(top_cg_pro_RNA_contact)
                 printfmt(itp_file,
                          itp_exc_line,
                          top_cg_pro_RNA_contact[i_c][1],
                          top_cg_pro_RNA_contact[i_c][2])
             end
-            write(itp_file, "\n")
+            print(itp_file, "\n")
         end
 
 
@@ -2745,8 +2745,8 @@ function pdb_2_top(args)
             itp_pwmcos_file = open(itp_pwmcos_name, "a")
         end
 
-        write(itp_pwmcos_file, itp_pwmcos_head)
-        write(itp_pwmcos_file, itp_pwmcos_comm)
+        print(itp_pwmcos_file, itp_pwmcos_head)
+        print(itp_pwmcos_file, itp_pwmcos_comm)
         for itpterm in top_cg_pro_DNA_pwmcos
             @printf(itp_pwmcos_file,
                     "%6d %3d %8.5f %8.3f %8.3f %8.3f%12.6f%12.6f%12.6f%12.6f%8.3f%8.3f \n",
@@ -2763,7 +2763,7 @@ function pdb_2_top(args)
                     pwmcos_gamma,
                     pwmcos_epsil)
         end
-        write(itp_pwmcos_file, "\n")
+        print(itp_pwmcos_file, "\n")
 
         close(itp_pwmcos_file)
         println(">           ... ", itp_pwmcos_name, " pwmcos.itp: DONE!")
@@ -2787,7 +2787,7 @@ function pdb_2_top(args)
 
         psf_name = pdb_name[1:end-4] * "_cg.psf"
         psf_file = open(psf_name, "w")
-        write(psf_file, psf_head_str)
+        print(psf_file, psf_head_str)
         printfmt(psf_file, psf_title_str, pdb_name[1:end-4])
         printfmt(psf_file, psf_atom_title, cg_num_particles)
         for i_bead in 1 : cg_num_particles
@@ -2802,7 +2802,7 @@ function pdb_2_top(args)
                      cg_bead_charge[i_bead],
                      cg_bead_mass[i_bead])
         end
-        write(psf_file,"\n")
+        print(psf_file,"\n")
 
         close(psf_file)
         println(">           ... .psf: DONE!")
@@ -2820,7 +2820,7 @@ function pdb_2_top(args)
         for i_bead in 1 : cg_num_particles
             if cg_chain_id[i_bead] > tmp_chain_id
                 if tmp_chain_id > 0
-                    write(cg_pdb_file, "TER\n")
+                    print(cg_pdb_file, "TER\n")
                 end
                 tmp_chain_id = cg_chain_id[i_bead]
             end
@@ -2842,9 +2842,9 @@ function pdb_2_top(args)
                      "",
                      "")
         end
-        write(cg_pdb_file,"TER\n")
-        write(cg_pdb_file,"END\n")
-        write(cg_pdb_file,"\n")
+        print(cg_pdb_file,"TER\n")
+        print(cg_pdb_file,"END\n")
+        print(cg_pdb_file,"\n")
 
         close(cg_pdb_file)
         println(">           ... .pdb (CG) : DONE!")
@@ -2868,10 +2868,10 @@ function pdb_2_top(args)
 
             for i_res in chain.residues
                 res_name = aa_residues[i_res].name
-                write(cg_seq_file, RES_SHORTNAME_DICT[res_name])
+                print(cg_seq_file, RES_SHORTNAME_DICT[res_name])
             end
 
-            write(cg_seq_file, "\n")
+            print(cg_seq_file, "\n")
         end
 
         close(cg_seq_file)
