@@ -16,7 +16,6 @@ using Printf
 using ArgParse
 using Formatting
 using LinearAlgebra
-using ProgressMeter
 
 ###########################################################################
 #                          Force Field Parameters                         #
@@ -1410,7 +1409,19 @@ function pdb_2_top(args)
         num_contact = 0
 
         # intra-molecular contacts
-        @showprogress 1 "        Calculating intra-molecular contacts..."   for i_chain in 1:aa_num_chain
+        print("        > Calculating intra-molecular contacts... \n")
+        @printf("              ... chain: %32s", " ")
+        for i_chain in 1:aa_num_chain
+
+            # -----------------
+            # show progress bar
+            # -----------------
+            print("\b"^32)
+            progress_percent = trunc(Int, i_chain / aa_num_chain * 20)
+            progress_bar = "=" ^ progress_percent * " " ^ (20 - progress_percent)
+            @printf(" [%20s] %2d / %2d ", progress_bar, i_chain, aa_num_chain)
+            # ------------------
+
             chain = cg_chains[i_chain]
 
             if chain.moltype != MOL_PROTEIN
@@ -1449,10 +1460,11 @@ function pdb_2_top(args)
                 end
             end
         end
-        println(">           ... intra-molecular contacts: DONE!")
+        print("\n              ... intra-molecular contacts: DONE! \n")
 
         # inter-molecular ( protein-protein ) contacts
-        @showprogress 1 "        Calculating inter-molecular contacts..." for i_chain in 1 : aa_num_chain - 1
+        print("        > Calculating inter-molecular contacts... \n")
+        for i_chain in 1 : aa_num_chain - 1
             chain1 = cg_chains[i_chain]
 
             if chain1.moltype != MOL_PROTEIN
@@ -1499,7 +1511,7 @@ function pdb_2_top(args)
                 end
             end
         end
-        println(">           ... inter-molecular contacts: DONE!")
+        print("\n              ... inter-molecular contacts: DONE! \n")
 
         # normalize
         e_ground_contact /= num_contact
@@ -1577,7 +1589,8 @@ function pdb_2_top(args)
             println(">      $(i_step).2: 3SPN.2C topology.")
             println(" - - - - - - - - - - - - - - - - - - - - - - - -")
             println(">      $(i_step).2.1: 3SPN.2C local interactions.")
-            @showprogress 1 "        Calculating intra-molecular contacts..."   for i_chain in 1:aa_num_chain
+            println("        Calculating intra-molecular contacts...")
+            for i_chain in 1:aa_num_chain
                 chain = cg_chains[i_chain]
 
                 if chain.moltype != MOL_DNA
@@ -1766,7 +1779,8 @@ function pdb_2_top(args)
                 continue
             end
 
-            @showprogress 1 "        Calculating intra-molecular contacts..."   for i_res in chain.first : chain.last
+            println("        Calculating intra-molecular contacts...")
+            for i_res in chain.first : chain.last
                 if cg_bead_name[i_res] == "RS"
                     # bond S--B
                     coor_s    = cg_bead_coor[:, i_res]
@@ -1841,7 +1855,8 @@ function pdb_2_top(args)
         # -----------------------
         println(" - - - - - - - - - - - - - - - - - - - - - - - -")
         println(">      $(i_step).2.2: RNA Go-type native contacts.")
-        @showprogress 1 "        Calculating intra-molecular contacts..." for i_chain in 1:aa_num_chain
+        println("        Calculating intra-molecular contacts...")
+        for i_chain in 1:aa_num_chain
             chain = cg_chains[i_chain]
 
             if chain.moltype != MOL_RNA
@@ -1904,7 +1919,8 @@ function pdb_2_top(args)
             end
         end
  
-        @showprogress 1 "        Calculating inter-molecular contacts..." for i_chain in 1:aa_num_chain
+        println("        Calculating inter-molecular contacts...")
+        for i_chain in 1:aa_num_chain
             chain_1 = cg_chains[i_chain]
             if chain_1.moltype != MOL_RNA
                 continue
@@ -1974,7 +1990,8 @@ function pdb_2_top(args)
         println("============================================================")
         println("> Step $(i_step): Generating protein-RNA native contacts.")
 
-        @showprogress 1 "        Calculating protein-RNA contacts..." for i_chain in 1:aa_num_chain
+        println("        Calculating protein-RNA contacts...")
+        for i_chain in 1:aa_num_chain
             chain_pro = cg_chains[i_chain]
             if chain_pro.moltype != MOL_PROTEIN
                 continue
