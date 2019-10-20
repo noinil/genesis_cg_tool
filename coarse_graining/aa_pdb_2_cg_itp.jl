@@ -70,6 +70,7 @@ RES_MASS_DICT = Dict(
     "TRP" => 186.21,
     "TYR" => 163.18,
     "VAL" =>  99.14,
+    "UNK" => 100.00,
     "DA"  => 134.10,
     "DC"  => 110.10,
     "DG"  => 150.10,
@@ -107,6 +108,7 @@ RES_CHARGE_DICT = Dict(
     "TRP" =>  0.0,
     "TYR" =>  0.0,
     "VAL" =>  0.0,
+    "UNK" =>  0.0,
     "DA"  =>  0.0,
     "DC"  =>  0.0,
     "DG"  =>  0.0,
@@ -144,6 +146,7 @@ RES_SHORTNAME_DICT = Dict(
     "TRP" => "W",
     "TYR" => "Y",
     "VAL" => "V",
+    "UNK" => "X",
     "DA"  => "A",
     "DC"  => "C",
     "DG"  => "G",
@@ -160,7 +163,7 @@ RES_NAME_LIST_PROTEIN = (
     "HIS", "ILE", "LEU", "LYS",
     "MET", "PHE", "PRO", "SER",
     "THR", "TRP", "TYR", "VAL",
-    "CYM", "CYT")
+    "CYM", "CYT", "UNK")
 
 RES_NAME_LIST_DNA = ("DA", "DC", "DG", "DT")
 
@@ -1410,23 +1413,25 @@ function pdb_2_top(args)
 
         # intra-molecular contacts
         print("        > Calculating intra-molecular contacts... \n")
-        @printf("              ... chain: %32s", " ")
+        @printf("              ... chain   : %32s", " ")
+        i_progress_count = 0
         for i_chain in 1:aa_num_chain
-
-            # -----------------
-            # show progress bar
-            # -----------------
-            print("\b"^32)
-            progress_percent = trunc(Int, i_chain / aa_num_chain * 20)
-            progress_bar = "=" ^ progress_percent * " " ^ (20 - progress_percent)
-            @printf(" [%20s] %2d / %2d ", progress_bar, i_chain, aa_num_chain)
-            # ------------------
 
             chain = cg_chains[i_chain]
 
             if chain.moltype != MOL_PROTEIN
                 continue
             end
+
+            # -----------------
+            # show progress bar
+            # -----------------
+            i_progress_count += 1
+            print("\b"^32)
+            progress_percent = trunc(Int, i_progress_count / num_chain_pro * 20)
+            progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+            @printf(" [%20s] %2d / %2d ", progress_bar, i_progress_count, num_chain_pro)
+            # ------------------
 
             for i_res in chain.first : chain.last - 4
                 coor_cai = cg_bead_coor[:, i_res]
@@ -1464,8 +1469,18 @@ function pdb_2_top(args)
 
         # inter-molecular ( protein-protein ) contacts
         print("        > Calculating inter-molecular contacts... \n")
+        @printf("              ... progress: %32s", " ")
         for i_chain in 1 : aa_num_chain - 1
             chain1 = cg_chains[i_chain]
+
+            # -----------------
+            # show progress bar
+            # -----------------
+            print("\b"^32)
+            progress_percent = trunc(Int, i_chain / ( aa_num_chain - 1 ) * 20)
+            progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+            @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / ( aa_num_chain - 1 ) * 100)
+            # ------------------
 
             if chain1.moltype != MOL_PROTEIN
                 continue
@@ -1589,15 +1604,28 @@ function pdb_2_top(args)
             println(">      $(i_step).2: 3SPN.2C topology.")
             println(" - - - - - - - - - - - - - - - - - - - - - - - -")
             println(">      $(i_step).2.1: 3SPN.2C local interactions.")
-            println("        Calculating intra-molecular contacts...")
             for i_chain in 1:aa_num_chain
+
                 chain = cg_chains[i_chain]
 
                 if chain.moltype != MOL_DNA
                     continue
                 end
 
+                print("        > Calculating DNA strand %d ... \n", i_chain)
+                @printf("              ... progress: %32s", " ")
+
                 for i_res in chain.first : chain.last
+
+                    # -----------------
+                    # show progress bar
+                    # -----------------
+                    print("\b"^32)
+                    progress_percent = trunc(Int, i_res / ( chain.last - chain.first + 1 ) * 20)
+                    progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+                    @printf(" [%20s] %5.1f %% ", progress_bar, i_res / ( chain.last - chain.first + 1 ) * 100)
+                    # ------------------
+
                     if cg_bead_name[i_res] == "DS"
                         # bond S--B
                         coor_s = cg_bead_coor[:, i_res]
@@ -1856,12 +1884,24 @@ function pdb_2_top(args)
         println(" - - - - - - - - - - - - - - - - - - - - - - - -")
         println(">      $(i_step).2.2: RNA Go-type native contacts.")
         println("        Calculating intra-molecular contacts...")
+        @printf("              ... progress: %32s", " ")
+        i_progress_count = 0
         for i_chain in 1:aa_num_chain
             chain = cg_chains[i_chain]
 
             if chain.moltype != MOL_RNA
                 continue
             end
+
+            # -----------------
+            # show progress bar
+            # -----------------
+            i_progress_count += 1
+            print("\b"^32)
+            progress_percent = trunc(Int, i_progress_count / ( num_chain_RNA ) * 20)
+            progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+            @printf(" [%20s] %2d / %2d ", progress_bar, i_progress_count, num_chain_RNA)
+            # ------------------
 
             for i_res in chain.first : chain.last - 3
 
