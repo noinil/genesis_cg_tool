@@ -1412,7 +1412,7 @@ function pdb_2_top(args)
         num_contact = 0
 
         # intra-molecular contacts
-        print("        > Calculating intra-molecular contacts... \n")
+        @printf("%11s Calculating intra-molecular contacts... \n", " ")
         @printf("              ... chain   : %32s", " ")
         i_progress_count = 0
         for i_chain in 1:aa_num_chain
@@ -1468,65 +1468,67 @@ function pdb_2_top(args)
         print("\n              ... intra-molecular contacts: DONE! \n")
 
         # inter-molecular ( protein-protein ) contacts
-        print("        > Calculating inter-molecular contacts... \n")
-        @printf("              ... progress: %32s", " ")
-        for i_chain in 1 : aa_num_chain - 1
-            chain1 = cg_chains[i_chain]
-
-            # -----------------
-            # show progress bar
-            # -----------------
-            print("\b"^32)
-            progress_percent = trunc(Int, i_chain / ( aa_num_chain - 1 ) * 20)
-            progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
-            @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / ( aa_num_chain - 1 ) * 100)
-            # ------------------
-
-            if chain1.moltype != MOL_PROTEIN
-                continue
-            end
-
-            for j_chain in i_chain + 1 : aa_num_chain
-                chain2 = cg_chains[j_chain]
-
-                if chain2.moltype != MOL_PROTEIN
+        if num_chain_pro > 1
+            @printf("%11s Calculating inter-molecular contacts... \n", " ")
+            @printf("              ... progress: %32s", " ")
+            for i_chain in 1 : aa_num_chain - 1
+                chain1 = cg_chains[i_chain]
+    
+                # -----------------
+                # show progress bar
+                # -----------------
+                print("\b"^32)
+                progress_percent = trunc(Int, i_chain / ( aa_num_chain - 1 ) * 20)
+                progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+                @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / ( aa_num_chain - 1 ) * 100)
+                # ------------------
+    
+                if chain1.moltype != MOL_PROTEIN
                     continue
                 end
-
-                for i_res in chain1.first : chain1.last
-                    coor_cai = cg_bead_coor[:, i_res]
-                    for j_res in chain2.first : chain2.last
-                        coor_caj = cg_bead_coor[:, j_res]
-                        if is_protein_go_contact(cg_residues[i_res], cg_residues[j_res], aa_atom_name, aa_coor)
-                            native_dist = compute_distance(coor_cai, coor_caj)
-                            num_contact += 1
-                            push!(top_cg_pro_aicg_contact, (i_res, j_res, native_dist))
-
-                            # count AICG2+ atomic contact
-                            contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
-                                                                       cg_residues[ j_res ],
-                                                                       cg_resid_name[i_res],
-                                                                       cg_resid_name[j_res],
-                                                                       aa_atom_name,
-                                                                       aa_coor)
-
-                            # calculate AICG2+ pairwise energy
-                            e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
-                            if e_local > AICG_ENE_UPPER_LIM
-                                e_local = AICG_ENE_UPPER_LIM
+    
+                for j_chain in i_chain + 1 : aa_num_chain
+                    chain2 = cg_chains[j_chain]
+    
+                    if chain2.moltype != MOL_PROTEIN
+                        continue
+                    end
+    
+                    for i_res in chain1.first : chain1.last
+                        coor_cai = cg_bead_coor[:, i_res]
+                        for j_res in chain2.first : chain2.last
+                            coor_caj = cg_bead_coor[:, j_res]
+                            if is_protein_go_contact(cg_residues[i_res], cg_residues[j_res], aa_atom_name, aa_coor)
+                                native_dist = compute_distance(coor_cai, coor_caj)
+                                num_contact += 1
+                                push!(top_cg_pro_aicg_contact, (i_res, j_res, native_dist))
+    
+                                # count AICG2+ atomic contact
+                                contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
+                                                                           cg_residues[ j_res ],
+                                                                           cg_resid_name[i_res],
+                                                                           cg_resid_name[j_res],
+                                                                           aa_atom_name,
+                                                                           aa_coor)
+    
+                                # calculate AICG2+ pairwise energy
+                                e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
+                                if e_local > AICG_ENE_UPPER_LIM
+                                    e_local = AICG_ENE_UPPER_LIM
+                                end
+                                if e_local < AICG_ENE_LOWER_LIM
+                                    e_local = AICG_ENE_LOWER_LIM
+                                end
+                                e_ground_contact += e_local
+                                num_contact      += 1
+                                push!(param_cg_pro_e_contact, e_local)
                             end
-                            if e_local < AICG_ENE_LOWER_LIM
-                                e_local = AICG_ENE_LOWER_LIM
-                            end
-                            e_ground_contact += e_local
-                            num_contact      += 1
-                            push!(param_cg_pro_e_contact, e_local)
                         end
                     end
                 end
             end
+            print("\n              ... inter-molecular contacts: DONE! \n")
         end
-        print("\n              ... inter-molecular contacts: DONE! \n")
 
         # normalize
         e_ground_contact /= num_contact
@@ -1612,7 +1614,7 @@ function pdb_2_top(args)
                     continue
                 end
 
-                print("        > Calculating DNA strand %d ... \n", i_chain)
+                @printf("%11s Calculating DNA strand %d ... \n", " ", i_chain)
                 @printf("              ... progress: %32s", " ")
 
                 for i_res in chain.first : chain.last
@@ -1621,9 +1623,9 @@ function pdb_2_top(args)
                     # show progress bar
                     # -----------------
                     print("\b"^32)
-                    progress_percent = trunc(Int, i_res / ( chain.last - chain.first + 1 ) * 20)
+                    progress_percent = trunc(Int, ( i_res - chain.first ) / ( chain.last - chain.first ) * 20)
                     progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
-                    @printf(" [%20s] %5.1f %% ", progress_bar, i_res / ( chain.last - chain.first + 1 ) * 100)
+                    @printf(" [%20s] %5.1f %% ", progress_bar, progress_percent * 5)
                     # ------------------
 
                     if cg_bead_name[i_res] == "DS"
@@ -1705,6 +1707,7 @@ function pdb_2_top(args)
                         error(errmsg)
                     end
                 end
+                print(" \n")
             end
             println(">           ... Bond, Angle, Dihedral: DONE!")
         end
@@ -1807,7 +1810,7 @@ function pdb_2_top(args)
                 continue
             end
 
-            println("        Calculating intra-molecular contacts...")
+            @printf("%11s Calculating bonded terms... \n", " ")
             for i_res in chain.first : chain.last
                 if cg_bead_name[i_res] == "RS"
                     # bond S--B
@@ -1883,7 +1886,7 @@ function pdb_2_top(args)
         # -----------------------
         println(" - - - - - - - - - - - - - - - - - - - - - - - -")
         println(">      $(i_step).2.2: RNA Go-type native contacts.")
-        println("        Calculating intra-molecular contacts...")
+        @printf("%11s Calculating intra-molecular contacts... \n", " ")
         @printf("              ... progress: %32s", " ")
         i_progress_count = 0
         for i_chain in 1:aa_num_chain
@@ -1958,54 +1961,70 @@ function pdb_2_top(args)
                 end
             end
         end
+        print("\n              ... intra-molecular contacts: DONE! \n")
  
-        println("        Calculating inter-molecular contacts...")
-        for i_chain in 1:aa_num_chain
-            chain_1 = cg_chains[i_chain]
-            if chain_1.moltype != MOL_RNA
-                continue
-            end
-            for i_res in chain_1.first : chain_1.last
-                if cg_bead_name[i_res] == "RP"
+        if num_chain_RNA > 1
+            @printf("%11s Calculating inter-molecular contacts... \n", " ")
+            @printf("              ... progress: %32s", " ")
+            for i_chain in 1:aa_num_chain
+    
+                chain_1 = cg_chains[i_chain]
+    
+                if chain_1.moltype != MOL_RNA
                     continue
                 end
-                coor_i = cg_bead_coor[:, i_res]
-                for j_chain in i_chain + 1 : aa_num_chain
-                    chain_2 = cg_chains[j_chain]
-                    if chain_2.moltype != MOL_RNA
+    
+                # -----------------
+                # show progress bar
+                # -----------------
+                print("\b"^32)
+                progress_percent = trunc(Int, i_chain / ( aa_num_chain - 1 ) * 20)
+                progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+                @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / ( aa_num_chain - 1 ) * 100)
+                # ------------------
+    
+                for i_res in chain_1.first : chain_1.last
+                    if cg_bead_name[i_res] == "RP"
                         continue
                     end
-                    for j_res in chain_2.first : chain_2.last
-                        if cg_bead_name[j_res] == "RP"
+                    coor_i = cg_bead_coor[:, i_res]
+                    for j_chain in i_chain + 1 : aa_num_chain
+                        chain_2 = cg_chains[j_chain]
+                        if chain_2.moltype != MOL_RNA
                             continue
                         end
-                        coor_j = cg_bead_coor[:, j_res]
-                        native_dist = compute_distance(coor_i, coor_j)
-                        adist, nhb  = compute_RNA_Go_contact(cg_residues[i_res],
-                                                             cg_residues[j_res],
-                                                             aa_atom_name,
-                                                             aa_coor)
-                        if adist > RNA_GO_ATOMIC_CUTOFF
-                            continue
-                        end
-                        if cg_bead_name[i_res] == "RB" && cg_bead_name[j_res] == "RB"
-                            if nhb == 2
-                                push!(top_cg_RNA_base_pair, (i_res, j_res, native_dist, RNA_BPAIR_EPSILON_2HB))
-                            elseif nhb >= 3
-                                push!(top_cg_RNA_base_pair, (i_res, j_res, native_dist, RNA_BPAIR_EPSILON_3HB))
-                            else
-                                push!(top_cg_RNA_other_contact, (i_res, j_res, native_dist, RNA_PAIR_EPSILON_OTHER["BB"]))
+                        for j_res in chain_2.first : chain_2.last
+                            if cg_bead_name[j_res] == "RP"
+                                continue
                             end
-                        else
-                            contact_type = cg_bead_name[i_res][end] * cg_bead_name[j_res][end]
-                            push!(top_cg_RNA_other_contact, (i_res, j_res, native_dist, RNA_PAIR_EPSILON_OTHER[contact_type]))
+                            coor_j = cg_bead_coor[:, j_res]
+                            native_dist = compute_distance(coor_i, coor_j)
+                            adist, nhb  = compute_RNA_Go_contact(cg_residues[i_res],
+                                                                 cg_residues[j_res],
+                                                                 aa_atom_name,
+                                                                 aa_coor)
+                            if adist > RNA_GO_ATOMIC_CUTOFF
+                                continue
+                            end
+                            if cg_bead_name[i_res] == "RB" && cg_bead_name[j_res] == "RB"
+                                if nhb == 2
+                                    push!(top_cg_RNA_base_pair, (i_res, j_res, native_dist, RNA_BPAIR_EPSILON_2HB))
+                                elseif nhb >= 3
+                                    push!(top_cg_RNA_base_pair, (i_res, j_res, native_dist, RNA_BPAIR_EPSILON_3HB))
+                                else
+                                    push!(top_cg_RNA_other_contact, (i_res, j_res, native_dist, RNA_PAIR_EPSILON_OTHER["BB"]))
+                                end
+                            else
+                                contact_type = cg_bead_name[i_res][end] * cg_bead_name[j_res][end]
+                                push!(top_cg_RNA_other_contact, (i_res, j_res, native_dist, RNA_PAIR_EPSILON_OTHER[contact_type]))
+                            end
                         end
                     end
                 end
             end
+            print("\n              ... inter-molecular contacts: DONE! \n")
         end
  
-        println(">           ... DONE!")
         println("------------------------------------------------------------")
         @printf("          > Total number of RNA contacts:     %12d  \n",
                 length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) )
@@ -2030,12 +2049,22 @@ function pdb_2_top(args)
         println("============================================================")
         println("> Step $(i_step): Generating protein-RNA native contacts.")
 
-        println("        Calculating protein-RNA contacts...")
+        @printf("%11s Calculating protein-RNA contacts... \n", " ")
+        @printf("              ... progress: %32s", " ")
         for i_chain in 1:aa_num_chain
             chain_pro = cg_chains[i_chain]
             if chain_pro.moltype != MOL_PROTEIN
                 continue
             end
+            # -----------------
+            # show progress bar
+            # -----------------
+            print("\b"^32)
+            progress_percent = trunc(Int, i_chain / aa_num_chain * 20)
+            progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+            @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / aa_num_chain * 100)
+            # ------------------
+    
             for i_res in chain_pro.first : chain_pro.last
                 coor_i = cg_bead_coor[:, i_res]
 
