@@ -1316,9 +1316,9 @@ function pdb_2_top(args)
     # protein-RNA
     top_cg_pro_RNA_contact   = []
 
-    # =================================
-    # Step 4: AICG2+ model for proteins
-    # =================================
+    # =============================
+    # Step 4: CG model for proteins
+    # =============================
     #                  _       _
     #  _ __  _ __ ___ | |_ ___(_)_ __
     # | '_ \| '__/ _ \| __/ _ \ | '_ \
@@ -1382,13 +1382,13 @@ function pdb_2_top(args)
         end
         println(">           ... DONE!")
 
-        # -------------------------
-        # Step 4.2: AICG2+ topology
-        # -------------------------
+        # -----------------------------
+        # Step 4.2: CG protein topology
+        # -----------------------------
         println("------------------------------------------------------------")
-        println(">      $(i_step).2: AICG2+ topology.")
+        println(">      $(i_step).2: CG protein topology.")
         println(" - - - - - - - - - - - - - - - - - - - - - - - -")
-        println(">      $(i_step).2.1: AICG2+ local interactions.")
+        println(">      $(i_step).2.1: CG protein local interactions.")
         for i_chain in 1:aa_num_chain
             chain = cg_chains[i_chain]
 
@@ -1424,7 +1424,7 @@ function pdb_2_top(args)
                 push!(top_cg_pro_angles, ( i_res, angle123 ))
                 push!(top_cg_pro_aicg13, ( i_res, dist13 ))
 
-                # count AICG2+ atomic contact
+                # count AICG2+ 1-3 interaction atomic contact
                 contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
                                                            cg_residues[ i_res + 2 ],
                                                            cg_resid_name[i_res],
@@ -1432,7 +1432,7 @@ function pdb_2_top(args)
                                                            aa_atom_name,
                                                            aa_coor)
 
-                # calculate AICG2+ pairwise energy
+                # calculate AICG2+ 1-3 interaction pairwise energy
                 e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
                 if e_local > AICG_ENE_UPPER_LIM
                     e_local = AICG_ENE_UPPER_LIM
@@ -1466,7 +1466,7 @@ function pdb_2_top(args)
                 push!(top_cg_pro_dihedrals, ( i_res, dihed ))
                 push!(top_cg_pro_aicg14, ( i_res, dihed ))
 
-                # count AICG2+ atomic contact
+                # count AICG2+ dihedral atomic contact
                 contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
                                                            cg_residues[ i_res + 3 ],
                                                            cg_resid_name[i_res],
@@ -1474,7 +1474,7 @@ function pdb_2_top(args)
                                                            aa_atom_name,
                                                            aa_coor)
 
-                # calculate AICG2+ pairwise energy
+                # calculate AICG2+ dihedral pairwise energy
                 e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
                 if e_local > AICG_ENE_UPPER_LIM
                     e_local = AICG_ENE_UPPER_LIM
@@ -1517,7 +1517,7 @@ function pdb_2_top(args)
         # Go type native contacts
         # -----------------------
         println(" - - - - - - - - - - - - - - - - - - - - - - - -")
-        println(">      $(i_step).2.2: AICG2+ Go-type native contacts.")
+        println(">      $(i_step).2.2: Looking for native contacts.")
         e_ground_contact = 0.0
         num_contact = 0
 
