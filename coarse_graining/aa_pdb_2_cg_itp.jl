@@ -221,7 +221,7 @@ MOL_TYPE_LIST = ["DNA", "RNA", "protein", "other", "unknown"]
 # ====================================
 
 # Clementi Go energy unit: epsilon
-const CCGO_EPSILON           = 0.6
+const CCGO_EPSILON           = 1.0
 # Clementi Go bond force constant
 const CCGO_BOND_K            = 100.00 * CCGO_EPSILON * 100 * 2
 # Clementi Go angle force constant
@@ -231,8 +231,6 @@ const CCGO_DIHE_K_1          = CCGO_EPSILON
 const CCGO_DIHE_K_3          = CCGO_EPSILON * 0.5
 # Clementi Go native contact eps
 const CCGO_NATIVE_EPSILON    = CCGO_EPSILON
-# Clementi Go non-native contact eps
-const CCGO_NONNATIVE_EPSILON = CCGO_EPSILON
 
 # ===============================
 # Protein AICG2+ Model Parameters
@@ -938,6 +936,7 @@ function pdb_2_top(args)
     ff_protein_name         = args["force-field-protein"]
     ff_DNA_name             = args["force-field-DNA"]
     ff_RNA_name             = args["force-field-RNA"]
+    ccgo_contact_scale      = args["CCGO-contact-scale"]
 
     # ========================
     # Step -1: set force field
@@ -2833,8 +2832,8 @@ function pdb_2_top(args)
                 print(itp_file, itp_contact_comm)
                 for i_c in 1 : length(top_cg_pro_aicg_contact)
                     r = top_cg_pro_aicg_contact[i_c][3] * 0.1
-                    v = 6.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^10
-                    w = 5.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^12
+                    v = 6.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^10 * ccgo_contact_scale
+                    w = 5.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^12 * ccgo_contact_scale
                     printfmt(itp_file,
                              itp_contact_line,
                              top_cg_pro_aicg_contact[i_c][1],
@@ -3194,6 +3193,11 @@ function parse_commandline()
         help = "Force field for RNA."
         arg_type = String
         default = "Go"
+
+        "--CCGO-contact-scale"
+        help = "Scaling native contact interaction coefficient."
+        arg_type = Float64
+        default = 1.0
 
         "--respac", "-c"
         help = "RESPAC protein charge distribution data."
