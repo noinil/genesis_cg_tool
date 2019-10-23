@@ -10,6 +10,8 @@
 # 1. Atoms startswith "ATOM  "
 # 2. Chains should end with "TER" and have different IDs
 # 
+# Unit in the script: kcal/mol
+# Unit for output:    kJ/mol
 ###############################################################################
 
 using Printf
@@ -33,6 +35,36 @@ using LinearAlgebra
 # Physical Constants
 # ==================
 const CAL2JOU = 4.184
+const JOU2CAL = 1.0 / CAL2JOU
+
+# ============
+# Force fields
+# ============
+
+# protein
+const FF_pro_AICG2p      = 1
+const FF_pro_Clementi_Go = 2
+const FF_pro_KB_Go       = 3
+# DNA
+const FF_DNA_3SPN2C      = 1
+# RNA
+const FF_RNA_Go          = 1
+# unknown
+const FF_UNKNOWN         = 0
+
+FF_PRO_DICT = Dict(
+    "AICG2+"   => FF_pro_AICG2p,
+    "Clementi" => FF_pro_Clementi_Go,
+    "KB-Go"    => FF_pro_KB_Go
+)
+
+FF_DNA_DICT = Dict(
+    "3SPN.2C"  => FF_DNA_3SPN2C
+)
+
+FF_RNA_DICT = Dict(
+    "Go"       => FF_RNA_Go
+)
 
 # =====================================
 # General Parameters: Mass, Charge, ...
@@ -54,7 +86,6 @@ RES_MASS_DICT = Dict(
     "ASP" => 115.09,
     "CYS" => 103.15,
     "CYM" => 103.15,
-    "CYT" => 103.15,
     "GLN" => 128.14,
     "GLU" => 129.12,
     "GLY" =>  57.05,
@@ -92,7 +123,6 @@ RES_CHARGE_DICT = Dict(
     "ASP" => -1.0,
     "CYS" =>  0.0,
     "CYM" =>  0.0,
-    "CYT" =>  0.0,
     "GLN" =>  0.0,
     "GLU" => -1.0,
     "GLY" =>  0.0,
@@ -130,7 +160,6 @@ RES_SHORTNAME_DICT = Dict(
     "ASP" => "D",
     "CYS" => "C",
     "CYM" => "C",
-    "CYT" => "C",
     "GLN" => "Q",
     "GLU" => "E",
     "GLY" => "G",
@@ -163,7 +192,7 @@ RES_NAME_LIST_PROTEIN = (
     "HIS", "ILE", "LEU", "LYS",
     "MET", "PHE", "PRO", "SER",
     "THR", "TRP", "TYR", "VAL",
-    "CYM", "CYT", "UNK")
+    "CYM", "UNK")
 
 RES_NAME_LIST_DNA = ("DA", "DC", "DG", "DT")
 
@@ -187,12 +216,30 @@ const MOL_PROTEIN = 3
 const MOL_OTHER   = 4
 MOL_TYPE_LIST = ["DNA", "RNA", "protein", "other", "unknown"]
 
+# ====================================
+# Protein Clementi Go Model Parameters
+# ====================================
+
+# Clementi Go energy unit: epsilon
+const CCGO_EPSILON           = 0.6
+# Clementi Go bond force constant
+const CCGO_BOND_K            = 100.00 * CCGO_EPSILON * 100 * 2
+# Clementi Go angle force constant
+const CCGO_ANGL_K            = 20.00 * CCGO_EPSILON * 2
+# Clementi Go dihedral force constant
+const CCGO_DIHE_K_1          = CCGO_EPSILON
+const CCGO_DIHE_K_3          = CCGO_EPSILON * 0.5
+# Clementi Go native contact eps
+const CCGO_NATIVE_EPSILON    = CCGO_EPSILON
+# Clementi Go non-native contact eps
+const CCGO_NONNATIVE_EPSILON = CCGO_EPSILON
+
 # ===============================
 # Protein AICG2+ Model Parameters
 # ===============================
 
 # AICG2+ bond force constant
-const AICG_BOND_K               = 110.40 * CAL2JOU * 100 * 2
+const AICG_BOND_K               = 110.40 * 100 * 2
 # AICG2+ sigma for Gaussian angle
 const AICG_13_SIGMA             = 0.15 * 0.1  # nm
 # AICG2+ sigma for Gaussian dihedral
@@ -259,13 +306,13 @@ AICG_PAIRWISE_ENERGY[AICG_ITYPE_OFFST] = - 0.1051   # offset
 # ============================
 
 # 3SPN.2C bond force constant
-const DNA3SPN_BOND_K_2    = 60.0 * 2
+const DNA3SPN_BOND_K_2    = 60.0 * 2 * JOU2CAL
 # 3SPN.2C force constant for Gaussian dihedral
-const DNA3SPN_DIH_G_K     = 7.0
+const DNA3SPN_DIH_G_K     = 7.0 * JOU2CAL
 # 3SPN.2C sigma for Gaussian dihedral
 const DNA3SPN_DIH_G_SIGMA = 0.3
 # 3SPN.2C force constant for Gaussian dihedral
-const DNA3SPN_DIH_P_K     = 2.0
+const DNA3SPN_DIH_P_K     = 2.0 * JOU2CAL
 
 # ====================================
 # RNA Structure-based Model Parameters
@@ -334,11 +381,14 @@ const DNA3SPN_ATOM_FUNC_NR    = 1
 const RNA_ATOM_FUNC_NR        = 1
 # "f" in "[bonds]"
 const AICG_BOND_FUNC_TYPE     = 1
+const CCGO_BOND_FUNC_TYPE     = 1
 const DNA3SPN_BOND_FUNC2_TYPE = 1
 const DNA3SPN_BOND_FUNC4_TYPE = 21
 const RNA_BOND_FUNC_TYPE      = 1
 # "f" in AICG-type "[angles]"
 const AICG_ANG_G_FUNC_TYPE    = 21
+# "f" in CCGO-type "[angles]"
+const CCGO_ANG_FUNC_TYPE      = 1
 # "f" in Flexible-type "[angles]"
 const AICG_ANG_F_FUNC_TYPE    = 22
 # "f" in DNA "[angles]"
@@ -347,6 +397,8 @@ const DNA3SPN_ANG_FUNC_TYPE   = 1
 const RNA_ANG_FUNC_TYPE       = 1
 # "f" in AICG-type "[dihedral]"
 const AICG_DIH_G_FUNC_TYPE    = 21
+# "f" in CCGO-type "[dihedral]"
+const CCGO_DIH_P_FUNC_TYPE    = 1
 # "f" in Flexible-type "[dihedral]"
 const AICG_DIH_F_FUNC_TYPE    = 22
 # "f" in DNA Gaussian "[dihedral]"
@@ -358,6 +410,8 @@ const DNA3SPN_DIH_P_FUNC_PERI = 1
 const RNA_DIH_FUNC_TYPE       = 1
 # "f" in Go-contacts "[pairs]"
 const AICG_CONTACT_FUNC_TYPE  = 2
+# "f" in Go-contacts "[pairs]"
+const CCGO_CONTACT_FUNC_TYPE  = 1
 # "f" in RNA Go-contacts "[pairs]"
 const RNA_CONTACT_FUNC_TYPE   = 2
 # "f" in pro-RNA Go-contacts "[pairs]"
@@ -697,7 +751,7 @@ function get_DNA3SPN_angle_param(angle_type, base_step)
         "SPS" => SPS_params
     )
 
-    return angle_params[angle_type][base_step]
+    return angle_params[angle_type][base_step] * JOU2CAL
 end
 
 # -------------------------
@@ -881,6 +935,28 @@ function pdb_2_top(args)
     do_output_cgpdb         = args["cgpdb"]
     do_debug                = args["debug"]
     do_output_sequence      = args["show-sequence"]
+    ff_protein_name         = args["force-field-protein"]
+    ff_DNA_name             = args["force-field-DNA"]
+    ff_RNA_name             = args["force-field-RNA"]
+
+    # ========================
+    # Step -1: set force field
+    # ========================
+    if haskey(FF_PRO_DICT, ff_protein_name)
+        ff_pro = FF_PRO_DICT[ff_protein_name]
+    else
+        error("Wrong force field for protein.")
+    end
+    if haskey(FF_DNA_DICT, ff_DNA_name)
+        ff_dna = FF_DNA_DICT[ff_DNA_name]
+    else
+        error("Wrong force field for protein.")
+    end
+    if haskey(FF_RNA_DICT, ff_RNA_name)
+        ff_rna = FF_RNA_DICT[ff_RNA_name]
+    else
+        error("Wrong force field for protein.")
+    end
 
     # ===============
     # Step 0: numbers
@@ -1308,11 +1384,13 @@ function pdb_2_top(args)
             end
 
             for i_res in chain.first : chain.last - 2
-                coor1  = cg_bead_coor[:, i_res]
-                coor3  = cg_bead_coor[:, i_res + 2]
-                dist13 = compute_distance(coor1, coor3)
-                push!(top_cg_pro_angles, i_res)
-                push!(top_cg_pro_aicg13, (i_res, dist13))
+                coor1    = cg_bead_coor[:, i_res]
+                coor2    = cg_bead_coor[:, i_res + 1]
+                coor3    = cg_bead_coor[:, i_res + 2]
+                dist13   = compute_distance(coor1, coor3)
+                angle123 = compute_angle(coor1, coor2, coor3)
+                push!(top_cg_pro_angles, ( i_res, angle123 ))
+                push!(top_cg_pro_aicg13, ( i_res, dist13 ))
 
                 # count AICG2+ atomic contact
                 contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
@@ -1353,8 +1431,8 @@ function pdb_2_top(args)
                 coor3 = cg_bead_coor[:, i_res + 2]
                 coor4 = cg_bead_coor[:, i_res + 3]
                 dihed = compute_dihedral(coor1, coor2, coor3, coor4)
-                push!(top_cg_pro_dihedrals, i_res)
-                push!(top_cg_pro_aicg14, (i_res, dihed))
+                push!(top_cg_pro_dihedrals, ( i_res, dihed ))
+                push!(top_cg_pro_aicg14, ( i_res, dihed ))
 
                 # count AICG2+ atomic contact
                 contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
@@ -1819,34 +1897,34 @@ function pdb_2_top(args)
                     r_sb      = compute_distance(coor_s, coor_b)
                     base_type = cg_resid_name[i_res] in ["RA", "RG"] ? "R" : "Y"
                     bond_type = "S" * base_type
-                    k         = RNA_BOND_K_LIST[bond_type] * CAL2JOU
+                    k         = RNA_BOND_K_LIST[bond_type]
                     push!(top_cg_RNA_bonds, (i_res, i_res + 1, r_sb , k * 2 * 100.0))
                     # bond S--P+1
                     if i_res + 2 < chain.last
                         coor_p3 = cg_bead_coor[:, i_res + 2]
                         r_sp3   = compute_distance(coor_s, coor_p3)
-                        k       = RNA_BOND_K_LIST["SP"] * CAL2JOU
+                        k       = RNA_BOND_K_LIST["SP"]
                         push!(top_cg_RNA_bonds, (i_res, i_res + 2, r_sp3 , k * 2 * 100.0))
                     end
                     if i_res + 4 <= chain.last
                         # Angle S--P+1--S+1
                         coor_s3   = cg_bead_coor[:, i_res + 3]
                         ang_sp3s3 = compute_angle(coor_s, coor_p3, coor_s3)
-                        k         = RNA_ANGLE_K_LIST["SPS"] * CAL2JOU
+                        k         = RNA_ANGLE_K_LIST["SPS"]
                         push!(top_cg_RNA_angles, (i_res, i_res + 2, i_res + 3, ang_sp3s3, k * 2))
                         # Dihedral S--P+1--S+1--B+1
                         coor_b3     = cg_bead_coor[:, i_res + 4]
                         dih_sp3s3b3 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_b3)
                         base_type   = cg_resid_name[i_res + 4] in ["RA", "RG"] ? "R" : "Y"
                         dihe_type   = "SPS" * base_type
-                        k           = RNA_DIHEDRAL_K_LIST[dihe_type] * CAL2JOU
+                        k           = RNA_DIHEDRAL_K_LIST[dihe_type]
                         push!(top_cg_RNA_dihedrals, (i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3, k))
                     end
                     # Dihedral S--P+1--S+1--P+2
                     if i_res + 5 < chain.last
                         coor_p33     = cg_bead_coor[:, i_res + 5]
                         dih_sp3s3p33 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_p33)
-                        k            = RNA_DIHEDRAL_K_LIST["SPSP"] * CAL2JOU
+                        k            = RNA_DIHEDRAL_K_LIST["SPSP"]
                         push!(top_cg_RNA_dihedrals, (i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33, k))
                     end
                 elseif cg_bead_name[i_res] == "RP"
@@ -1854,25 +1932,25 @@ function pdb_2_top(args)
                     coor_p = cg_bead_coor[:, i_res]
                     coor_s = cg_bead_coor[:, i_res + 1]
                     r_ps   = compute_distance(coor_p, coor_s)
-                    k      = RNA_BOND_K_LIST["PS"] * CAL2JOU
+                    k      = RNA_BOND_K_LIST["PS"]
                     push!(top_cg_RNA_bonds, (i_res, i_res + 1, r_ps , k * 2 * 100.0))
                     # angle P--S--B
                     coor_b    = cg_bead_coor[:, i_res + 2]
                     ang_psb   = compute_angle(coor_p, coor_s, coor_b)
                     base_type = cg_resid_name[i_res + 2] in ["RA", "RG"] ? "R" : "Y"
                     angl_type = "PS" * base_type
-                    k         = RNA_ANGLE_K_LIST[angl_type] * CAL2JOU
+                    k         = RNA_ANGLE_K_LIST[angl_type]
                     push!(top_cg_RNA_angles, (i_res, i_res + 1, i_res + 2, ang_psb, k * 2))
                     if i_res + 4 < chain.last
                         # angle P--S--P+1
                         coor_p3  = cg_bead_coor[:, i_res + 3]
                         ang_psp3 = compute_angle(coor_p, coor_s, coor_p3)
-                        k        = RNA_ANGLE_K_LIST["PSP"] * CAL2JOU
+                        k        = RNA_ANGLE_K_LIST["PSP"]
                         push!(top_cg_RNA_angles, (i_res, i_res + 1, i_res + 3, ang_psp3, k * 2))
                         # Dihedral P--S--P+1--S+1
                         coor_s3    = cg_bead_coor[:, i_res + 4]
                         dih_psp3s3 = compute_dihedral(coor_p, coor_s, coor_p3, coor_s3)
-                        k          = RNA_DIHEDRAL_K_LIST["PSPS"] * CAL2JOU
+                        k          = RNA_DIHEDRAL_K_LIST["PSPS"]
                         push!(top_cg_RNA_dihedrals, (i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3, k))
                     end
                 elseif cg_bead_name[i_res] == "RB"
@@ -2356,7 +2434,7 @@ function pdb_2_top(args)
         itp_ang_f_comm   = format(";{:>9}{:>10}{:>10}{:>5}\n", "i", "j", "k", "f")
         itp_ang_f_line   = "{:>10d}{:>10d}{:>10d}{:>5d}\n"
 
-        itp_ang_head     = "[ angles ] ; \n"
+        itp_ang_head     = "[ angles ] ; cannonical angle \n"
         itp_ang_comm     = format(";{:>9}{:>10}{:>10}{:>5}{:>18}{:>18} \n", "i", "j", "k", "f", "eq", "coef")
         itp_ang_line     = "{:>10d}{:>10d}{:>10d}{:>5d}{:>18.4E}{:>18.4E}\n"
 
@@ -2423,39 +2501,60 @@ function pdb_2_top(args)
         if length(top_cg_pro_bonds) + length(top_cg_DNA_bonds) + length(top_cg_RNA_bonds) > 0
             print(itp_file, itp_bnd_head)
             print(itp_file, itp_bnd_comm)
-
+            
             # AICG2+ bonds
-            for i_bond in 1 : length(top_cg_pro_bonds)
-                printfmt(itp_file,
-                         itp_bnd_line,
-                         top_cg_pro_bonds[i_bond][1],
-                         top_cg_pro_bonds[i_bond][1] + 1,
-                         AICG_BOND_FUNC_TYPE,
-                         top_cg_pro_bonds[i_bond][2] * 0.1,
-                         AICG_BOND_K)
+            if ff_pro == FF_pro_AICG2p
+                for i_bond in 1 : length(top_cg_pro_bonds)
+                    printfmt(itp_file,
+                             itp_bnd_line,
+                             top_cg_pro_bonds[i_bond][1],
+                             top_cg_pro_bonds[i_bond][1] + 1,
+                             AICG_BOND_FUNC_TYPE,
+                             top_cg_pro_bonds[i_bond][2] * 0.1,
+                             AICG_BOND_K * CAL2JOU)
+                end
             end
 
+            # Clementi Go bonds
+            if ff_pro == FF_pro_Clementi_Go
+                for i_bond in 1 : length(top_cg_pro_bonds)
+                    printfmt(itp_file,
+                             itp_bnd_line,
+                             top_cg_pro_bonds[i_bond][1],
+                             top_cg_pro_bonds[i_bond][1] + 1,
+                             CCGO_BOND_FUNC_TYPE,
+                             top_cg_pro_bonds[i_bond][2] * 0.1,
+                             CCGO_BOND_K * CAL2JOU)
+                end
+            end
+            
+
             # 3SPN.2C bonds
-            for i_bond in 1 : length(top_cg_DNA_bonds)
-                printfmt(itp_file,
-                         itp_bnd_line,
-                         top_cg_DNA_bonds[i_bond][1],
-                         top_cg_DNA_bonds[i_bond][2],
-                         DNA3SPN_BOND_FUNC4_TYPE,
-                         top_cg_DNA_bonds[i_bond][3] * 0.1,
-                         DNA3SPN_BOND_K_2)
+            if ff_dna == FF_DNA_3SPN2C
+                for i_bond in 1 : length(top_cg_DNA_bonds)
+                    printfmt(itp_file,
+                             itp_bnd_line,
+                             top_cg_DNA_bonds[i_bond][1],
+                             top_cg_DNA_bonds[i_bond][2],
+                             DNA3SPN_BOND_FUNC4_TYPE,
+                             top_cg_DNA_bonds[i_bond][3] * 0.1,
+                             DNA3SPN_BOND_K_2 * CAL2JOU)
+                end
             end
 
             # Structure-based RNA bonds
-            for i_bond in 1 : length(top_cg_RNA_bonds)
-                printfmt(itp_file,
-                         itp_bnd_line,
-                         top_cg_RNA_bonds[i_bond][1],
-                         top_cg_RNA_bonds[i_bond][2],
-                         RNA_BOND_FUNC_TYPE,
-                         top_cg_RNA_bonds[i_bond][3] * 0.1,
-                         top_cg_RNA_bonds[i_bond][4])
+            if ff_rna == FF_RNA_Go
+                for i_bond in 1 : length(top_cg_RNA_bonds)
+                    printfmt(itp_file,
+                             itp_bnd_line,
+                             top_cg_RNA_bonds[i_bond][1],
+                             top_cg_RNA_bonds[i_bond][2],
+                             RNA_BOND_FUNC_TYPE,
+                             top_cg_RNA_bonds[i_bond][3] * 0.1,
+                             top_cg_RNA_bonds[i_bond][4] * CAL2JOU)
+                end
             end
+
             print(itp_file, "\n")
 
         end
@@ -2465,250 +2564,342 @@ function pdb_2_top(args)
         # -----------------
 
         # AICG2+ 1-3
-        if length(top_cg_pro_aicg13) > 0
-            print(itp_file, itp_13_head)
-            print(itp_file, itp_13_comm)
-            for i_13 in 1 : length(top_cg_pro_aicg13)
-                printfmt(itp_file,
-                         itp_13_line,
-                         top_cg_pro_aicg13[i_13][1],
-                         top_cg_pro_aicg13[i_13][1] + 1,
-                         top_cg_pro_aicg13[i_13][1] + 2,
-                         AICG_ANG_G_FUNC_TYPE,
-                         top_cg_pro_aicg13[i_13][2] * 0.1,
-                         param_cg_pro_e_13[i_13] * CAL2JOU,
-                         AICG_13_SIGMA)
+        if ff_pro == FF_pro_AICG2p
+            if length(top_cg_pro_aicg13) > 0
+                print(itp_file, itp_13_head)
+                print(itp_file, itp_13_comm)
+                for i_13 in 1 : length(top_cg_pro_aicg13)
+                    printfmt(itp_file,
+                             itp_13_line,
+                             top_cg_pro_aicg13[i_13][1],
+                             top_cg_pro_aicg13[i_13][1] + 1,
+                             top_cg_pro_aicg13[i_13][1] + 2,
+                             AICG_ANG_G_FUNC_TYPE,
+                             top_cg_pro_aicg13[i_13][2] * 0.1,
+                             param_cg_pro_e_13[i_13] * CAL2JOU,
+                             AICG_13_SIGMA)
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
         end
 
         # AICG2+ flexible
-        if length(top_cg_pro_angles) > 0
-            print(itp_file, itp_ang_f_head)
-            print(itp_file, itp_ang_f_comm)
-            for i_ang in 1 : length(top_cg_pro_angles)
-                printfmt(itp_file,
-                         itp_ang_f_line,
-                         top_cg_pro_angles[i_ang],
-                         top_cg_pro_angles[i_ang] + 1,
-                         top_cg_pro_angles[i_ang] + 2,
-                         AICG_ANG_F_FUNC_TYPE)
+        if ff_pro == FF_pro_AICG2p
+            if length(top_cg_pro_angles) > 0
+                print(itp_file, itp_ang_f_head)
+                print(itp_file, itp_ang_f_comm)
+                for i_ang in 1 : length(top_cg_pro_angles)
+                    printfmt(itp_file,
+                             itp_ang_f_line,
+                             top_cg_pro_angles[i_ang][1],
+                             top_cg_pro_angles[i_ang][1] + 1,
+                             top_cg_pro_angles[i_ang][1] + 2,
+                             AICG_ANG_F_FUNC_TYPE)
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
+        end
+
+        # Clementi Go angle
+        if ff_pro == FF_pro_Clementi_Go
+            if length(top_cg_pro_angles) > 0
+                print(itp_file, itp_ang_head)
+                print(itp_file, itp_ang_comm)
+                for i_ang in 1 : length(top_cg_pro_angles)
+                    printfmt(itp_file,
+                             itp_ang_line,
+                             top_cg_pro_angles[i_ang][1],
+                             top_cg_pro_angles[i_ang][1] + 1,
+                             top_cg_pro_angles[i_ang][1] + 2,
+                             CCGO_ANG_FUNC_TYPE,
+                             top_cg_pro_angles[i_ang][2],
+                             CCGO_ANGL_K * CAL2JOU)
+                end
+                print(itp_file, "\n")
+            end
         end
 
         # 3SPN.2C angles
-        if length(top_cg_DNA_angles) > 0
-            print(itp_file, itp_ang_head)
-            print(itp_file, itp_ang_comm)
-            for i_ang in 1 : length(top_cg_DNA_angles)
-                printfmt(itp_file,
-                         itp_ang_line,
-                         top_cg_DNA_angles[i_ang][1],
-                         top_cg_DNA_angles[i_ang][2],
-                         top_cg_DNA_angles[i_ang][3],
-                         DNA3SPN_ANG_FUNC_TYPE,
-                         top_cg_DNA_angles[i_ang][4],
-                         top_cg_DNA_angles[i_ang][5])
+        if ff_dna == FF_DNA_3SPN2C
+            if length(top_cg_DNA_angles) > 0
+                print(itp_file, itp_ang_head)
+                print(itp_file, itp_ang_comm)
+                for i_ang in 1 : length(top_cg_DNA_angles)
+                    printfmt(itp_file,
+                             itp_ang_line,
+                             top_cg_DNA_angles[i_ang][1],
+                             top_cg_DNA_angles[i_ang][2],
+                             top_cg_DNA_angles[i_ang][3],
+                             DNA3SPN_ANG_FUNC_TYPE,
+                             top_cg_DNA_angles[i_ang][4],
+                             top_cg_DNA_angles[i_ang][5] * CAL2JOU)
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
         end
 
         # RNA structure-based angles
-        if length(top_cg_RNA_angles) > 0
-            print(itp_file, itp_ang_head)
-            print(itp_file, itp_ang_comm)
-            for i_ang in 1 : length(top_cg_RNA_angles)
-                printfmt(itp_file,
-                         itp_ang_line,
-                         top_cg_RNA_angles[i_ang][1],
-                         top_cg_RNA_angles[i_ang][2],
-                         top_cg_RNA_angles[i_ang][3],
-                         RNA_ANG_FUNC_TYPE,
-                         top_cg_RNA_angles[i_ang][4],
-                         top_cg_RNA_angles[i_ang][5])
+        if ff_rna == FF_RNA_Go
+            if length(top_cg_RNA_angles) > 0
+                print(itp_file, itp_ang_head)
+                print(itp_file, itp_ang_comm)
+                for i_ang in 1 : length(top_cg_RNA_angles)
+                    printfmt(itp_file,
+                             itp_ang_line,
+                             top_cg_RNA_angles[i_ang][1],
+                             top_cg_RNA_angles[i_ang][2],
+                             top_cg_RNA_angles[i_ang][3],
+                             RNA_ANG_FUNC_TYPE,
+                             top_cg_RNA_angles[i_ang][4],
+                             top_cg_RNA_angles[i_ang][5] * CAL2JOU)
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
         end
-
 
         # --------------------
         #        [ dihedrals ]
         # --------------------
 
-        # AICG2+ Gaussian dihedrals
-        if length(top_cg_pro_aicg14) > 0
-            print(itp_file, itp_dih_G_head)
-            print(itp_file, itp_dih_G_comm)
-            for i_dih in 1 : length(top_cg_pro_aicg14)
-                printfmt(itp_file,
-                         itp_dih_G_line,
-                         top_cg_pro_aicg14[i_dih][1],
-                         top_cg_pro_aicg14[i_dih][1] + 1,
-                         top_cg_pro_aicg14[i_dih][1] + 2,
-                         top_cg_pro_aicg14[i_dih][1] + 3,
-                         AICG_DIH_G_FUNC_TYPE,
-                         top_cg_pro_aicg14[i_dih][2],
-                         param_cg_pro_e_14[i_dih] * CAL2JOU,
-                         AICG_14_SIGMA)
+        if ff_pro == FF_pro_AICG2p
+            # AICG2+ Gaussian dihedrals
+            if length(top_cg_pro_aicg14) > 0
+                print(itp_file, itp_dih_G_head)
+                print(itp_file, itp_dih_G_comm)
+                for i_dih in 1 : length(top_cg_pro_aicg14)
+                    printfmt(itp_file,
+                             itp_dih_G_line,
+                             top_cg_pro_aicg14[i_dih][1],
+                             top_cg_pro_aicg14[i_dih][1] + 1,
+                             top_cg_pro_aicg14[i_dih][1] + 2,
+                             top_cg_pro_aicg14[i_dih][1] + 3,
+                             AICG_DIH_G_FUNC_TYPE,
+                             top_cg_pro_aicg14[i_dih][2],
+                             param_cg_pro_e_14[i_dih] * CAL2JOU,
+                             AICG_14_SIGMA)
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
+    
+            # AICG2+ flexible dihedrals
+            if length(top_cg_pro_dihedrals) > 0
+                print(itp_file, itp_dih_F_head)
+                print(itp_file, itp_dih_F_comm)
+                for i_dih in 1 : length(top_cg_pro_dihedrals)
+                    printfmt(itp_file,
+                             itp_dih_F_line,
+                             top_cg_pro_dihedrals[i_dih][1],
+                             top_cg_pro_dihedrals[i_dih][1] + 1,
+                             top_cg_pro_dihedrals[i_dih][1] + 2,
+                             top_cg_pro_dihedrals[i_dih][1] + 3,
+                             AICG_DIH_F_FUNC_TYPE)
+                end
+                print(itp_file, "\n")
+            end
         end
 
-        # AICG2+ flexible dihedrals
-        if length(top_cg_pro_dihedrals) > 0
-            print(itp_file, itp_dih_F_head)
-            print(itp_file, itp_dih_F_comm)
-            for i_dih in 1 : length(top_cg_pro_dihedrals)
-                printfmt(itp_file,
-                         itp_dih_F_line,
-                         top_cg_pro_dihedrals[i_dih],
-                         top_cg_pro_dihedrals[i_dih] + 1,
-                         top_cg_pro_dihedrals[i_dih] + 2,
-                         top_cg_pro_dihedrals[i_dih] + 3,
-                         AICG_DIH_F_FUNC_TYPE)
+        # Clementi Go dihedral
+        if ff_pro == FF_pro_Clementi_Go
+            if length(top_cg_pro_dihedrals) > 0
+                print(itp_file, itp_dih_P_head)
+                print(itp_file, itp_dih_P_comm)
+                for i_dih in 1 : length(top_cg_pro_dihedrals)
+                    printfmt(itp_file,
+                             itp_dih_P_line,
+                             top_cg_pro_dihedrals[i_dih][1],
+                             top_cg_pro_dihedrals[i_dih][1] + 1,
+                             top_cg_pro_dihedrals[i_dih][1] + 2,
+                             top_cg_pro_dihedrals[i_dih][1] + 3,
+                             CCGO_DIH_P_FUNC_TYPE,
+                             top_cg_pro_dihedrals[i_dih][2] - 180.0,
+                             CCGO_DIHE_K_1 * CAL2JOU,
+                             1)
+                end
+                for i_dih in 1 : length(top_cg_pro_dihedrals)
+                    printfmt(itp_file,
+                             itp_dih_P_line,
+                             top_cg_pro_dihedrals[i_dih][1],
+                             top_cg_pro_dihedrals[i_dih][1] + 1,
+                             top_cg_pro_dihedrals[i_dih][1] + 2,
+                             top_cg_pro_dihedrals[i_dih][1] + 3,
+                             CCGO_DIH_P_FUNC_TYPE,
+                             3.0 * top_cg_pro_dihedrals[i_dih][2] - 180.0,
+                             CCGO_DIHE_K_3 * CAL2JOU,
+                             3)
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
         end
 
-        # 3SPN.2C Gaussian dihedrals
-        if length(top_cg_DNA_dih_Gaussian) > 0
-            print(itp_file, itp_dih_G_head)
-            print(itp_file, itp_dih_G_comm)
-            for i_dih in 1 : length(top_cg_DNA_dih_Gaussian)
-                printfmt(itp_file,
-                         itp_dih_G_line,
-                         top_cg_DNA_dih_Gaussian[i_dih][1],
-                         top_cg_DNA_dih_Gaussian[i_dih][2],
-                         top_cg_DNA_dih_Gaussian[i_dih][3],
-                         top_cg_DNA_dih_Gaussian[i_dih][4],
-                         DNA3SPN_DIH_G_FUNC_TYPE,
-                         top_cg_DNA_dih_Gaussian[i_dih][5],
-                         DNA3SPN_DIH_G_K,
-                         DNA3SPN_DIH_G_SIGMA)
+        if ff_dna == FF_DNA_3SPN2C
+            # 3SPN.2C Gaussian dihedrals
+            if length(top_cg_DNA_dih_Gaussian) > 0
+                print(itp_file, itp_dih_G_head)
+                print(itp_file, itp_dih_G_comm)
+                for i_dih in 1 : length(top_cg_DNA_dih_Gaussian)
+                    printfmt(itp_file,
+                             itp_dih_G_line,
+                             top_cg_DNA_dih_Gaussian[i_dih][1],
+                             top_cg_DNA_dih_Gaussian[i_dih][2],
+                             top_cg_DNA_dih_Gaussian[i_dih][3],
+                             top_cg_DNA_dih_Gaussian[i_dih][4],
+                             DNA3SPN_DIH_G_FUNC_TYPE,
+                             top_cg_DNA_dih_Gaussian[i_dih][5],
+                             DNA3SPN_DIH_G_K * CAL2JOU,
+                             DNA3SPN_DIH_G_SIGMA)
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
-        end
-
-        # 3SPN.2C Periodic dihedrals
-        if length(top_cg_DNA_dih_periodic) > 0
-            print(itp_file, itp_dih_P_head)
-            print(itp_file, itp_dih_P_comm)
-            for i_dih in 1 : length(top_cg_DNA_dih_periodic)
-                printfmt(itp_file,
-                         itp_dih_P_line,
-                         top_cg_DNA_dih_periodic[i_dih][1],
-                         top_cg_DNA_dih_periodic[i_dih][2],
-                         top_cg_DNA_dih_periodic[i_dih][3],
-                         top_cg_DNA_dih_periodic[i_dih][4],
-                         DNA3SPN_DIH_P_FUNC_TYPE,
-                         top_cg_DNA_dih_periodic[i_dih][5],
-                         DNA3SPN_DIH_P_K,
-                         DNA3SPN_DIH_P_FUNC_PERI)
+    
+            # 3SPN.2C Periodic dihedrals
+            if length(top_cg_DNA_dih_periodic) > 0
+                print(itp_file, itp_dih_P_head)
+                print(itp_file, itp_dih_P_comm)
+                for i_dih in 1 : length(top_cg_DNA_dih_periodic)
+                    printfmt(itp_file,
+                             itp_dih_P_line,
+                             top_cg_DNA_dih_periodic[i_dih][1],
+                             top_cg_DNA_dih_periodic[i_dih][2],
+                             top_cg_DNA_dih_periodic[i_dih][3],
+                             top_cg_DNA_dih_periodic[i_dih][4],
+                             DNA3SPN_DIH_P_FUNC_TYPE,
+                             top_cg_DNA_dih_periodic[i_dih][5],
+                             DNA3SPN_DIH_P_K * CAL2JOU,
+                             DNA3SPN_DIH_P_FUNC_PERI)
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
         end
 
         # RNA structure-based Periodic dihedrals
-        if length(top_cg_RNA_dihedrals) > 0
-            print(itp_file, itp_dih_P_head)
-            print(itp_file, itp_dih_P_comm)
-            for i_dih in 1 : length(top_cg_RNA_dihedrals)
-                printfmt(itp_file,
-                         itp_dih_P_line,
-                         top_cg_RNA_dihedrals[i_dih][1],
-                         top_cg_RNA_dihedrals[i_dih][2],
-                         top_cg_RNA_dihedrals[i_dih][3],
-                         top_cg_RNA_dihedrals[i_dih][4],
-                         RNA_DIH_FUNC_TYPE,
-                         top_cg_RNA_dihedrals[i_dih][5] - 180,
-                         top_cg_RNA_dihedrals[i_dih][6],
-                         1)
+        if ff_rna == FF_RNA_Go
+            if length(top_cg_RNA_dihedrals) > 0
+                print(itp_file, itp_dih_P_head)
+                print(itp_file, itp_dih_P_comm)
+                for i_dih in 1 : length(top_cg_RNA_dihedrals)
+                    printfmt(itp_file,
+                             itp_dih_P_line,
+                             top_cg_RNA_dihedrals[i_dih][1],
+                             top_cg_RNA_dihedrals[i_dih][2],
+                             top_cg_RNA_dihedrals[i_dih][3],
+                             top_cg_RNA_dihedrals[i_dih][4],
+                             RNA_DIH_FUNC_TYPE,
+                             top_cg_RNA_dihedrals[i_dih][5] - 180.0,
+                             top_cg_RNA_dihedrals[i_dih][6] * CAL2JOU,
+                             1)
+                end
+                for i_dih in 1 : length(top_cg_RNA_dihedrals)
+                    printfmt(itp_file,
+                             itp_dih_P_line,
+                             top_cg_RNA_dihedrals[i_dih][1],
+                             top_cg_RNA_dihedrals[i_dih][2],
+                             top_cg_RNA_dihedrals[i_dih][3],
+                             top_cg_RNA_dihedrals[i_dih][4],
+                             RNA_DIH_FUNC_TYPE,
+                             3.0 * top_cg_RNA_dihedrals[i_dih][5] - 180.0,
+                             top_cg_RNA_dihedrals[i_dih][6] / 2 * CAL2JOU,
+                             3)
+                end
+                print(itp_file, "\n")
             end
-            for i_dih in 1 : length(top_cg_RNA_dihedrals)
-                printfmt(itp_file,
-                         itp_dih_P_line,
-                         top_cg_RNA_dihedrals[i_dih][1],
-                         top_cg_RNA_dihedrals[i_dih][2],
-                         top_cg_RNA_dihedrals[i_dih][3],
-                         top_cg_RNA_dihedrals[i_dih][4],
-                         RNA_DIH_FUNC_TYPE,
-                         3 * top_cg_RNA_dihedrals[i_dih][5] - 180,
-                         top_cg_RNA_dihedrals[i_dih][6] / 2,
-                         3)
-            end
-            print(itp_file, "\n")
         end
-
 
         # ----------------
         #        [ pairs ]
         # ----------------
 
         # print protein Go-type native contacts
-        if length(top_cg_pro_aicg_contact) > 0
-            print(itp_file, itp_contact_head)
-            print(itp_file, itp_contact_comm)
-            for i_c in 1 : length(top_cg_pro_aicg_contact)
-                printfmt(itp_file,
-                         itp_contact_line,
-                         top_cg_pro_aicg_contact[i_c][1],
-                         top_cg_pro_aicg_contact[i_c][2],
-                         AICG_CONTACT_FUNC_TYPE,
-                         top_cg_pro_aicg_contact[i_c][3] * 0.1,
-                         param_cg_pro_e_contact[i_c] * CAL2JOU)
+        if ff_pro == FF_pro_AICG2p
+            if length(top_cg_pro_aicg_contact) > 0
+                print(itp_file, itp_contact_head)
+                print(itp_file, itp_contact_comm)
+                for i_c in 1 : length(top_cg_pro_aicg_contact)
+                    printfmt(itp_file,
+                             itp_contact_line,
+                             top_cg_pro_aicg_contact[i_c][1],
+                             top_cg_pro_aicg_contact[i_c][2],
+                             AICG_CONTACT_FUNC_TYPE,
+                             top_cg_pro_aicg_contact[i_c][3] * 0.1,
+                             param_cg_pro_e_contact[i_c] * CAL2JOU)
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
+        end
+
+        # Clementi Go native contacts
+        if ff_pro == FF_pro_Clementi_Go
+            if length(top_cg_pro_aicg_contact) > 0
+                print(itp_file, itp_contact_head)
+                print(itp_file, itp_contact_comm)
+                for i_c in 1 : length(top_cg_pro_aicg_contact)
+                    r = top_cg_pro_aicg_contact[i_c][3] * 0.1
+                    v = 6.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^10
+                    w = 5.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^12
+                    printfmt(itp_file,
+                             itp_contact_line,
+                             top_cg_pro_aicg_contact[i_c][1],
+                             top_cg_pro_aicg_contact[i_c][2],
+                             CCGO_CONTACT_FUNC_TYPE,
+                             v,
+                             w)
+                end
+                print(itp_file, "\n")
+            end
         end
 
         # print RNA Go-type native contacts
-        if length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) > 0
-            print(itp_file, itp_contact_head)
-            print(itp_file, itp_contact_comm)
-            for i_c in 1 : length(top_cg_RNA_base_stack)
-                printfmt(itp_file,
-                         itp_contact_line,
-                         top_cg_RNA_base_stack[i_c][1],
-                         top_cg_RNA_base_stack[i_c][2],
-                         RNA_CONTACT_FUNC_TYPE,
-                         top_cg_RNA_base_stack[i_c][3] * 0.1,
-                         top_cg_RNA_base_stack[i_c][4] * CAL2JOU)
+        if ff_rna == FF_RNA_Go
+            if length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) > 0
+                print(itp_file, itp_contact_head)
+                print(itp_file, itp_contact_comm)
+                for i_c in 1 : length(top_cg_RNA_base_stack)
+                    printfmt(itp_file,
+                             itp_contact_line,
+                             top_cg_RNA_base_stack[i_c][1],
+                             top_cg_RNA_base_stack[i_c][2],
+                             RNA_CONTACT_FUNC_TYPE,
+                             top_cg_RNA_base_stack[i_c][3] * 0.1,
+                             top_cg_RNA_base_stack[i_c][4] * CAL2JOU)
+                end
+                for i_c in 1 : length(top_cg_RNA_base_pair)
+                    printfmt(itp_file,
+                             itp_contact_line,
+                             top_cg_RNA_base_pair[i_c][1],
+                             top_cg_RNA_base_pair[i_c][2],
+                             RNA_CONTACT_FUNC_TYPE,
+                             top_cg_RNA_base_pair[i_c][3] * 0.1,
+                             top_cg_RNA_base_pair[i_c][4] * CAL2JOU)
+                end
+                for i_c in 1 : length(top_cg_RNA_other_contact)
+                    printfmt(itp_file,
+                             itp_contact_line,
+                             top_cg_RNA_other_contact[i_c][1],
+                             top_cg_RNA_other_contact[i_c][2],
+                             RNA_CONTACT_FUNC_TYPE,
+                             top_cg_RNA_other_contact[i_c][3] * 0.1,
+                             top_cg_RNA_other_contact[i_c][4] * CAL2JOU)
+                end
+                print(itp_file, "\n")
             end
-            for i_c in 1 : length(top_cg_RNA_base_pair)
-                printfmt(itp_file,
-                         itp_contact_line,
-                         top_cg_RNA_base_pair[i_c][1],
-                         top_cg_RNA_base_pair[i_c][2],
-                         RNA_CONTACT_FUNC_TYPE,
-                         top_cg_RNA_base_pair[i_c][3] * 0.1,
-                         top_cg_RNA_base_pair[i_c][4] * CAL2JOU)
-            end
-            for i_c in 1 : length(top_cg_RNA_other_contact)
-                printfmt(itp_file,
-                         itp_contact_line,
-                         top_cg_RNA_other_contact[i_c][1],
-                         top_cg_RNA_other_contact[i_c][2],
-                         RNA_CONTACT_FUNC_TYPE,
-                         top_cg_RNA_other_contact[i_c][3] * 0.1,
-                         top_cg_RNA_other_contact[i_c][4] * CAL2JOU)
-            end
-            print(itp_file, "\n")
         end
 
+
         # print protein-RNA native contacts
-        if length(top_cg_pro_RNA_contact) > 0
-            print(itp_file, itp_contact_head)
-            print(itp_file, itp_contact_comm)
-            for i_c in 1 : length(top_cg_pro_RNA_contact)
-                printfmt(itp_file,
-                         itp_contact_line,
-                         top_cg_pro_RNA_contact[i_c][1],
-                         top_cg_pro_RNA_contact[i_c][2],
-                         RNP_CONTACT_FUNC_TYPE,
-                         top_cg_pro_RNA_contact[i_c][3] * 0.1,
-                         top_cg_pro_RNA_contact[i_c][4] * CAL2JOU)
+        if ff_pro == FF_pro_AICG2p && ff_rna == FF_RNA_Go
+            if length(top_cg_pro_RNA_contact) > 0
+                print(itp_file, itp_contact_head)
+                print(itp_file, itp_contact_comm)
+                for i_c in 1 : length(top_cg_pro_RNA_contact)
+                    printfmt(itp_file,
+                             itp_contact_line,
+                             top_cg_pro_RNA_contact[i_c][1],
+                             top_cg_pro_RNA_contact[i_c][2],
+                             RNP_CONTACT_FUNC_TYPE,
+                             top_cg_pro_RNA_contact[i_c][3] * 0.1,
+                             top_cg_pro_RNA_contact[i_c][4] * CAL2JOU)
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
         end
 
 
@@ -2717,56 +2908,62 @@ function pdb_2_top(args)
         # ---------------------
 
         # print Protein exclusion list
-        if length(top_cg_pro_aicg_contact) > 0
-            print(itp_file, itp_exc_head)
-            print(itp_file, itp_exc_comm)
-            for i_c in 1 : length(top_cg_pro_aicg_contact)
-                printfmt(itp_file,
-                         itp_exc_line,
-                         top_cg_pro_aicg_contact[i_c][1],
-                         top_cg_pro_aicg_contact[i_c][2])
+        if ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go
+            if length(top_cg_pro_aicg_contact) > 0
+                print(itp_file, itp_exc_head)
+                print(itp_file, itp_exc_comm)
+                for i_c in 1 : length(top_cg_pro_aicg_contact)
+                    printfmt(itp_file,
+                             itp_exc_line,
+                             top_cg_pro_aicg_contact[i_c][1],
+                             top_cg_pro_aicg_contact[i_c][2])
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
         end
 
         # print RNA exclusion list
-        if length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) > 0
-            print(itp_file, itp_exc_head)
-            print(itp_file, itp_exc_comm)
-            for i_c in 1 : length(top_cg_RNA_base_stack)
-                printfmt(itp_file,
-                         itp_exc_line,
-                         top_cg_RNA_base_stack[i_c][1],
-                         top_cg_RNA_base_stack[i_c][2])
+        if ff_rna == FF_RNA_Go
+            if length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) > 0
+                print(itp_file, itp_exc_head)
+                print(itp_file, itp_exc_comm)
+                for i_c in 1 : length(top_cg_RNA_base_stack)
+                    printfmt(itp_file,
+                             itp_exc_line,
+                             top_cg_RNA_base_stack[i_c][1],
+                             top_cg_RNA_base_stack[i_c][2])
+                end
+                for i_c in 1 : length(top_cg_RNA_base_pair)
+                    printfmt(itp_file,
+                             itp_exc_line,
+                             top_cg_RNA_base_pair[i_c][1],
+                             top_cg_RNA_base_pair[i_c][2])
+                end
+                for i_c in 1 : length(top_cg_RNA_other_contact)
+                    printfmt(itp_file,
+                             itp_exc_line,
+                             top_cg_RNA_other_contact[i_c][1],
+                             top_cg_RNA_other_contact[i_c][2])
+                end
+                print(itp_file, "\n")
             end
-            for i_c in 1 : length(top_cg_RNA_base_pair)
-                printfmt(itp_file,
-                         itp_exc_line,
-                         top_cg_RNA_base_pair[i_c][1],
-                         top_cg_RNA_base_pair[i_c][2])
-            end
-            for i_c in 1 : length(top_cg_RNA_other_contact)
-                printfmt(itp_file,
-                         itp_exc_line,
-                         top_cg_RNA_other_contact[i_c][1],
-                         top_cg_RNA_other_contact[i_c][2])
-            end
-            print(itp_file, "\n")
         end
+
 
         # print protein-RNA exclusion contacts
-        if length(top_cg_pro_RNA_contact) > 0
-            print(itp_file, itp_exc_head)
-            print(itp_file, itp_exc_comm)
-            for i_c in 1 : length(top_cg_pro_RNA_contact)
-                printfmt(itp_file,
-                         itp_exc_line,
-                         top_cg_pro_RNA_contact[i_c][1],
-                         top_cg_pro_RNA_contact[i_c][2])
+        if ff_pro == FF_pro_AICG2p && ff_rna == FF_RNA_Go
+            if length(top_cg_pro_RNA_contact) > 0
+                print(itp_file, itp_exc_head)
+                print(itp_file, itp_exc_comm)
+                for i_c in 1 : length(top_cg_pro_RNA_contact)
+                    printfmt(itp_file,
+                             itp_exc_line,
+                             top_cg_pro_RNA_contact[i_c][1],
+                             top_cg_pro_RNA_contact[i_c][2])
+                end
+                print(itp_file, "\n")
             end
-            print(itp_file, "\n")
         end
-
 
 
         close(itp_file)
@@ -2982,6 +3179,21 @@ function parse_commandline()
         help     = "PDB file name."
         required = true
         arg_type = String
+
+        "--force-field-protein"
+        help = "Force field for protein."
+        arg_type = String
+        default = "AICG2+"
+
+        "--force-field-DNA"
+        help = "Force field for DNA."
+        arg_type = String
+        default = "3SPN.2C"
+
+        "--force-field-RNA"
+        help = "Force field for RNA."
+        arg_type = String
+        default = "Go"
 
         "--respac", "-c"
         help = "RESPAC protein charge distribution data."
