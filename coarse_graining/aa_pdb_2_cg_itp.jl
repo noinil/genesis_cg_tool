@@ -195,12 +195,35 @@ RES_NAME_LIST_PROTEIN = (
     "CYM", "UNK")
 
 RES_NAME_LIST_DNA = ("DA", "DC", "DG", "DT")
+RES_NAME_DNA_DICT = Dict(
+    "DA"  => "DA",
+    "DC"  => "DC",
+    "DG"  => "DG",
+    "DT"  => "DT",
+    "ADE" => "DA",
+    "CYT" => "DC",
+    "GUA" => "DG",
+    "THY" => "DT"
+)
 
 RES_NAME_LIST_RNA = ("RA", "RC", "RG", "RU")
+RES_NAME_RNA_DICT = Dict(
+    "RA"  => "RA",
+    "RC"  => "RC",
+    "RG"  => "RG",
+    "RT"  => "RT",
+    "RU"  => "RU",
+    "ADE" => "RA",
+    "CYT" => "RC",
+    "GUA" => "RG",
+    "URA" => "RU",
+    "THY" => "RT"
+)
+
 
 # DNA CG residue atom names
 ATOM_NAME_LIST_DP = ("P", "OP1", "OP2", "O5'", "O1P", "O2P")
-ATOM_NAME_LIST_DS = ("C5'", "C4'", "C3'", "C2'", "C1'", "O4'", "O2'")
+ATOM_NAME_LIST_DS = ("C5'", "C4'", "C3'", "C2'", "C1'", "O4'")
 
 # RNA CG residue atom names
 ATOM_NAME_LIST_RP = ("P", "OP1", "OP2", "O1P", "O2P")
@@ -1077,14 +1100,22 @@ function pdb_2_top(args)
         mol_type = -1
         for i_res in chain.residues
             res_name = aa_residues[i_res].name
+            tmp_mol_type = MOL_OTHER
             if in(res_name, RES_NAME_LIST_PROTEIN)
                 tmp_mol_type = MOL_PROTEIN
             elseif in(res_name, RES_NAME_LIST_DNA)
                 tmp_mol_type = MOL_DNA
             elseif in(res_name, RES_NAME_LIST_RNA)
                 tmp_mol_type = MOL_RNA
-            else
-                tmp_mol_type = MOL_OTHER
+            elseif haskey(RES_NAME_RNA_DICT, res_name) || haskey(RES_NAME_DNA_DICT, res_name)
+                tmp_mol_type = MOL_DNA
+                for i_atom in aa_residues[i_res].atoms
+                    atom_name = aa_atom_name[i_atom]
+                    if atom_name == "O2'"
+                        tmp_mol_type = MOL_RNA
+                        break
+                    end
+                end
             end
             if mol_type == -1
                 mol_type = tmp_mol_type
@@ -1159,7 +1190,8 @@ function pdb_2_top(args)
         elseif mol_type == MOL_DNA
             tmp_atom_index_O3p = 0
             for (i_local_index, i_res) in enumerate( chain.residues )
-                res_name = aa_residues[i_res].name
+                aa_res_name = aa_residues[i_res].name
+                res_name = RES_NAME_DNA_DICT[aa_res_name]
                 cg_DP_idx = [tmp_atom_index_O3p]
                 cg_DS_idx = []
                 cg_DB_idx = []
@@ -1189,7 +1221,8 @@ function pdb_2_top(args)
             end
         elseif mol_type == MOL_RNA
             for (i_local_index, i_res) in enumerate( chain.residues )
-                res_name = aa_residues[i_res].name
+                aa_res_name = aa_residues[i_res].name
+                res_name = RES_NAME_RNA_DICT[aa_res_name]
                 cg_RP_idx = []
                 cg_RS_idx = []
                 cg_RB_idx = []
