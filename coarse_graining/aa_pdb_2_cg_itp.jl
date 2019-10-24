@@ -2100,10 +2100,6 @@ function pdb_2_top(args)
     
                 chain_1 = cg_chains[i_chain]
     
-                if chain_1.moltype != MOL_RNA
-                    continue
-                end
-    
                 # -----------------
                 # show progress bar
                 # -----------------
@@ -2112,6 +2108,10 @@ function pdb_2_top(args)
                 progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
                 @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / ( aa_num_chain - 1 ) * 100)
                 # ------------------
+    
+                if chain_1.moltype != MOL_RNA
+                    continue
+                end
     
                 for i_res in chain_1.first : chain_1.last
                     if cg_bead_name[i_res] == "RP"
@@ -2182,10 +2182,6 @@ function pdb_2_top(args)
         @printf("%11s Calculating protein-RNA contacts... \n", " ")
         @printf("              ... progress: %32s", " ")
         for i_chain in 1:aa_num_chain
-            chain_pro = cg_chains[i_chain]
-            if chain_pro.moltype != MOL_PROTEIN
-                continue
-            end
             # -----------------
             # show progress bar
             # -----------------
@@ -2195,6 +2191,12 @@ function pdb_2_top(args)
             @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / aa_num_chain * 100)
             # ------------------
     
+            chain_pro = cg_chains[i_chain]
+
+            if chain_pro.moltype != MOL_PROTEIN
+                continue
+            end
+
             for i_res in chain_pro.first : chain_pro.last
                 coor_i = cg_bead_coor[:, i_res]
 
