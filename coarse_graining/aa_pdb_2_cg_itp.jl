@@ -201,7 +201,12 @@ RES_SHORTNAME_DICT = Dict(
     "RA"  => "A",
     "RC"  => "C",
     "RG"  => "G",
-    "RU"  => "U"
+    "RU"  => "U",
+    "ADE" => "A",
+    "CYT" => "C",
+    "GUA" => "G",
+    "URA" => "U",
+    "THY" => "T"
 )
 
 RES_NAME_LIST_PROTEIN = (
