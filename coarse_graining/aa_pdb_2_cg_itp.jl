@@ -218,6 +218,35 @@ RES_NAME_LIST_PROTEIN = (
     "HSD", "HSE", "HSP",
     "HID", "HIE", "HIP",
     "CYM", "UNK")
+RES_NAME_PROTEIN_DICT = Dict(
+    "ALA" => "ALA",
+    "ARG" => "ARG",
+    "ASN" => "ASN",
+    "ASP" => "ASP",
+    "CYS" => "CYS",
+    "CYM" => "CYS",
+    "GLN" => "GLN",
+    "GLU" => "GLU",
+    "GLY" => "GLY",
+    "HIS" => "HIS",
+    "HSD" => "HIS",
+    "HSE" => "HIS",
+    "HSP" => "HIS",
+    "HID" => "HIS",
+    "HIE" => "HIS",
+    "HIP" => "HIS",
+    "ILE" => "ILE",
+    "LEU" => "LEU",
+    "LYS" => "LYS",
+    "MET" => "MET",
+    "PHE" => "PHE",
+    "PRO" => "PRO",
+    "SER" => "SER",
+    "THR" => "THR",
+    "TRP" => "TRP",
+    "TYR" => "TYR",
+    "VAL" => "VAL"
+)
 
 RES_NAME_LIST_DNA = ("DA", "DC", "DG", "DT")
 RES_NAME_DNA_DICT = Dict(
@@ -1199,7 +1228,8 @@ function pdb_2_top(args)
         if mol_type == MOL_PROTEIN
             for i_res in chain.residues
                 cg_idx = []
-                res_name = aa_residues[i_res].name
+                aa_res_name = aa_residues[i_res].name
+                res_name = RES_NAME_PROTEIN_DICT[aa_res_name]
                 for i_atom in aa_residues[i_res].atoms
                     atom_name = aa_atom_name[i_atom]
                     if atom_name[1] == 'H'
