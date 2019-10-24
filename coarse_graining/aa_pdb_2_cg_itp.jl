@@ -2230,7 +2230,7 @@ function pdb_2_top(args)
         end
 
         # println("\n>           ... DONE!")
-        println("------------------------------------------------------------")
+        println("\n------------------------------------------------------------")
         @printf("          > Total number of protein-RNA contacts: %8d  \n",
                 length(top_cg_pro_RNA_contact) )
     end
