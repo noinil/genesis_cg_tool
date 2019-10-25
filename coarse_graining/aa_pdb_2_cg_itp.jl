@@ -2131,7 +2131,7 @@ function pdb_2_top(args)
         if num_chain_RNA > 1
             @printf("%11s Calculating inter-molecular contacts... \n", " ")
             @printf("              ... progress: %32s", " ")
-            for i_chain in 1:aa_num_chain
+            for i_chain in 1:aa_num_chain - 1
     
                 chain_1 = cg_chains[i_chain]
     
