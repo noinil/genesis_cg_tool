@@ -1970,6 +1970,7 @@ function pdb_2_top(args)
         println(" - - - - - - - - - - - - - - - - - - - - - - - -")
         println(">      $(i_step).2.1: RNA local interactions.")
 
+        @printf("%11s Calculating bonded terms... \n", " ")
         for i_chain in 1:aa_num_chain
             chain = cg_chains[i_chain]
 
@@ -1977,7 +1978,6 @@ function pdb_2_top(args)
                 continue
             end
 
-            @printf("%11s Calculating bonded terms... \n", " ")
             for i_res in chain.first : chain.last
                 if cg_bead_name[i_res] == "RS"
                     # bond S--B
