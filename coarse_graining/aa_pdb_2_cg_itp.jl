@@ -2290,9 +2290,9 @@ function pdb_2_top(args)
         println("============================================================")
         println("> Step $(i_step): Generating PWMcos parameters.")
 
-        # ----------------------------------
-        #        Step 7.1: determine P, S, B
-        # ----------------------------------
+        # ------------------------------------------------
+        #        Step 7.1: determine protein-DNA contacts
+        # ------------------------------------------------
         println("------------------------------------------------------------")
         println(">      $(i_step).1: determine contacts between protein and DNA.")
 
