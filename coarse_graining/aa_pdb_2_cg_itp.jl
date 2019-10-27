@@ -247,7 +247,8 @@ RES_NAME_PROTEIN_DICT = Dict(
     "THR" => "THR",
     "TRP" => "TRP",
     "TYR" => "TYR",
-    "VAL" => "VAL"
+    "VAL" => "VAL",
+    "UNK" => "UNK"
 )
 
 RES_NAME_LIST_DNA = ("DA", "DC", "DG", "DT")
@@ -294,6 +295,12 @@ const MOL_RNA     = 2
 const MOL_PROTEIN = 3
 const MOL_OTHER   = 4
 MOL_TYPE_LIST = ["DNA", "RNA", "protein", "other", "unknown"]
+
+# ===========================
+# General thresholds, cutoffs
+# ===========================
+
+const CG_CONTACT_CUTOFF = 20.0
 
 # ====================================
 # Protein Clementi Go Model Parameters
@@ -1373,6 +1380,16 @@ function pdb_2_top(args)
     # protein-RNA
     top_cg_pro_RNA_contact   = []
 
+    # --------------------
+    # geometric properties
+    # --------------------
+    # center of geometry
+    geo_centroid               = zeros(Float64, (3, aa_num_chain))
+    # radius of gyration
+    geo_radius_of_gyration     = zeros(Float64, aa_num_chain)
+    # radius of circumsphere
+    geo_radius_of_circumsphere = zeros(Float64, aa_num_chain)
+
     # =============================
     # Step 4: CG model for proteins
     # =============================
@@ -1438,6 +1455,42 @@ function pdb_2_top(args)
             end
         end
         println(">           ... DONE!")
+
+        # ----------------------------------------
+        # Step 4.1.1: determine geometric features
+        # ----------------------------------------
+        println("------------------------------------------------------------")
+        println(">      $(i_step).1.1: determine Centroid, Rg, Rc...")
+
+        for i_chain in 1:aa_num_chain
+            chain = cg_chains[i_chain]
+
+            if chain.moltype != MOL_PROTEIN
+                continue
+            end
+
+            # centroid
+            coor_centroid = zeros(Float64, 3)
+            for i_res in chain.first : chain.last
+                coor_centroid += cg_bead_coor[:, i_res]
+            end
+            coor_centroid /= (chain.last - chain.first + 1)
+            geo_centroid[:, i_chain] = coor_centroid
+
+            # Rg
+            tmp_dist = 0
+            tmp_dist_sq_sum = 0
+            for i_res in chain.first : chain.last
+                vec_from_center   = cg_bead_coor[:, i_res] - coor_centroid
+                vec_norm_tmp      = norm(vec_from_center)
+                tmp_dist          = vec_norm_tmp > tmp_dist ? vec_norm_tmp : tmp_dist
+                tmp_dist_sq_sum  += vec_norm_tmp * vec_norm_tmp
+            end
+            rg = sqrt(tmp_dist_sq_sum / (chain.last - chain.first + 1))
+            rc = tmp_dist
+            geo_radius_of_gyration[i_chain]     = rg
+            geo_radius_of_circumsphere[i_chain] = rc
+        end
 
         # -----------------------------
         # Step 4.2: CG protein topology
@@ -1654,15 +1707,32 @@ function pdb_2_top(args)
                     continue
                 end
     
+                centroid_chain1 = geo_centroid[:, i_chain]
+                radius_of_circ1 = geo_radius_of_circumsphere[i_chain]
+
                 for j_chain in i_chain + 1 : aa_num_chain
                     chain2 = cg_chains[j_chain]
     
                     if chain2.moltype != MOL_PROTEIN
                         continue
                     end
+
+                    centroid_chain2 = geo_centroid[:, j_chain]
+                    radius_of_circ2 = geo_radius_of_circumsphere[j_chain]
+
+                    cent_cent_dist = compute_distance(centroid_chain1, centroid_chain2)
+                    if cent_cent_dist > radius_of_circ1 + radius_of_circ2 + CG_CONTACT_CUTOFF
+                        continue
+                    end
     
                     for i_res in chain1.first : chain1.last
                         coor_cai = cg_bead_coor[:, i_res]
+
+                        cai_centj_dist = compute_distance(coor_cai, centroid_chain2)
+                        if cai_centj_dist > radius_of_circ2 + CG_CONTACT_CUTOFF
+                            continue
+                        end
+
                         for j_res in chain2.first : chain2.last
                             coor_caj = cg_bead_coor[:, j_res]
                             if is_protein_go_contact(cg_residues[i_res], cg_residues[j_res], aa_atom_name, aa_coor)
@@ -1764,6 +1834,42 @@ function pdb_2_top(args)
         end
 
         println(">           ... DONE!")
+
+        # ----------------------------------------
+        # Step 5.1.1: determine geometric features
+        # ----------------------------------------
+        println("------------------------------------------------------------")
+        println(">      $(i_step).1.1: determine Centroid, Rg, Rc...")
+
+        for i_chain in 1:aa_num_chain
+            chain = cg_chains[i_chain]
+
+            if chain.moltype != MOL_DNA
+                continue
+            end
+
+            # centroid
+            coor_centroid = zeros(Float64, 3)
+            for i_res in chain.first : chain.last
+                coor_centroid += cg_bead_coor[:, i_res]
+            end
+            coor_centroid /= (chain.last - chain.first + 1)
+            geo_centroid[:, i_chain] = coor_centroid
+
+            # Rg
+            tmp_dist = 0
+            tmp_dist_sq_sum = 0
+            for i_res in chain.first : chain.last
+                vec_from_center   = cg_bead_coor[:, i_res] - coor_centroid
+                vec_norm_tmp      = norm(vec_from_center)
+                tmp_dist          = vec_norm_tmp > tmp_dist ? vec_norm_tmp : tmp_dist
+                tmp_dist_sq_sum  += vec_norm_tmp * vec_norm_tmp
+            end
+            rg = sqrt(tmp_dist_sq_sum / (chain.last - chain.first + 1))
+            rc = tmp_dist
+            geo_radius_of_gyration[i_chain]     = rg
+            geo_radius_of_circumsphere[i_chain] = rc
+        end
 
         # ---------------------------------
         #        Step 5.2: 3SPN.2C topology
@@ -1962,6 +2068,42 @@ function pdb_2_top(args)
 
         println(">           ... DONE!")
 
+        # ----------------------------------------
+        # Step 6.1.1: determine geometric features
+        # ----------------------------------------
+        println("------------------------------------------------------------")
+        println(">      $(i_step).1.1: determine Centroid, Rg, Rc...")
+
+        for i_chain in 1:aa_num_chain
+            chain = cg_chains[i_chain]
+
+            if chain.moltype != MOL_RNA
+                continue
+            end
+
+            # centroid
+            coor_centroid = zeros(Float64, 3)
+            for i_res in chain.first : chain.last
+                coor_centroid += cg_bead_coor[:, i_res]
+            end
+            coor_centroid /= (chain.last - chain.first + 1)
+            geo_centroid[:, i_chain] = coor_centroid
+
+            # Rg
+            tmp_dist = 0
+            tmp_dist_sq_sum = 0
+            for i_res in chain.first : chain.last
+                vec_from_center   = cg_bead_coor[:, i_res] - coor_centroid
+                vec_norm_tmp      = norm(vec_from_center)
+                tmp_dist          = vec_norm_tmp > tmp_dist ? vec_norm_tmp : tmp_dist
+                tmp_dist_sq_sum  += vec_norm_tmp * vec_norm_tmp
+            end
+            rg = sqrt(tmp_dist_sq_sum / (chain.last - chain.first + 1))
+            rc = tmp_dist
+            geo_radius_of_gyration[i_chain]     = rg
+            geo_radius_of_circumsphere[i_chain] = rc
+        end
+
         # -------------------------
         # Step 6.2: RNA topology
         # -------------------------
@@ -2150,16 +2292,34 @@ function pdb_2_top(args)
                     continue
                 end
     
-                for i_res in chain_1.first : chain_1.last
-                    if cg_bead_name[i_res] == "RP"
+                centroid_chain1 = geo_centroid[:, i_chain]
+                radius_of_circ1 = geo_radius_of_circumsphere[i_chain]
+
+                for j_chain in i_chain + 1 : aa_num_chain
+                    chain_2 = cg_chains[j_chain]
+                    if chain_2.moltype != MOL_RNA
                         continue
                     end
-                    coor_i = cg_bead_coor[:, i_res]
-                    for j_chain in i_chain + 1 : aa_num_chain
-                        chain_2 = cg_chains[j_chain]
-                        if chain_2.moltype != MOL_RNA
+
+                    centroid_chain2 = geo_centroid[:, j_chain]
+                    radius_of_circ2 = geo_radius_of_circumsphere[j_chain]
+
+                    cent_cent_dist = compute_distance(centroid_chain1, centroid_chain2)
+                    if cent_cent_dist > radius_of_circ1 + radius_of_circ2 + CG_CONTACT_CUTOFF
+                        continue
+                    end
+
+                    for i_res in chain_1.first : chain_1.last
+                        if cg_bead_name[i_res] == "RP"
                             continue
                         end
+                        coor_i = cg_bead_coor[:, i_res]
+
+                        coori_centj_dist = compute_distance(coor_i, centroid_chain2)
+                        if coori_centj_dist > radius_of_circ2 + CG_CONTACT_CUTOFF
+                            continue
+                        end
+
                         for j_res in chain_2.first : chain_2.last
                             if cg_bead_name[j_res] == "RP"
                                 continue
@@ -2234,14 +2394,31 @@ function pdb_2_top(args)
                 continue
             end
 
-            for i_res in chain_pro.first : chain_pro.last
-                coor_i = cg_bead_coor[:, i_res]
+            centroid_chain_pro = geo_centroid[:, i_chain]
+            radius_of_circ_pro = geo_radius_of_circumsphere[i_chain]
 
-                for j_chain in 1 : aa_num_chain
-                    chain_RNA = cg_chains[j_chain]
-                    if chain_RNA.moltype != MOL_RNA
+            for j_chain in 1 : aa_num_chain
+                chain_RNA = cg_chains[j_chain]
+                if chain_RNA.moltype != MOL_RNA
+                    continue
+                end
+
+                centroid_chain_rna = geo_centroid[:, j_chain]
+                radius_of_circ_rna = geo_radius_of_circumsphere[j_chain]
+
+                cent_cent_dist = compute_distance(centroid_chain_pro, centroid_chain_rna)
+                if cent_cent_dist > radius_of_circ_pro + radius_of_circ_rna + CG_CONTACT_CUTOFF
+                    continue
+                end
+
+                for i_res in chain_pro.first : chain_pro.last
+                    coor_i = cg_bead_coor[:, i_res]
+
+                    cai_centj_dist = compute_distance(coor_i, centroid_chain_rna)
+                    if cai_centj_dist > radius_of_circ_rna + CG_CONTACT_CUTOFF
                         continue
                     end
+
                     for j_res in chain_RNA.first : chain_RNA.last
                         if cg_bead_name[j_res] == "RP"
                             continue
