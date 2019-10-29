@@ -1031,6 +1031,7 @@ function pdb_2_top(args)
     appendto_filename       = args["patch"]
     do_output_psf           = args["psf"]
     do_output_cgpdb         = args["cgpdb"]
+    do_output_log           = args["log"]
     do_debug                = args["debug"]
     do_output_sequence      = args["show-sequence"]
     ff_protein_name         = args["force-field-protein"]
@@ -2614,7 +2615,36 @@ function pdb_2_top(args)
         println(">           ... DONE!")
     end
 
+    # ================
+    # Calculate radius
+    # ================
+    #  ____
+    # |  _ \ __ _
+    # | |_) / _` |
+    # |  _ < (_| |
+    # |_| \_\__, |
+    #       |___/
+    # ================
+    if true
+        # centroid
+        coor_centroid_all = zeros(Float64, 3)
+        for i_bead in 1 : cg_num_particles
+            coor_centroid_all += cg_bead_coor[:, i_bead]
+        end
+        coor_centroid_all /= cg_num_particles
 
+        # Rg
+        tmp_dist = 0
+        tmp_dist_sq_sum = 0
+        for i_bead in 1 : cg_num_particles
+            vec_from_center   = cg_bead_coor[:, i_bead] - coor_centroid_all
+            vec_norm_tmp      = norm(vec_from_center)
+            tmp_dist          = vec_norm_tmp > tmp_dist ? vec_norm_tmp : tmp_dist
+            tmp_dist_sq_sum  += vec_norm_tmp * vec_norm_tmp
+        end
+        rg_all = sqrt(tmp_dist_sq_sum / cg_num_particles)
+        rc_all = tmp_dist
+    end
 
 
     # =========================================================================
@@ -3442,6 +3472,61 @@ function pdb_2_top(args)
         println(">           ... sequence output : DONE!")
     end
 
+
+    # ----------
+    # output log
+    # ----------
+    if do_output_log
+        log_name = pdb_name[1:end-4] * "_cg.log"
+        log_file = open(log_name, "w")
+
+        println(log_file, "================================================================================")
+        println(log_file, " PDB info (atomic):")
+        println(log_file, " - Number of atoms    : $(aa_num_atom)")
+        println(log_file, " - Number of residues : $(aa_num_residue)")
+        println(log_file, " - Number of chains   : $(aa_num_chain)")
+
+        println(log_file, "================================================================================")
+        println(log_file, " Chain info (CG):")
+        @printf(log_file, " - Number of protein chains: %5d \n", num_chain_pro)
+        @printf(log_file, " - Number of DNA strands:    %5d \n", num_chain_DNA)
+        @printf(log_file, " - Number of RNA strands:    %5d \n", num_chain_RNA)
+
+        println(log_file, " |------------------------------------------------------------------|")
+        println(log_file, " | Chain | Mol Type | # bead | start --   end |       Rg |       Rc | ")
+        println(log_file, " |-------+----------+--------+----------------+----------+----------|")
+        for i_chain = 1:aa_num_chain
+            chain = cg_chains[i_chain]
+            @printf(log_file, " |   %3d | %8s | %6d | %5d -- %5d | %8.3f | %8.3f | \n",
+                    i_chain, MOL_TYPE_LIST[ chain.moltype ], cg_chain_length[i_chain],
+                    cg_chains[i_chain].first, cg_chains[i_chain].last,
+                    geo_radius_of_gyration[i_chain],
+                    geo_radius_of_circumsphere[i_chain])
+        end
+        println(log_file, " |------------------------------------------------------------------|")
+        println(log_file, " CG mol info:")
+        @printf(log_file, " - Number of CG particles: %8d \n", cg_num_particles)
+        @printf(log_file, " - Radius of gyration:     %8.3f \n", rg_all)
+        @printf(log_file, " - Radius of circumsphere: %8.3f \n", rc_all)
+
+
+        println(log_file, "================================================================================")
+        println(log_file, " Interaction info:")
+        if num_chain_pro > 0
+            @printf(log_file, " - Number of protein contacts:     %12d  \n", length(top_cg_pro_aicg_contact))
+        end
+        if num_chain_RNA > 0
+            @printf(log_file, " - Number of RNA contacts:         %12d  \n", length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) )
+        end
+        if num_chain_RNA > 0 && num_chain_pro > 0
+            @printf(log_file, " - Number of protein-RNA contacts: %12d  \n", length(top_cg_pro_RNA_contact) )
+        end
+        println(log_file, "================================================================================")
+
+        close(log_file)
+    end
+
+
     println("------------------------------------------------------------")
     println("------------------------------------------------------------")
     println("[1;32m FINISH! [0m ")
@@ -3530,6 +3615,10 @@ function parse_commandline()
 
         "--show-sequence"
         help = "Show sequence of molecules in PDB."
+        action = :store_true
+
+        "--log"
+        help = "Output information to log file."
         action = :store_true
 
         "--debug"
