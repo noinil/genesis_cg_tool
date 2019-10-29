@@ -1121,7 +1121,7 @@ function pdb_2_top(args)
         end
 
         i_atom += 1
-        atom_serial       = parse(Int, line[7:11])
+        # atom_serial       = parse(Int, line[7:11])
         atom_name         = strip(line[13:16])
         residue_name      = strip(line[18:21])
         chain_id          = line[22]
@@ -3407,18 +3407,24 @@ function pdb_2_top(args)
     # cgpdb ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # ------------------------------------------------------------
     if do_output_cgpdb
-        cg_pdb_name = pdb_name[1:end-4] * "_cg.pdb"
-        cg_pdb_file = open(cg_pdb_name, "w")
+        cg_pdb_name      = pdb_name[1:end-4] * "_cg.pdb"
+        cg_pdb_file      = open(cg_pdb_name, "w")
         cg_pdb_atom_line = "ATOM  {:>5d} {:>4s}{:1}{:<4s}{:1}{:>4d}{:1}   {:>8.3f}{:>8.3f}{:>8.3f}{:>6.2f}{:>6.2f}{:>10s}{:2s}{:2s} \n"
         cg_pdb_cnct_line = "CONECT{:>5d}{:>5d} \n"
-        chain_id_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
-        tmp_chain_id = 0
+        chain_id_set     = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+        tmp_chain_id     = 0
+        is_huge_system   = cg_num_particles > 9999
         for i_bead in 1 : cg_num_particles
             if cg_chain_id[i_bead] > tmp_chain_id
                 if tmp_chain_id > 0
                     print(cg_pdb_file, "TER\n")
                 end
                 tmp_chain_id = cg_chain_id[i_bead]
+            end
+            if is_huge_system
+                resid_index_tmp = cg_resid_index[i_bead] - cg_resid_index[cg_chains[cg_chain_id[i_bead]].first] + 1
+            else
+                resid_index_tmp = cg_resid_index[i_bead]
             end
             printfmt(cg_pdb_file,
                      cg_pdb_atom_line,
@@ -3427,7 +3433,7 @@ function pdb_2_top(args)
                      ' ',
                      cg_resid_name[i_bead],
                      chain_id_set[cg_chain_id[i_bead]],
-                     cg_resid_index[i_bead],
+                     resid_index_tmp,
                      ' ',
                      cg_bead_coor[1 , i_bead],
                      cg_bead_coor[2 , i_bead],
