@@ -10,8 +10,8 @@
 # 1. Atoms startswith "ATOM  "
 # 2. Chains should end with "TER" and have different IDs
 # 
-# Unit in the script: kcal/mol
-# Unit for output:    kJ/mol
+# Unit in the script: kcal/mol, Å
+# Unit for output:    kJ/mol, nm
 ###############################################################################
 
 using Printf
@@ -1031,6 +1031,7 @@ function pdb_2_top(args)
     appendto_filename       = args["patch"]
     do_output_psf           = args["psf"]
     do_output_cgpdb         = args["cgpdb"]
+    do_output_cgconect      = args["cgconect"]
     do_output_log           = args["log"]
     do_debug                = args["debug"]
     do_output_sequence      = args["show-sequence"]
@@ -3409,6 +3410,7 @@ function pdb_2_top(args)
         cg_pdb_name = pdb_name[1:end-4] * "_cg.pdb"
         cg_pdb_file = open(cg_pdb_name, "w")
         cg_pdb_atom_line = "ATOM  {:>5d} {:>4s}{:1}{:<4s}{:1}{:>4d}{:1}   {:>8.3f}{:>8.3f}{:>8.3f}{:>6.2f}{:>6.2f}{:>10s}{:2s}{:2s} \n"
+        cg_pdb_cnct_line = "CONECT{:>5d}{:>5d} \n"
         chain_id_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
         tmp_chain_id = 0
         for i_bead in 1 : cg_num_particles
@@ -3437,6 +3439,25 @@ function pdb_2_top(args)
                      "")
         end
         print(cg_pdb_file,"TER\n")
+
+        if do_output_cgconect
+            for i_bond in 1 : length(top_cg_pro_bonds)
+                printfmt(cg_pdb_file, cg_pdb_cnct_line,
+                         top_cg_pro_bonds[i_bond][1],
+                         top_cg_pro_bonds[i_bond][1] + 1)
+            end
+            for i_bond in 1 : length(top_cg_DNA_bonds)
+                printfmt(cg_pdb_file, cg_pdb_cnct_line,
+                         top_cg_DNA_bonds[i_bond][1],
+                         top_cg_DNA_bonds[i_bond][2])
+            end
+            for i_bond in 1 : length(top_cg_RNA_bonds)
+                printfmt(cg_pdb_file, cg_pdb_cnct_line,
+                         top_cg_RNA_bonds[i_bond][1],
+                         top_cg_RNA_bonds[i_bond][2])
+            end
+        end
+
         print(cg_pdb_file,"END\n")
         print(cg_pdb_file,"\n")
 
@@ -3493,7 +3514,7 @@ function pdb_2_top(args)
         @printf(log_file, " - Number of RNA strands:    %5d \n", num_chain_RNA)
 
         println(log_file, " |------------------------------------------------------------------|")
-        println(log_file, " | Chain | Mol Type | # bead | start --   end |       Rg |       Rc | ")
+        println(log_file, " | Chain | Mol Type | # bead | start --   end |   Rg (Å) |   Rc (Å) | ")
         println(log_file, " |-------+----------+--------+----------------+----------+----------|")
         for i_chain = 1:aa_num_chain
             chain = cg_chains[i_chain]
@@ -3506,8 +3527,8 @@ function pdb_2_top(args)
         println(log_file, " |------------------------------------------------------------------|")
         println(log_file, " CG mol info:")
         @printf(log_file, " - Number of CG particles: %8d \n", cg_num_particles)
-        @printf(log_file, " - Radius of gyration:     %8.3f \n", rg_all)
-        @printf(log_file, " - Radius of circumsphere: %8.3f \n", rc_all)
+        @printf(log_file, " - Radius of gyration:     %8.3f Å \n", rg_all)
+        @printf(log_file, " - Radius of circumsphere: %8.3f Å \n", rc_all)
 
 
         println(log_file, "================================================================================")
@@ -3601,6 +3622,10 @@ function parse_commandline()
 
         "--cgpdb"
         help = "Prepare CG PDB file."
+        action = :store_true
+
+        "--cgconect"
+        help = "Prepare CG PDB file with CONECTed bonds."
         action = :store_true
 
         "--pfm", "-p"
