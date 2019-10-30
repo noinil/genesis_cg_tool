@@ -1370,7 +1370,7 @@ function pdb_2_top(args)
     top_cg_pro_dihedrals     = []
     top_cg_pro_aicg13        = []
     top_cg_pro_aicg14        = []
-    top_cg_pro_aicg_contact  = []
+    top_cg_pro_go_contact    = []
 
     param_cg_pro_e_13        = []
     param_cg_pro_e_14        = []
@@ -1418,6 +1418,9 @@ function pdb_2_top(args)
     #
     # =================================
 
+    num_cg_pro_contact_all = 0
+    num_cg_pro_contact_intra = 0
+    num_cg_pro_contact_inter = 0
     if num_chain_pro > 0
         i_step += 1
         println("============================================================")
@@ -1675,8 +1678,9 @@ function pdb_2_top(args)
                     coor_caj = cg_bead_coor[:, j_res]
                     if is_protein_go_contact(cg_residues[i_res], cg_residues[j_res], aa_atom_name, aa_coor)
                         native_dist = compute_distance(coor_cai, coor_caj)
-                        num_contact += 1
-                        push!(top_cg_pro_aicg_contact, (i_res, j_res, native_dist))
+                        num_cg_pro_contact_all += 1
+                        num_cg_pro_contact_intra += 1
+                        push!(top_cg_pro_go_contact, (i_res, j_res, native_dist))
 
                         # count AICG2+ atomic contact
                         contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
@@ -1753,8 +1757,9 @@ function pdb_2_top(args)
                             coor_caj = cg_bead_coor[:, j_res]
                             if is_protein_go_contact(cg_residues[i_res], cg_residues[j_res], aa_atom_name, aa_coor)
                                 native_dist = compute_distance(coor_cai, coor_caj)
-                                num_contact += 1
-                                push!(top_cg_pro_aicg_contact, (i_res, j_res, native_dist))
+                                num_cg_pro_contact_all += 1
+                                num_cg_pro_contact_inter += 1
+                                push!(top_cg_pro_go_contact, (i_res, j_res, native_dist))
     
                                 # count AICG2+ atomic contact
                                 contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
@@ -1798,7 +1803,7 @@ function pdb_2_top(args)
 
         println("------------------------------------------------------------")
         @printf("          > Total number of protein contacts: %12d  \n",
-                length( top_cg_pro_aicg_contact ))
+                length( top_cg_pro_go_contact ))
 
     end
 
@@ -2761,7 +2766,7 @@ function pdb_2_top(args)
         itp_dih_F_comm   = format(";{:>9}{:>10}{:>10}{:>10}{:>5}\n", "i", "j", "k", "l", "f")
         itp_dih_F_line   = "{:>10d}{:>10d}{:>10d}{:>10d}{:>5d}\n"
 
-        itp_contact_head = "[ pairs ] ; Go-type native contact\n"
+        itp_contact_head = "[ pairs ] ; {1} - Go-type native contact\n"
         itp_contact_comm = format(";{:>9}{:>10}{:>10}{:>15}{:>15}\n", "i", "j", "f", "eq", "coef")
         itp_contact_line = "{:>10d}{:>10d}{:>10d}{:>15.4E}{:>15.4E}\n"
 
@@ -3121,16 +3126,35 @@ function pdb_2_top(args)
 
         # print protein Go-type native contacts
         if ff_pro == FF_pro_AICG2p
-            if length(top_cg_pro_aicg_contact) > 0
-                print(itp_file, itp_contact_head)
+            if length(top_cg_pro_go_contact) != num_cg_pro_contact_all
+                error("Wrong protein contact number!")
+            end
+            if num_cg_pro_contact_inter + num_cg_pro_contact_intra != num_cg_pro_contact_all
+                error("Inconsistent protein contact number!")
+            end
+            if num_cg_pro_contact_all > 0
+                printfmt(itp_file, itp_contact_head, "AICG2+ intra-protein")
                 print(itp_file, itp_contact_comm)
-                for i_c in 1 : length(top_cg_pro_aicg_contact)
+                for i_c in 1 : num_cg_pro_contact_intra
                     printfmt(itp_file,
                              itp_contact_line,
-                             top_cg_pro_aicg_contact[i_c][1],
-                             top_cg_pro_aicg_contact[i_c][2],
+                             top_cg_pro_go_contact[i_c][1],
+                             top_cg_pro_go_contact[i_c][2],
                              AICG_CONTACT_FUNC_TYPE,
-                             top_cg_pro_aicg_contact[i_c][3] * 0.1,
+                             top_cg_pro_go_contact[i_c][3] * 0.1,
+                             param_cg_pro_e_contact[i_c] * CAL2JOU)
+                end
+                print(itp_file, "\n")
+
+                printfmt(itp_file, itp_contact_head, "AICG2+ inter-protein")
+                print(itp_file, itp_contact_comm)
+                for i_c in num_cg_pro_contact_intra + 1 : num_cg_pro_contact_all
+                    printfmt(itp_file,
+                             itp_contact_line,
+                             top_cg_pro_go_contact[i_c][1],
+                             top_cg_pro_go_contact[i_c][2],
+                             AICG_CONTACT_FUNC_TYPE,
+                             top_cg_pro_go_contact[i_c][3] * 0.1,
                              param_cg_pro_e_contact[i_c] * CAL2JOU)
                 end
                 print(itp_file, "\n")
@@ -3139,17 +3163,39 @@ function pdb_2_top(args)
 
         # Clementi Go native contacts
         if ff_pro == FF_pro_Clementi_Go
-            if length(top_cg_pro_aicg_contact) > 0
-                print(itp_file, itp_contact_head)
+            if length(top_cg_pro_go_contact) != num_cg_pro_contact_all
+                error("Wrong protein contact number!")
+            end
+            if num_cg_pro_contact_inter + num_cg_pro_contact_intra != num_cg_pro_contact_all
+                error("Inconsistent protein contact number!")
+            end
+            if length(top_cg_pro_go_contact) > 0
+                printfmt(itp_file, itp_contact_head, "Clementi-Go intra-protein")
                 print(itp_file, itp_contact_comm)
-                for i_c in 1 : length(top_cg_pro_aicg_contact)
-                    r = top_cg_pro_aicg_contact[i_c][3] * 0.1
+                for i_c in 1 : num_cg_pro_contact_intra
+                    r = top_cg_pro_go_contact[i_c][3] * 0.1
                     v = 6.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^10 * ccgo_contact_scale
                     w = 5.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^12 * ccgo_contact_scale
                     printfmt(itp_file,
                              itp_contact_line,
-                             top_cg_pro_aicg_contact[i_c][1],
-                             top_cg_pro_aicg_contact[i_c][2],
+                             top_cg_pro_go_contact[i_c][1],
+                             top_cg_pro_go_contact[i_c][2],
+                             CCGO_CONTACT_FUNC_TYPE,
+                             v,
+                             w)
+                end
+                print(itp_file, "\n")
+
+                printfmt(itp_file, itp_contact_head, "Clementi-Go inter-protein")
+                print(itp_file, itp_contact_comm)
+                for i_c in 1 + num_cg_pro_contact_intra : num_cg_pro_contact_all
+                    r = top_cg_pro_go_contact[i_c][3] * 0.1
+                    v = 6.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^10 * ccgo_contact_scale
+                    w = 5.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^12 * ccgo_contact_scale
+                    printfmt(itp_file,
+                             itp_contact_line,
+                             top_cg_pro_go_contact[i_c][1],
+                             top_cg_pro_go_contact[i_c][2],
                              CCGO_CONTACT_FUNC_TYPE,
                              v,
                              w)
@@ -3161,7 +3207,7 @@ function pdb_2_top(args)
         # print RNA Go-type native contacts
         if ff_rna == FF_RNA_Go
             if length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) > 0
-                print(itp_file, itp_contact_head)
+                printfmt(itp_file, itp_contact_head, "RNA-RNA")
                 print(itp_file, itp_contact_comm)
                 for i_c in 1 : length(top_cg_RNA_base_stack)
                     printfmt(itp_file,
@@ -3198,7 +3244,7 @@ function pdb_2_top(args)
         # print protein-RNA native contacts
         if ( ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go ) && ff_rna == FF_RNA_Go
             if length(top_cg_pro_RNA_contact) > 0
-                print(itp_file, itp_contact_head)
+                printfmt(itp_file, itp_contact_head, "Protein-RNA")
                 print(itp_file, itp_contact_comm)
                 for i_c in 1 : length(top_cg_pro_RNA_contact)
                     printfmt(itp_file,
@@ -3220,14 +3266,14 @@ function pdb_2_top(args)
 
         # print Protein exclusion list
         if ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go
-            if length(top_cg_pro_aicg_contact) > 0
+            if length(top_cg_pro_go_contact) > 0
                 print(itp_file, itp_exc_head)
                 print(itp_file, itp_exc_comm)
-                for i_c in 1 : length(top_cg_pro_aicg_contact)
+                for i_c in 1 : length(top_cg_pro_go_contact)
                     printfmt(itp_file,
                              itp_exc_line,
-                             top_cg_pro_aicg_contact[i_c][1],
-                             top_cg_pro_aicg_contact[i_c][2])
+                             top_cg_pro_go_contact[i_c][1],
+                             top_cg_pro_go_contact[i_c][2])
                 end
                 print(itp_file, "\n")
             end
@@ -3538,7 +3584,7 @@ function pdb_2_top(args)
         println(log_file, "================================================================================")
         println(log_file, " Interaction info:")
         if num_chain_pro > 0
-            @printf(log_file, " - Number of protein contacts:     %12d  \n", length(top_cg_pro_aicg_contact))
+            @printf(log_file, " - Number of protein contacts:     %12d  \n", length(top_cg_pro_go_contact))
         end
         if num_chain_RNA > 0
             @printf(log_file, " - Number of RNA contacts:         %12d  \n", length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) )
