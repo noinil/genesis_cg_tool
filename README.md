@@ -1,4 +1,4 @@
-# genesis_cg_input
+# genesis_cg_julia
 This project helps you prepare topology and coordinate file for CG models in the molecular dynamics package Genesis.
 
 ## Usage
