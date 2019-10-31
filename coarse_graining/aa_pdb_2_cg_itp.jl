@@ -990,6 +990,7 @@ end
 
 struct AAChain
     id::Char
+    seg_name::String
     residues::Array{Int64, 1}
 end
 
@@ -1106,6 +1107,7 @@ function pdb_2_top(args)
     chain_id      = '?'
     tmp_res_atoms = []
     tmp_chain_res = []
+    tmp_chain_seg = " "
     
     for line in aa_pdb_lines
         if startswith(line, "TER") || startswith(line, "END")
@@ -1114,7 +1116,7 @@ function pdb_2_top(args)
                 tmp_res_atoms = []
             end
             if length(tmp_chain_res) > 0
-                push!(aa_chains, AAChain(chain_id, tmp_chain_res))
+                push!(aa_chains, AAChain(chain_id, tmp_chain_seg, tmp_chain_res))
                 tmp_chain_res = []
             end
             continue
@@ -1129,11 +1131,12 @@ function pdb_2_top(args)
         coor_x            = parse(Float64, line[31:38])
         coor_y            = parse(Float64, line[39:46])
         coor_z            = parse(Float64, line[47:54])
-        # occupancy         = parse(Float64, line[55:60])
-        # tempfactor        = parse(Float64, line[61:66])
-        # segment_id        = strip(line[67:76])
-        # element_name      = strip(line[77:78])
-        # charge            = parse(Float64, line[79:80])
+        # occupancy       = parse(Float64, line[55:60])
+        # tempfactor      = parse(Float64, line[61:66])
+        # segment_id      = strip(line[67:76])
+        tmp_chain_seg     = strip(line[67:76])
+        # element_name    = strip(line[77:78])
+        # charge          = parse(Float64, line[79:80])
 
         aa_atom_name[i_atom]   = atom_name
         aa_coor[1, i_atom]     = coor_x
@@ -3459,17 +3462,19 @@ function pdb_2_top(args)
         tmp_chain_id     = 0
         is_huge_system   = cg_num_particles > 9999
         for i_bead in 1 : cg_num_particles
-            if cg_chain_id[i_bead] > tmp_chain_id
+            i_chain = cg_chain_id[i_bead]
+            if i_chain > tmp_chain_id
                 if tmp_chain_id > 0
                     print(cg_pdb_file, "TER\n")
                 end
-                tmp_chain_id = cg_chain_id[i_bead]
+                tmp_chain_id = i_chain
             end
             if is_huge_system
-                resid_index_tmp = cg_resid_index[i_bead] - cg_resid_index[cg_chains[cg_chain_id[i_bead]].first] + 1
+                resid_index_tmp = cg_resid_index[i_bead] - cg_resid_index[cg_chains[i_chain].first] + 1
             else
                 resid_index_tmp = cg_resid_index[i_bead]
             end
+            tmp_chain_seg_name = aa_chains[i_chain].seg_name
             printfmt(cg_pdb_file,
                      cg_pdb_atom_line,
                      i_bead,
@@ -3484,7 +3489,7 @@ function pdb_2_top(args)
                      cg_bead_coor[3 , i_bead],
                      0.0,
                      0.0,
-                     "",
+                     tmp_chain_seg_name,
                      "",
                      "")
         end
