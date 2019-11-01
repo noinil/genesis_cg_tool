@@ -509,7 +509,7 @@ const RNA_DIH_FUNC_TYPE       = 1
 # "f" in Go-contacts "[pairs]"
 const AICG_CONTACT_FUNC_TYPE  = 2
 # "f" in Go-contacts "[pairs]"
-const CCGO_CONTACT_FUNC_TYPE  = 1
+const CCGO_CONTACT_FUNC_TYPE  = 2
 # "f" in RNA Go-contacts "[pairs]"
 const RNA_CONTACT_FUNC_TYPE   = 2
 # "f" in pro-RNA Go-contacts "[pairs]"
@@ -3177,15 +3177,18 @@ function pdb_2_top(args)
                 print(itp_file, itp_contact_comm)
                 for i_c in 1 : num_cg_pro_contact_intra
                     r = top_cg_pro_go_contact[i_c][3] * 0.1
-                    v = 6.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^10 * ccgo_contact_scale
-                    w = 5.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^12 * ccgo_contact_scale
+                    # v = 6.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^10 * ccgo_contact_scale
+                    # w = 5.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^12 * ccgo_contact_scale
+                    e = CCGO_NATIVE_EPSILON * CAL2JOU * ccgo_contact_scale
                     printfmt(itp_file,
                              itp_contact_line,
                              top_cg_pro_go_contact[i_c][1],
                              top_cg_pro_go_contact[i_c][2],
                              CCGO_CONTACT_FUNC_TYPE,
-                             v,
-                             w)
+                             # v,
+                             # w)
+                             r,
+                             e)
                 end
                 print(itp_file, "\n")
 
@@ -3193,15 +3196,18 @@ function pdb_2_top(args)
                 print(itp_file, itp_contact_comm)
                 for i_c in 1 + num_cg_pro_contact_intra : num_cg_pro_contact_all
                     r = top_cg_pro_go_contact[i_c][3] * 0.1
-                    v = 6.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^10 * ccgo_contact_scale
-                    w = 5.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^12 * ccgo_contact_scale
+                    # v = 6.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^10 * ccgo_contact_scale
+                    # w = 5.0 * CCGO_NATIVE_EPSILON * CAL2JOU * r^12 * ccgo_contact_scale
+                    e = CCGO_NATIVE_EPSILON * CAL2JOU * ccgo_contact_scale
                     printfmt(itp_file,
                              itp_contact_line,
                              top_cg_pro_go_contact[i_c][1],
                              top_cg_pro_go_contact[i_c][2],
                              CCGO_CONTACT_FUNC_TYPE,
-                             v,
-                             w)
+                             # v,
+                             # w)
+                             r,
+                             e)
                 end
                 print(itp_file, "\n")
             end
