@@ -478,7 +478,7 @@ const RNA_DIH_FUNC_TYPE       = 1
 # "f" in Go-contacts "[pairs]"
 const AICG_CONTACT_FUNC_TYPE  = 2
 # "f" in Go-contacts "[pairs]"
-const CCGO_CONTACT_FUNC_TYPE  = 1
+const CCGO_CONTACT_FUNC_TYPE  = 2
 # "f" in RNA Go-contacts "[pairs]"
 const RNA_CONTACT_FUNC_TYPE   = 2
 # "f" in pro-RNA Go-contacts "[pairs]"
