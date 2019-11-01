@@ -15,6 +15,10 @@
 ###############################################################################
 
 include("./lib/constants.jl")
+include("./lib/biomath.jl")
+include("./lib/interactions.jl")
 
 using .GCGConstants
+using .GCGBioMath
+using .GCGInteractions
 
