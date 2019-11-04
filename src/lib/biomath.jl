@@ -1,4 +1,6 @@
-module GCGBioMath
+###############################################################################
+#                   Functions compting geometric quantities                   #
+###############################################################################
 
 using LinearAlgebra
 
@@ -53,4 +55,3 @@ function compute_dihedral(coor1::Array{<:Real}, coor2::Array{<:Real}, coor3::Arr
 end
 
 
-end

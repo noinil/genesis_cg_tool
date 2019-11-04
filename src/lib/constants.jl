@@ -1,4 +1,6 @@
-module GCGConstants
+###############################################################################
+#                                  Parameters                                 #
+###############################################################################
 
 # ==================
 # Physical Constants
@@ -18,6 +20,8 @@ const FF_pro_KB_Go       = 3
 const FF_DNA_3SPN2C      = 1
 # RNA
 const FF_RNA_Go          = 1
+# protein-DNA
+const FF_PWMcos          = 1
 # unknown
 const FF_UNKNOWN         = 0
 
@@ -292,9 +296,9 @@ const CG_CONTACT_CUTOFF = 20.0
 # Clementi Go energy unit: epsilon
 const CCGO_EPSILON           = 1.0
 # Clementi Go bond force constant
-const CCGO_BOND_K            = 100.00 * CCGO_EPSILON * 100 * 2
+const CCGO_BOND_K            = 100.00 * CCGO_EPSILON
 # Clementi Go angle force constant
-const CCGO_ANGL_K            = 20.00 * CCGO_EPSILON * 2
+const CCGO_ANGL_K            = 20.00 * CCGO_EPSILON
 # Clementi Go dihedral force constant
 const CCGO_DIHE_K_1          = CCGO_EPSILON
 const CCGO_DIHE_K_3          = CCGO_EPSILON * 0.5
@@ -306,11 +310,11 @@ const CCGO_NATIVE_EPSILON    = CCGO_EPSILON
 # ===============================
 
 # AICG2+ bond force constant
-const AICG_BOND_K               = 110.40 * 100 * 2
+const AICG_BOND_K               = 110.40
 # AICG2+ sigma for Gaussian angle
-const AICG_13_SIGMA             = 0.15 * 0.1  # nm
+const AICG_13_SIGMA             = 0.15  # A
 # AICG2+ sigma for Gaussian dihedral
-const AICG_14_SIGMA             = 0.15        # Rad ??
+const AICG_14_SIGMA             = 0.15  # Rad ??
 # AICG2+ atomistic contact cutoff
 const AICG_GO_ATOMIC_CUTOFF     = 6.5
 # AICG2+ pairwise interaction cutoff
@@ -373,7 +377,7 @@ AICG_PAIRWISE_ENERGY[AICG_ITYPE_OFFST] = - 0.1051   # offset
 # ============================
 
 # 3SPN.2C bond force constant
-const DNA3SPN_BOND_K_2    = 60.0 * 2 * JOU2CAL
+const DNA3SPN_BOND_K_2    = 60.0 * JOU2CAL
 # 3SPN.2C force constant for Gaussian dihedral
 const DNA3SPN_DIH_G_K     = 7.0 * JOU2CAL
 # 3SPN.2C sigma for Gaussian dihedral
@@ -487,4 +491,3 @@ const RNP_CONTACT_FUNC_TYPE   = 2
 const PWMCOS_FUNC_TYPE        = 1
 
 
-end
