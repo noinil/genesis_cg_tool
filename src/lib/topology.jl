@@ -50,6 +50,7 @@ struct CGTopology
     cg_bead_charge::Array{<:Real}
     cg_bead_mass::Array{<:Real}
     cg_chain_id::Array{Int}
+    cg_seg_name::Array{String}
     # protein
     top_cg_pro_bonds::Array{TopBond}
     top_cg_pro_angles::Array{TopAngle}

@@ -16,7 +16,6 @@
 
 using Printf
 using ArgParse
-using Formatting
 
 include("./lib/biomath.jl")
 include("./lib/constants.jl")
@@ -93,13 +92,18 @@ function aa_2_cg(args)
 
     if do_output_sequence
         write_sequence(aa_molecule, mol_name)
+
+        println("------------------------------------------------------------")
+        println("[1;32m DONE! [0m ")
+        println("============================================================")
+
         return 0
     end
 
     # -----------------------------------
     # Make a CG topology from AA molecule
     # -----------------------------------
-    cg_top, cg_conf = coarse_graining(aa_molecule, force_field)
+    cg_top, cg_conf = coarse_graining(aa_molecule, force_field, args)
 
     rg_all = radius_of_gyration(cg_conf)
     rc_all = radius_of_circumshpere(cg_conf)
@@ -110,15 +114,34 @@ function aa_2_cg(args)
 
     if gen_pwmcos_itp
         do_output_top    = false
-        do_output_itp    = false
         do_output_gro    = false
         do_output_pwmcos = true
     else
         do_output_top    = true
-        do_output_itp    = true
         do_output_gro    = true
         do_output_pwmcos = false
     end
+
+
+    if do_output_top
+        write_cg_grotop(cg_top, force_field, mol_name, args)
+    end
+    if do_output_pwmcos
+        write_cg_grotop_pwmcos(cg_top, force_field, mol_name, args)
+    end
+
+    if do_output_gro
+        write_cg_grocrd(cg_top, cg_conf, mol_name)
+    end
+
+    if do_output_psf
+        write_cg_psf(cg_top, mol_name)
+    end
+
+    if do_output_cgpdb
+        write_cg_pdb(cg_top, cg_conf, mol_name, args)
+    end
+
 
     println("============================================================")
     println("> Output CG .itp and .gro files.")
@@ -133,3 +156,117 @@ function aa_2_cg(args)
 
 end
 
+# =============================
+# Parsing Commandline Arguments
+# =============================
+function parse_commandline()
+    s = ArgParseSettings()
+
+    @add_arg_table s begin
+
+        "pdb"
+        help     = "PDB file name."
+        required = true
+        arg_type = String
+
+        "--force-field-protein"
+        help = "Force field for protein."
+        arg_type = String
+        default = "AICG2+"
+
+        "--force-field-DNA"
+        help = "Force field for DNA."
+        arg_type = String
+        default = "3SPN.2C"
+
+        "--force-field-RNA"
+        help = "Force field for RNA."
+        arg_type = String
+        default = "Go"
+
+        "--CCGO-contact-scale"
+        help = "Scaling native contact interaction coefficient."
+        arg_type = Float64
+        default = 1.0
+
+        "--respac", "-c"
+        help = "RESPAC protein charge distribution data."
+        arg_type = String
+        default = ""
+
+        "--aicg-scale"
+        help = "Scale AICG2+ local interactions: 0) average; 1) general (default)."
+        arg_type = Int
+        default = 1
+
+        "--3spn-param"
+        help = "Generate 3SPN.2C parameters from x3DNA generated PDB structure."
+        action = :store_true
+
+        "--pwmcos"
+        help = "Generate parameters for protein-DNA sequence-specific interactions."
+        action = :store_true
+
+        "--pwmcos-scale"
+        help = "Energy scaling factor for PWMcos."
+        arg_type = Float64
+        default = 1.0
+
+        "--pwmcos-shift"
+        help = "Energy shifting factor for PWMcos."
+        arg_type = Float64
+        default = 0.0
+
+        "--psf"
+        help = "Prepare PSF file."
+        action = :store_true
+
+        "--cgpdb"
+        help = "Prepare CG PDB file."
+        action = :store_true
+
+        "--cgconect"
+        help = "Prepare CG PDB file with CONECTed bonds."
+        action = :store_true
+
+        "--pfm", "-p"
+        help = "Position frequency matrix file for protein-DNA sequence-specific interactions."
+        arg_type = String
+        default = ""
+
+        "--patch"
+        help = "Append (apply patch) to .itp file."
+        arg_type = String
+        default = ""
+
+        "--show-sequence"
+        help = "Show sequence of molecules in PDB."
+        action = :store_true
+
+        "--log"
+        help = "Output information to log file."
+        action = :store_true
+
+        "--debug"
+        help = "DEBUG."
+        action = :store_true
+    end
+
+    return parse_args(s)
+end
+
+# ====
+# Main
+# ====
+
+function main()
+
+    args = parse_commandline()
+
+    aa_2_cg(args)
+
+end
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end

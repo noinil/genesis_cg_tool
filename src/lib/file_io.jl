@@ -92,12 +92,12 @@ function read_PDB(pdb_name::String)
     # Step 1: Determine number of atoms
     # =================================
 
+    aa_num_atom = 0
     for line in eachline(pdb_name)
         if startswith(line, "ATOM")
             push!(aa_pdb_lines, rpad(line, 80))
             aa_num_atom += 1
         elseif startswith(line, "TER") || startswith(line, "END")
-            # push!(aa_pdb_lines, rpad(line, 80))
             push!(aa_pdb_lines, line)
         end
     end
@@ -142,7 +142,7 @@ function read_PDB(pdb_name::String)
                 # Determine chain molecule type  
                 # -------------------------------
                 mol_type = -1
-                for i_res in chain.residues
+                for i_res in tmp_chain_res
                     res_name = aa_residues[i_res].name
                     tmp_mol_type = MOL_OTHER
                     if in(res_name, RES_NAME_LIST_PROTEIN)
@@ -259,13 +259,13 @@ function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::String, 
                 i_bead,
                 top.cg_bead_name[i_bead],
                 ' ',
-                lpad( top.cg_resid_name[i_bead], 4 ),
-                top.chain_id_set[cg_chain_id[i_bead]],
+                rpad( top.cg_resid_name[i_bead], 4 ),
+                chain_id_set[top.cg_chain_id[i_bead]],
                 resid_index_tmp,
                 ' ',
-                conf.cg_bead_coor[1 , i_bead],
-                conf.cg_bead_coor[2 , i_bead],
-                conf.cg_bead_coor[3 , i_bead],
+                conf.coors[1 , i_bead],
+                conf.coors[2 , i_bead],
+                conf.coors[3 , i_bead],
                 0.0,
                 0.0,
                 top.cg_seg_name[i_bead],
@@ -359,41 +359,41 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     # ========
     itp_file = open(itp_name, "w")
 
-    wr_itp_mol_head(io::IO) = @printf(io, "[ moleculetype ]\n")
-    wr_itp_mol_comm(io::IO) = @printf(io, ";%15s %6s\n", "name", "nrexcl")
+    wr_itp_mol_head(io::IO) = print(io, "[ moleculetype ]\n")
+    wr_itp_mol_comm(io::IO) = @printf(io, ";%15s %6s\n", rpad("name", 15), "nrexcl")
     wr_itp_mol_line(io::IO, name::String, n::Int) = @printf(io, "%16s %6d\n", rpad(name, 16), n)
 
-    wr_itp_atm_head(io::IO) = @printf(io, "[ atoms ]\n")
+    wr_itp_atm_head(io::IO) = print(io, "[ atoms ]\n")
     wr_itp_atm_comm(io::IO) = @printf(io, ";%9s%5s%10s%5s%5s%5s %8s %8s\n", "nr", "type", "resnr", "res", "atom", "cg", "charge", "mass")
     function wr_itp_atm_line(io::IO, i, beadtype, resid, resname, beadname, n, charge, mass)
         @printf(io, "%10d%5s%10d%5s%5s%5d %8.3f %8.3f\n", i, beadtype, resid, resname, beadname, n, charge, mass)
     end
 
-    wr_itp_bnd_head(io::IO) = @printf(io, "[ bonds ]\n")
+    wr_itp_bnd_head(io::IO) = print(io, "[ bonds ]\n")
     wr_itp_bnd_comm(io::IO) = @printf(io, ";%9s%10s%5s%18s%18s\n", "i", "j", "f", "eq", "coef")
     function wr_itp_bnd_line(io::IO, b::TopBond, f::Int, e::Float64)
         @printf(io, "%10d%10d%5d%18.4E%18.4E\n", b.i, b.j, f, b.r0 * 0.1, e * 100.0 * 2.0 * CAL2JOU)
     end
 
-    wr_itp_13_head(io::IO) = @printf(io, "[ angles ] ; AICG2+ 1-3 interaction\n")
+    wr_itp_13_head(io::IO) = print(io, "[ angles ] ; AICG2+ 1-3 interaction\n")
     wr_itp_13_comm(io::IO) = @printf(io, ";%9s%10s%10s%5s%15s%15s%15s\n", "i", "j", "k", "f", "eq", "coef", "w")
     function wr_itp_13_line(io::IO, a::TopAngle, f::Int, e::Float64, sigma::Float64)
         @printf(io, "%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", a.i, a.j, a.k, f, a.a0 * 0.1, e * CAL2JOU, sigma * 0.1)
     end
 
-    wr_itp_ang_f_head(io::IO) = @printf(io, "[ angles ] ; AICG2+ flexible local interaction\n")
+    wr_itp_ang_f_head(io::IO) = print(io, "[ angles ] ; AICG2+ flexible local interaction\n")
     wr_itp_ang_f_comm(io::IO) = @printf(io, ";%9s%10s%10s%5s\n", "i", "j", "k", "f")
     function wr_itp_ang_f_line(io::IO, a::TopAngle, f::Int)
         @printf(io, "%10d%10d%10d%5d\n", a.i, a.j, a.k, f)
     end
 
-    wr_itp_ang_head(io::IO) = @printf(io, "[ angles ] ; cannonical angle \n")
+    wr_itp_ang_head(io::IO) = print(io, "[ angles ] ; cannonical angle \n")
     wr_itp_ang_comm(io::IO) = @printf(io, ";%9s%10s%10s%5s%18s%18s \n", "i", "j", "k", "f", "eq", "coef")
     function wr_itp_ang_line(io::IO, a::TopAngle, f::Int, e::Float64)
         @printf(io, "%10d%10d%10d%5d%18.4E%18.4E\n", a.i, a.j, a.k, f, a.a0, e * 2.0 * CAL2JOU)
     end
 
-    wr_itp_dih_P_head(io::IO) = @printf(io, "[ dihedrals ] ; periodic dihedrals\n")
+    wr_itp_dih_P_head(io::IO) = print(io, "[ dihedrals ] ; periodic dihedrals\n")
     wr_itp_dih_P_comm(io::IO) = @printf(io, ";%9s%10s%10s%10s%5s%18s%18s%5s\n", "i", "j", "k", "l", "f", "eq", "coef", "n")
     function wr_itp_dih_P_line(io::IO, d::TopDihedral, f::Int, e::Float64, n::Int)
         if n == 1
@@ -404,25 +404,25 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     end
 
 
-    wr_itp_dih_G_head(io::IO) = @printf(io, "[ dihedrals ] ; Gaussian dihedrals\n")
+    wr_itp_dih_G_head(io::IO) = print(io, "[ dihedrals ] ; Gaussian dihedrals\n")
     wr_itp_dih_G_comm(io::IO) = @printf(io, ";%9s%10s%10s%10s%5s%15s%15s%15s\n", "i", "j", "k", "l", "f", "eq", "coef", "w")
     function wr_itp_dih_G_line(io::IO, d::TopDihedral, f::Int, e::Float64, sigma::Float64)
         @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", d.i, d.j, d.k, d.l, f, d.t0, e * CAL2JOU, sigma)
     end
 
-    wr_itp_dih_F_head(io::IO) = @printf(io, "[ dihedrals ] ; AICG2+ flexible local interation\n")
+    wr_itp_dih_F_head(io::IO) = print(io, "[ dihedrals ] ; AICG2+ flexible local interation\n")
     wr_itp_dih_F_comm(io::IO) = @printf(io, ";%9s%10s%10s%10s%5s\n", "i", "j", "k", "l", "f")
     function wr_itp_dih_F_line(io::IO, d::TopDihedral, f::Int)
         @printf(io, "%10d%10d%10d%10d%5d\n", d.i, d.j, d.k, d.l, f)
     end
 
-    wr_itp_contact_head(io::IO, s::String) = @printf(io, "[ pairs ] ; {%s} - Go-type native contact\n", s)
+    wr_itp_contact_head(io::IO, s::String) = @printf(io, "[ pairs ] ; %s - Go-type native contact\n", s)
     wr_itp_contact_comm(io::IO) = @printf(io, ";%9s%10s%10s%15s%15s\n", "i", "j", "f", "eq", "coef")
     function wr_itp_contact_line(io::IO, c::TopContact, f::Int, e::Float64)
         @printf(io, "%10d%10d%10d%15.4E%15.4E\n", c.i, c.j, f, c.r0 * 0.1, e * CAL2JOU)
     end
 
-    wr_itp_exc_head(io::IO) = @printf(io, "[ exclusions ] ; Genesis exclusion list\n")
+    wr_itp_exc_head(io::IO) = print(io, "[ exclusions ] ; Genesis exclusion list\n")
     wr_itp_exc_comm(io::IO) = @printf(io, ";%9s%10s\n", "i", "j")
     wr_itp_exc_line(io::IO, c::TopContact) = @printf(io, "%10d%10d\n", c.i, c.j)
 
@@ -571,7 +571,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             wr_itp_dih_F_head(itp_file)
             wr_itp_dih_F_comm(itp_file)
             for dih in top.top_cg_pro_dihedrals
-                wr_itp_dih_G_line(itp_file, dih, AICG_DIH_F_FUNC_TYPE)
+                wr_itp_dih_F_line(itp_file, dih, AICG_DIH_F_FUNC_TYPE)
             end
             print(itp_file, "\n")
         end
@@ -606,7 +606,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             wr_itp_dih_P_head(itp_file)
             wr_itp_dih_P_comm(itp_file)
             for dih in top.top_cg_DNA_dih_periodic
-                wr_itp_dih_P_line(itp_file, dih, DNA3SPN_DIH_G_FUNC_TYPE, DNA3SPN_DIH_P_K, DNA3SPN_DIH_P_FUNC_PERI)
+                wr_itp_dih_P_line(itp_file, dih, DNA3SPN_DIH_P_FUNC_TYPE, DNA3SPN_DIH_P_K, DNA3SPN_DIH_P_FUNC_PERI)
             end
             print(itp_file, "\n")
         end
@@ -618,10 +618,10 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             wr_itp_dih_P_head(itp_file)
             wr_itp_dih_P_comm(itp_file)
             for ( i_dih, dih ) in enumerate( top.top_cg_RNA_dihedrals )
-                wr_itp_dih_P_line(itp_file, dih, RNA_DIH_FUNC_TYPE, top.param_cg_RNA_k_dihedrals[i_dh], 1)
+                wr_itp_dih_P_line(itp_file, dih, RNA_DIH_FUNC_TYPE, top.param_cg_RNA_k_dihedrals[i_dih], 1)
             end
             for ( i_dih, dih ) in enumerate( top.top_cg_RNA_dihedrals )
-                wr_itp_dih_P_line(itp_file, dih, RNA_DIH_FUNC_TYPE, top.param_cg_RNA_k_dihedrals[i_dh] / 2, 3)
+                wr_itp_dih_P_line(itp_file, dih, RNA_DIH_FUNC_TYPE, top.param_cg_RNA_k_dihedrals[i_dih] / 2, 3)
             end
             print(itp_file, "\n")
         end
@@ -791,11 +791,11 @@ function write_cg_grocrd(top::CGTopology, conf::Conformation, system_name::Strin
 
     cg_num_particles = conf.num_particle
 
-    @printf(gro_file, "CG model for GENESIS: %s, t = %16.3f \n", 0)
+    @printf(gro_file, "CG model %s, t = %16.3f \n", system_name, 0)
     @printf(gro_file, "%12d \n", cg_num_particles)
 
     for i_bead in 1 : cg_num_particles
-        @printf(gro_file, "%5d%5s%5s%5d %8.4f %8.4f %8.4f %8.4f %8.4f %8.4f \n"
+        @printf(gro_file, "%5d%5s%5s%5d %8.4f %8.4f %8.4f %8.4f %8.4f %8.4f \n",
                 top.cg_resid_index[i_bead],
                 top.cg_resid_name[i_bead],
                 top.cg_bead_name[i_bead],

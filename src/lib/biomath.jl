@@ -55,3 +55,51 @@ function compute_dihedral(coor1::Array{<:Real}, coor2::Array{<:Real}, coor3::Arr
 end
 
 
+
+# ===================
+# Physical properties
+# ===================
+
+# --------------
+# Center of mass
+# --------------
+
+function compute_center_of_mass(atom_indices::Array{Int}, atom_names::Array{String}, atom_coors::Array{<:Real, 2})
+    total_mass      = 0
+    tmp_coor        = zeros(Float64, 3)
+    for i in atom_indices
+        a_mass      = ATOM_MASS_DICT[atom_names[i][1]]
+        a_coor      = atom_coors[:, i]
+        total_mass += a_mass
+        tmp_coor   += a_coor * a_mass
+    end
+    com = tmp_coor / total_mass
+    return com
+end
+
+function centeroid(coors::Array{<:Real, 2})
+    num_coor = size(coors, 2)
+    coor_centroid = zeros(Float64, 3)
+    for i_bead in 1 : num_coor
+        coor_centroid .+= coors[:, i_bead]
+    end
+    coor_centroid ./= num_coor
+    return coor_centroid
+end
+
+function radius_of_gyration(coors::Array{<:Real, 2})
+    num_coor = size(coors, 2)
+    coor_centroid = zeros(Float64, 3)
+    for i_bead in 1 : num_coor
+        coor_centroid .+= coors[:, i_bead]
+    end
+    coor_centroid ./= num_coor
+
+    dist_sq_sum = 0
+    for i_bead in 1 : num_coor
+        v = coors[:, i_bead] - coor_centroid
+        dist_sq_sum += v' * v
+    end
+    rg = sqrt(dist_sq_sum / num_coor)
+end
+

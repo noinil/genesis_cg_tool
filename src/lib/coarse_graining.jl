@@ -252,7 +252,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     top_cg_pro_DNA_pwmcos    = Array{TopPWMcos}(undef, 0)
 
     # protein-RNA
-    top_cg_pro_RNA_contact   = Array{TopContact}{undef, 0}
+    top_cg_pro_RNA_contact   = Array{TopContact}(undef, 0)
     param_cg_pro_RNA_e_contact = []
 
     # --------------------
@@ -416,8 +416,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 tmp_top_angle = TopAngle(i_res, i_res + 1, i_res + 2, dist13)
                 push!(top_cg_pro_aicg13, tmp_top_angle)
                 # count AICG2+ 1-3 interaction atomic contact
-                contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
-                                                           cg_residues[ i_res + 2 ],
+                contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
+                                                           cg_residues[ i_res + 2 ].atoms,
                                                            cg_resid_name[i_res],
                                                            cg_resid_name[i_res + 2],
                                                            aa_atom_name,
@@ -459,8 +459,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 push!(top_cg_pro_aicg14, tmp_top_dihe)
 
                 # count AICG2+ dihedral atomic contact
-                contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
-                                                           cg_residues[ i_res + 3 ],
+                contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
+                                                           cg_residues[ i_res + 3 ].atoms,
                                                            cg_resid_name[i_res],
                                                            cg_resid_name[i_res + 3],
                                                            aa_atom_name,
@@ -547,8 +547,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         push!(top_cg_pro_go_contact, tmp_top_cnt)
 
                         # count AICG2+ atomic contact
-                        contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
-                                                                   cg_residues[ j_res ],
+                        contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
+                                                                   cg_residues[ j_res ].atoms,
                                                                    cg_resid_name[i_res],
                                                                    cg_resid_name[j_res],
                                                                    aa_atom_name,
@@ -627,8 +627,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                                 push!(top_cg_pro_go_contact, tmp_top_cnt)
     
                                 # count AICG2+ atomic contact
-                                contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ],
-                                                                           cg_residues[ j_res ],
+                                contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
+                                                                           cg_residues[ j_res ].atoms,
                                                                            cg_resid_name[i_res],
                                                                            cg_resid_name[j_res],
                                                                            aa_atom_name,
@@ -1154,10 +1154,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
                     coor_j = cg_bead_coor[:, j_res]
                     native_dist = compute_distance(coor_i, coor_j)
-                    adist, nhb  = compute_RNA_Go_contact(cg_residues[i_res],
-                                                         cg_residues[j_res],
-                                                         aa_atom_name,
-                                                         aa_coor)
+                    adist, nhb  = compute_RNA_native_contact(cg_residues[i_res].atoms,
+                                                             cg_residues[j_res].atoms,
+                                                             aa_atom_name,
+                                                             aa_coor)
 
                     if adist > RNA_GO_ATOMIC_CUTOFF
                         continue
@@ -1170,31 +1170,31 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         if abs( st_dih ) < RNA_STACK_DIH_CUTOFF && adist < RNA_STACK_DIST_CUTOFF
                             tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                             push!(top_cg_RNA_base_stack, tmp_top_cnt)
-                            push!(param_cg_RNA_base_stack, RNA_STACK_EPSILON)
+                            push!(param_cg_RNA_e_base_stack, RNA_STACK_EPSILON)
                         else
                             tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                             push!(top_cg_RNA_other_contact, tmp_top_cnt)
-                            push!(param_cg_RNA_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
+                            push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
                         end
                     elseif cg_bead_name[i_res] == "RB" && cg_bead_name[j_res] == "RB"
                         if nhb == 2
                             tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                             push!(top_cg_RNA_base_pair, tmp_top_cnt)
-                            push!(param_cg_RNA_base_pair, RNA_BPAIR_EPSILON_2HB)
+                            push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_2HB)
                         elseif nhb >= 3
                             tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                             push!(top_cg_RNA_base_pair, tmp_top_cnt)
-                            push!(param_cg_RNA_base_pair, RNA_BPAIR_EPSILON_3HB)
+                            push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_3HB)
                         else
                             tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                             push!(top_cg_RNA_other_contact, tmp_top_cnt)
-                            push!(param_cg_RNA_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
+                            push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
                         end
                     else
                         contact_type = cg_bead_name[i_res][end] * cg_bead_name[j_res][end]
                         tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                         push!(top_cg_RNA_other_contact, tmp_top_cnt)
-                        push!(param_cg_RNA_other_contact, RNA_PAIR_EPSILON_OTHER[contact_type])
+                        push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER[contact_type])
                     end
                 end
             end
@@ -1255,10 +1255,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                             end
                             coor_j = cg_bead_coor[:, j_res]
                             native_dist = compute_distance(coor_i, coor_j)
-                            adist, nhb  = compute_RNA_Go_contact(cg_residues[i_res],
-                                                                 cg_residues[j_res],
-                                                                 aa_atom_name,
-                                                                 aa_coor)
+                            adist, nhb  = compute_RNA_native_contact(cg_residues[i_res].atoms,
+                                                                     cg_residues[j_res].atoms,
+                                                                     aa_atom_name,
+                                                                     aa_coor)
                             if adist > RNA_GO_ATOMIC_CUTOFF
                                 continue
                             end
@@ -1266,21 +1266,21 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                                 if nhb == 2
                                     tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                                     push!(top_cg_RNA_base_pair, tmp_top_cnt)
-                                    push!(param_cg_RNA_base_pair, RNA_BPAIR_EPSILON_2HB)
+                                    push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_2HB)
                                 elseif nhb >= 3
                                     tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                                     push!(top_cg_RNA_base_pair, tmp_top_cnt)
-                                    push!(param_cg_RNA_base_pair, RNA_BPAIR_EPSILON_3HB)
+                                    push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_3HB)
                                 else
                                     tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                                     push!(top_cg_RNA_other_contact, tmp_top_cnt)
-                                    push!(param_cg_RNA_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
+                                    push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
                                 end
                             else
                                 contact_type = cg_bead_name[i_res][end] * cg_bead_name[j_res][end]
                                 tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                                 push!(top_cg_RNA_other_contact, tmp_top_cnt)
-                                push!(param_cg_RNA_other_contact, RNA_PAIR_EPSILON_OTHER[contact_type])
+                                push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER[contact_type])
                             end
                         end
                     end
@@ -1367,11 +1367,11 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         if cg_bead_name[j_res] == "RS"
                             tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                             push!(top_cg_pro_RNA_contact, tmp_top_cnt)
-                            push!(param_cg_pro_RNA_contact, PRO_RNA_GO_EPSILON_S)
+                            push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_S)
                         elseif cg_bead_name[j_res] == "RB"
                             tmp_top_cnt = TopContact(i_res, j_res, native_dist)
                             push!(top_cg_pro_RNA_contact, tmp_top_cnt)
-                            push!(param_cg_pro_RNA_contact, PRO_RNA_GO_EPSILON_B)
+                            push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_B)
                         end
                     end
                 end
@@ -1543,63 +1543,6 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
 
 
-    # ----------
-    # output log
-    # ----------
-    if do_output_log
-        log_name = pdb_name[1:end-4] * "_cg.log"
-        log_file = open(log_name, "w")
-
-        println(log_file, "================================================================================")
-        println(log_file, " PDB info (atomic):")
-        println(log_file, " - Number of atoms    : $(aa_num_atom)")
-        println(log_file, " - Number of residues : $(aa_num_residue)")
-        println(log_file, " - Number of chains   : $(aa_num_chain)")
-
-        println(log_file, "================================================================================")
-        println(log_file, " Chain info (CG):")
-        @printf(log_file, " - Number of protein chains: %5d \n", num_chain_pro)
-        @printf(log_file, " - Number of DNA strands:    %5d \n", num_chain_DNA)
-        @printf(log_file, " - Number of RNA strands:    %5d \n", num_chain_RNA)
-
-        println(log_file, " |--------------------------------------------------------------------|")
-        println(log_file, " | Chain | Mol Type | # bead | start --   end |   Rg (Å) | net charge | ")
-        println(log_file, " |-------+----------+--------+----------------+----------+------------|")
-        for i_chain = 1:aa_num_chain
-            chain = cg_chains[i_chain]
-            charge = sum( cg_bead_charge[chain.first : chain.last] )
-            @printf(log_file, " |   %3d | %8s | %6d | %5d -- %5d | %8.3f | %10.3f | \n",
-                    i_chain, MOL_TYPE_LIST[ chain.moltype ], cg_chain_length[i_chain],
-                    cg_chains[i_chain].first, cg_chains[i_chain].last,
-                    geo_radius_of_gyration[i_chain],
-                    charge)
-        end
-        println(log_file, " |------------------------------------------------------------------|")
-        println(log_file, " CG mol info:")
-        charge = sum( cg_bead_charge )
-        @printf(log_file, " - Number of CG particles: %8d \n", cg_num_particles)
-        @printf(log_file, " - Radius of gyration:     %8.3f Å \n", rg_all)
-        @printf(log_file, " - Radius of circumsphere: %8.3f Å \n", rc_all)
-        @printf(log_file, " - Net Charge:             %8.3f e \n", charge)
-
-
-        println(log_file, "================================================================================")
-        println(log_file, " Interaction info:")
-        if num_chain_pro > 0
-            @printf(log_file, " - Number of protein contacts:     %12d  \n", length(top_cg_pro_go_contact))
-        end
-        if num_chain_RNA > 0
-            @printf(log_file, " - Number of RNA contacts:         %12d  \n", length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) )
-        end
-        if num_chain_RNA > 0 && num_chain_pro > 0
-            @printf(log_file, " - Number of protein-RNA contacts: %12d  \n", length(top_cg_pro_RNA_contact) )
-        end
-        println(log_file, "================================================================================")
-
-        close(log_file)
-    end
-
-
 
     # =============================
     # Make a new topology structure
@@ -1643,7 +1586,71 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                        top_cg_pro_RNA_contact,
                        param_cg_pro_RNA_e_contact)
 
-    myconf = Conformation(cg_bead_coor, cg_num_particles)
+    myconf = Conformation(cg_num_particles, cg_bead_coor)
+
+
+
+
+    # ----------
+    # output log
+    # ----------
+    if do_output_log
+        log_name = pdb_name[1:end-4] * "_cg.log"
+        log_file = open(log_name, "w")
+
+        println(log_file, "================================================================================")
+        println(log_file, " PDB info (atomic):")
+        println(log_file, " - Number of atoms    : $(aa_num_atom)")
+        println(log_file, " - Number of residues : $(aa_num_residue)")
+        println(log_file, " - Number of chains   : $(aa_num_chain)")
+
+        println(log_file, "================================================================================")
+        println(log_file, " Chain info (CG):")
+        @printf(log_file, " - Number of protein chains: %5d \n", num_chain_pro)
+        @printf(log_file, " - Number of DNA strands:    %5d \n", num_chain_DNA)
+        @printf(log_file, " - Number of RNA strands:    %5d \n", num_chain_RNA)
+
+        println(log_file, " |--------------------------------------------------------------------|")
+        println(log_file, " | Chain | Mol Type | # bead | start --   end |   Rg (Å) | net charge | ")
+        println(log_file, " |-------+----------+--------+----------------+----------+------------|")
+        for i_chain = 1:aa_num_chain
+            chain = cg_chains[i_chain]
+            charge = sum( cg_bead_charge[chain.first : chain.last] )
+            @printf(log_file, " |   %3d | %8s | %6d | %5d -- %5d | %8.3f | %+10.3f | \n",
+                    i_chain, MOL_TYPE_LIST[ chain.moltype ], cg_chain_length[i_chain],
+                    cg_chains[i_chain].first, cg_chains[i_chain].last,
+                    geo_radius_of_gyration[i_chain],
+                    charge)
+        end
+
+        println(log_file, " |--------------------------------------------------------------------|")
+        println(log_file, " CG mol info:")
+        charge = sum( cg_bead_charge )
+        rg_all = radius_of_gyration(myconf)
+        rc_all = radius_of_circumshpere(myconf)
+        @printf(log_file, " - Number of CG particles: %8d \n", cg_num_particles)
+        @printf(log_file, " - Radius of gyration:     %8.3f Å \n", rg_all)
+        @printf(log_file, " - Radius of circumsphere: %8.3f Å \n", rc_all)
+        @printf(log_file, " - Net Charge:             %+8.3f e \n", charge)
+
+
+        println(log_file, "================================================================================")
+        println(log_file, " Interaction info:")
+        if num_chain_pro > 0
+            @printf(log_file, " - Number of protein contacts:     %12d  \n", length(top_cg_pro_go_contact))
+        end
+        if num_chain_RNA > 0
+            @printf(log_file, " - Number of RNA contacts:         %12d  \n", length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) )
+        end
+        if num_chain_RNA > 0 && num_chain_pro > 0
+            @printf(log_file, " - Number of protein-RNA contacts: %12d  \n", length(top_cg_pro_RNA_contact) )
+        end
+        println(log_file, "================================================================================")
+
+        close(log_file)
+    end
+
+
 
     return ( mytop, myconf )
 

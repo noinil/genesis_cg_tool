@@ -28,7 +28,7 @@ function radius_of_gyration(c::Conformation)
         v = c.coors[:, i_bead] - coor_centroid
         dist_sq_sum += v' * v
     end
-    rg = sqrt(dist_sq_sum / c.num_particles)
+    rg = sqrt(dist_sq_sum / c.num_particle)
 end
 
 
