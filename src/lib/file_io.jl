@@ -760,7 +760,7 @@ function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, syst
 
     print(itp_pwmcos_file, itp_pwmcos_head)
     print(itp_pwmcos_file, itp_pwmcos_comm)
-    for p in top_cg_pro_DNA_pwmcos
+    for p in top.top_cg_pro_DNA_pwmcos
         @printf(itp_pwmcos_file,
                 "%6d %3d %8.5f %8.3f %8.3f %8.3f%12.6f%12.6f%12.6f%12.6f%8.3f%8.3f \n",
                 p.i, PWMCOS_FUNC_TYPE, p.r0 * 0.1, p.t1, p.t2, p.t3,
