@@ -4,6 +4,82 @@
 
 using Printf
 
+struct PDBLine
+    atom_serial::Int     # line[7:11]
+    atom_name::String    # line[13:16]
+    residue_name::String # line[18:21]
+    chain_id::Char       # line[22]
+    residue_serial::Int  # line[23:26]
+    coor_x::Float64      # line[31:38]
+    coor_y::Float64      # line[39:46]
+    coor_z::Float64      # line[47:54]
+    occupancy::Float64   # line[55:60]
+    tempfactor::Float64  # line[61:66]
+    segment_id::String   # line[67:76]
+    element_name::String # line[77:78]
+    charge::Float64      # line[79:80]
+end
+
+function parse_PDB_line(pdb_line::String)
+    atom_serial     = 0
+    try
+        atom_serial = parse(Int, pdb_line[7:11])
+    catch
+        atom_serial = 0
+        println("WARNING! Error in reading atom serial in PDB!")
+    end
+    atom_name       = strip(pdb_line[13:16])
+    residue_name    = strip(pdb_line[18:21])
+    chain_id        = pdb_line[22]
+    residue_serial  = parse(Int, pdb_line[23:26])
+    coor_x          = parse(Float64, pdb_line[31:38])
+    coor_y          = parse(Float64, pdb_line[39:46])
+    coor_z          = parse(Float64, pdb_line[47:54])
+    occupancy       = 0.0
+    try
+        occupancy   = parse(Float64, pdb_line[55:60])
+    catch
+        occupancy   = 0.0
+    end
+    tempfactor      = 0.0
+    try
+        tempfactor  = parse(Float64, pdb_line[61:66])
+    catch
+        tempfactor  = 0.0
+    end
+    segment_id      = strip(pdb_line[67:76])
+    element_name    = strip(pdb_line[77:78])
+    charge          = 0.0
+    try
+        charge      = parse(Float64, pdb_line[79:80])
+    catch
+        charge      = 0.0
+    end
+    new_pdb_data = PDBLine(atom_serial, atom_name,
+                           residue_name, chain_id, residue_serial,
+                           coor_x, coor_y, coor_z,
+                           occupancy, tempfactor, segment_id,
+                           element_name, charge)
+    return new_pdb_data
+end
+
+function write_PDB_line(io::IO, aline::PDBLine)
+    @printf(io, "ATOM  %5d %4s %4s%1s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f%10s%2s%2s \n",
+            aline.atom_serial,
+            aline.atom_name,
+            rpad(aline.residue_name, 4),
+            aline.chain_id,
+            aline.residue_serial,
+            aline.coor_x,
+            aline.coor_y,
+            aline.coor_z,
+            aline.occupancy,
+            aline.tempfactor,
+            aline.segment_id,
+            aline.element_name,
+            aline.charge)
+end
+
 ###############################################################################
 #     ____  _       _        __                            _   _              #
 #    | __ )(_) ___ (_)_ __  / _| ___  _ __ _ __ ___   __ _| |_(_) ___ ___     #
@@ -85,7 +161,7 @@ end
 #                           |_|    |____/ |____/                              #
 #                                                                             #
 ###############################################################################
-function read_PDB(pdb_name::String)
+function read_aaPDB(pdb_name::String)
     aa_pdb_lines = []
 
     # =================================
@@ -124,7 +200,7 @@ function read_PDB(pdb_name::String)
     chain_id      = '?'
     tmp_res_atoms = []
     tmp_chain_res = []
-    tmp_chain_seg = " "
+    segment_id    = " "
  
     # ========================================
     # Step 2: Add atoms to residues and chains
@@ -164,9 +240,8 @@ function read_PDB(pdb_name::String)
                     if mol_type == -1
                         mol_type = tmp_mol_type
                     elseif tmp_mol_type != mol_type
-                        errmsg = @sprintf("BUG: Inconsistent residue types in chain %d ID - %s residue - %d : %s ",
-                                          i_chain,
-                                          chain.id,
+                        errmsg = @sprintf("BUG: Inconsistent residue types in chain ID - %s residue - %d : %s ",
+                                          chain_id,
                                           i_res,
                                           res_name)
                         error(errmsg)
@@ -176,32 +251,28 @@ function read_PDB(pdb_name::String)
                 # chain mol type determination ends here
                 # --------------------------------------
 
-                push!(aa_chains, AAChain(chain_id, tmp_chain_seg, mol_type, tmp_chain_res))
+                push!(aa_chains, AAChain(chain_id, segment_id, mol_type, tmp_chain_res))
                 tmp_chain_res = []
             end
             continue
         end
 
-        i_atom += 1
-        # atom_serial       = parse(Int, line[7:11])
-        atom_name         = strip(line[13:16])
-        residue_name      = strip(line[18:21])
-        chain_id          = line[22]
-        residue_serial    = parse(Int, line[23:26])
-        coor_x            = parse(Float64, line[31:38])
-        coor_y            = parse(Float64, line[39:46])
-        coor_z            = parse(Float64, line[47:54])
-        # occupancy       = parse(Float64, line[55:60])
-        # tempfactor      = parse(Float64, line[61:66])
-        # segment_id      = strip(line[67:76])
-        tmp_chain_seg     = strip(line[67:76])
-        # element_name    = strip(line[77:78])
-        # charge          = parse(Float64, line[79:80])
+        new_pdb_data = parse_PDB_line(line)
 
-        aa_atom_name[i_atom]   = atom_name
-        aa_coor[1, i_atom]     = coor_x
-        aa_coor[2, i_atom]     = coor_y
-        aa_coor[3, i_atom]     = coor_z
+        i_atom        += 1
+        atom_name      = new_pdb_data.atom_name
+        residue_name   = new_pdb_data.residue_name
+        chain_id       = new_pdb_data.chain_id
+        residue_serial = new_pdb_data.residue_serial
+        coor_x         = new_pdb_data.coor_x
+        coor_y         = new_pdb_data.coor_y
+        coor_z         = new_pdb_data.coor_z
+        segment_id     = new_pdb_data.segment_id
+
+        aa_atom_name[i_atom] = atom_name
+        aa_coor[1, i_atom]   = coor_x
+        aa_coor[2, i_atom]   = coor_y
+        aa_coor[3, i_atom]   = coor_z
 
         if residue_serial != curr_resid
             i_resid += 1
@@ -223,11 +294,134 @@ function read_PDB(pdb_name::String)
 
 end
 
+function read_cgPDB(pdb_name::String)
+    cg_pdb_lines = []
+
+    # =====================
+    # Read in all PDB lines
+    # =====================
+    cg_num_particle = 0
+    for line in eachline(pdb_name)
+        if startswith(line, "ATOM")
+            push!(cg_pdb_lines, rpad(line, 80))
+            cg_num_particle += 1
+        elseif startswith(line, "TER") || startswith(line, "END")
+            push!(cg_pdb_lines, line)
+        end
+    end
+
+    # ==========================
+    # Data structures for output
+    # ==========================
+
+    cg_particle_names = fill("    ",       cg_num_particle)
+    cg_coors          = zeros(Float64, (3, cg_num_particle))
+    cg_residues       = []
+    cg_chains         = []
+
+    # ---------------
+    # Local variables
+    # ---------------
+
+    i_particle        = 0
+    i_resid           = 0
+    curr_resid        = NaN
+    curr_chain        = NaN
+    curr_rname        = "    "
+    residue_name      = "    "
+    chain_id          = '?'
+    tmp_res_particles = []
+    tmp_chain_res     = []
+    segment_id        = " "
+ 
+    # ============================================
+    # Step 2: Add particles to residues and chains
+    # ============================================
+
+    for line in cg_pdb_lines
+        if startswith(line, "TER") || startswith(line, "END")
+            if length(tmp_res_particles) > 0
+                push!(cg_residues, CGResidue(residue_name, tmp_res_particles))
+                tmp_res_particles = []
+            end
+            if length(tmp_chain_res) > 0
+
+                # -------------------------------
+                # Determine chain molecule type  
+                # -------------------------------
+                mol_type = -1
+                for i_res in tmp_chain_res
+                    res_name = cg_residues[i_res].name
+                    tmp_mol_type = MOL_OTHER
+                    if in(res_name, RES_NAME_LIST_PROTEIN)
+                        tmp_mol_type = MOL_PROTEIN
+                    elseif in(res_name, RES_NAME_LIST_DNA)
+                        tmp_mol_type = MOL_DNA
+                    elseif in(res_name, RES_NAME_LIST_RNA)
+                        tmp_mol_type = MOL_RNA
+                    end
+                    if mol_type == -1
+                        mol_type = tmp_mol_type
+                    elseif tmp_mol_type != mol_type
+                        errmsg = @sprintf("BUG: Inconsistent residue types in chain ID - %s residue - %d : %s ",
+                                          chain_id,
+                                          i_res,
+                                          res_name)
+                        error(errmsg)
+                    end
+                end
+                # --------------------------------------
+                # chain mol type determination ends here
+                # --------------------------------------
+
+                push!(cg_chains, CGChain(chain_id, segment_id, mol_type, tmp_chain_res))
+                tmp_chain_res = []
+            end
+            continue
+        end
+
+        new_pdb_data = parse_PDB_line(line)
+
+        i_particle    += 1
+        particle_name  = new_pdb_data.atom_name
+        residue_name   = new_pdb_data.residue_name
+        chain_id       = new_pdb_data.chain_id
+        residue_serial = new_pdb_data.residue_serial
+        coor_x         = new_pdb_data.coor_x
+        coor_y         = new_pdb_data.coor_y
+        coor_z         = new_pdb_data.coor_z
+        segment_id     = new_pdb_data.segment_id
+
+        cg_particle_names[i_particle] = particle_name
+        cg_coors[1, i_particle]       = coor_x
+        cg_coors[2, i_particle]       = coor_y
+        cg_coors[3, i_particle]       = coor_z
+
+        if residue_serial != curr_resid
+            i_resid += 1
+            push!(tmp_chain_res, i_resid)
+            if length(tmp_res_particles) > 0
+                push!(cg_residues, CGResidue(curr_rname, tmp_res_particles))
+                tmp_res_particles = []
+            end
+            curr_resid = residue_serial
+            curr_rname = residue_name
+        end
+
+        push!(tmp_res_particles, i_particle)
+    end
+
+    new_molecule = CGMolecule(cg_particle_names, cg_coors, cg_residues, cg_chains)
+
+    return new_molecule
+
+end
+
 
 # =============
 # Output CG PDB
 # =============
-function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::String, args)
+function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::String, args::Dict{String, Any})
 
     cg_pdb_name      = system_name * "_cg.pdb"
     cg_pdb_file      = open(cg_pdb_name, "w")
@@ -254,6 +448,7 @@ function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::String, 
         else
             resid_index_tmp = top.cg_resid_index[i_bead]
         end
+
         @printf(cg_pdb_file,
                 "ATOM  %5d %4s%1s%4s%1s%4d%1s   %8.3f%8.3f%8.3f%6.2f%6.2f%10s%2s%2s \n",
                 i_bead,
@@ -306,7 +501,7 @@ end
 #                                                                             #
 ###############################################################################
 
-function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name::String, args)
+function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name::String, args::Dict{String, Any})
 
     ff_pro     = force_field.ff_protein
     ff_dna     = force_field.ff_DNA
@@ -737,7 +932,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
 end
 
 
-function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, system_name::String, args)
+function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, system_name::String, args::Dict{String, Any})
 
     appendto_filename = args["patch"]
     pwmcos_gamma      = args["pwmcos-scale"]
@@ -784,7 +979,7 @@ end
 #                                                                             #
 ###############################################################################
 
-function write_cg_grocrd(top::CGTopology, conf::Conformation, system_name::String)
+function write_cg_grocrd(top::CGTopology, conf::Conformation, system_name::String, args::Dict{String, Any})
 
     gro_name = system_name * "_cg.gro"
     gro_file = open(gro_name, "w")
@@ -812,6 +1007,39 @@ function write_cg_grocrd(top::CGTopology, conf::Conformation, system_name::Strin
     println(">           ... .gro: DONE!")
 end
 
+function write_cg_grocrd(cgmol::CGMolecule, system_name::String, args::Dict{String, Any})
+
+    gro_name = system_name * ".gro"
+    gro_file = open(gro_name, "w")
+
+    cg_num_particles = length( cgmol.particle_names )
+
+    @printf(gro_file, "CG model %s, t = %16.3f \n", system_name, 0)
+    @printf(gro_file, "%12d \n", cg_num_particles)
+
+    i_count = 0
+    for c in cgmol.chains
+        for ( i, r ) in enumerate( c.residues )
+            res = cgmol.residues[r]
+            for p in res.particles
+                @printf(gro_file, "%5d%5s%5s%5d %8.4f %8.4f %8.4f %8.4f %8.4f %8.4f \n",
+                        i + i_count, res.name, cgmol.particle_names[p], p,
+                        cgmol.particle_coors[1, p] * 0.1,
+                        cgmol.particle_coors[2, p] * 0.1,
+                        cgmol.particle_coors[3, p] * 0.1,
+                        0.0, 0.0, 0.0)
+            end
+        end
+        i_count += length(c.residues)
+    end
+
+    @printf(gro_file, "%15.4f%15.4f%15.4f \n\n", 0.0, 0.0, 0.0)
+
+    close(gro_file)
+
+    println(">           ... .gro: DONE!")
+
+end
 
 
 ###############################################################################
@@ -824,7 +1052,7 @@ end
 #                                                                             #
 ###############################################################################
 
-function write_cg_psf(top::CGTopology, system_name::String)
+function write_cg_psf(top::CGTopology, system_name::String, args::Dict{String, Any})
 
     psf_name = system_name * "_cg.psf"
     psf_file = open(psf_name, "w")

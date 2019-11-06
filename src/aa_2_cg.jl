@@ -80,7 +80,7 @@ function aa_2_cg(args)
     println("============================================================")
     println("> Open PDB file:")
 
-    aa_molecule  = read_PDB(pdb_name)
+    aa_molecule = read_aaPDB(pdb_name)
 
     aa_num_atom    = length(aa_molecule.atom_names)
     aa_num_residue = length(aa_molecule.residues)
@@ -131,11 +131,11 @@ function aa_2_cg(args)
     end
 
     if do_output_gro
-        write_cg_grocrd(cg_top, cg_conf, mol_name)
+        write_cg_grocrd(cg_top, cg_conf, mol_name, args)
     end
 
     if do_output_psf
-        write_cg_psf(cg_top, mol_name)
+        write_cg_psf(cg_top, mol_name, args)
     end
 
     if do_output_cgpdb

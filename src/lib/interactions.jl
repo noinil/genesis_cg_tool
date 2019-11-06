@@ -2,15 +2,6 @@
 #                        Functions related to CG models                       #
 ###############################################################################
 
-struct ForceFieldCG
-    ff_protein::Int
-    ff_DNA::Int
-    ff_RNA::Int
-    ff_protein_DNA::Int
-    ff_protein_RNA::Int
-    ff_DNA_RNA::Int
-end
-
 
 ###############################################################################
 #                       ____            _       _                             #

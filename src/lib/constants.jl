@@ -12,6 +12,15 @@ const JOU2CAL = 1.0 / CAL2JOU
 # Force fields
 # ============
 
+struct ForceFieldCG
+    ff_protein::Int
+    ff_DNA::Int
+    ff_RNA::Int
+    ff_protein_DNA::Int
+    ff_protein_RNA::Int
+    ff_DNA_RNA::Int
+end
+
 # protein
 const FF_pro_AICG2p      = 1
 const FF_pro_Clementi_Go = 2

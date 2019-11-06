@@ -179,7 +179,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 push!(cg_residues, AACGResidue(i_resi, res_name, "RB", cg_RB_idx))
             end
         end
-        push!(cg_chains, CGChain(i_offset_cg_particle + 1, i_bead, mol_type, seg_name))
+        push!(cg_chains, AACGChain(i_offset_cg_particle + 1, i_bead, mol_type, seg_name))
         i_offset_cg_particle += cg_chain_length[i_chain]
         i_offset_cg_residue  += length(chain.residues)
     end
