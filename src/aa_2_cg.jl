@@ -149,7 +149,7 @@ function aa_2_cg(args)
 
     println("------------------------------------------------------------")
     println("------------------------------------------------------------")
-    printstyled(" FINISH! \n", bold=true, color=:green)
+    println("[1;32m FINISH! [0m ")
     println(" Please check the .itp and .gro files.")
     println("============================================================")
 

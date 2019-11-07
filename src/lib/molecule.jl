@@ -8,28 +8,28 @@
 
 struct AAResidue
     name::String
-    atoms::Array{Int64, 1}
+    atoms::Vector{Int64}
 end
 
 struct AAChain
     id::Char
     segname::String
     moltype::Int
-    residues::Array{Int64, 1}
+    residues::Vector{Int64}
 end
 
 struct AAMolecule
-    atom_names::Array{String}
+    atom_names::Vector{String}
     atom_coors::Array{Float64, 2}
-    residues::Array{AAResidue}
-    chains::Array{AAChain}
+    residues::Vector{AAResidue}
+    chains::Vector{AAChain}
 end
 
 struct AACGResidue
     res_idx::Int
     res_name::String
     atm_name::String
-    atoms::Array{Int64, 1}
+    atoms::Vector{Int64}
 end
 
 struct AACGChain
@@ -45,20 +45,20 @@ end
 
 struct CGResidue
     name::String
-    particles::Array{Int64, 1}
+    particles::Vector{Int64}
 end
 
 struct CGChain
     id::Char
     segname::String
     moltype::Int
-    residues::Array{Int64, 1}
+    residues::Vector{Int64}
 end
 
 struct CGMolecule
-    particle_names::Array{String}
+    particle_names::Vector{String}
     particle_coors::Array{Float64, 2}
-    residues::Array{CGResidue}
-    chains::Array{CGChain}
+    residues::Vector{CGResidue}
+    chains::Vector{CGChain}
 end
 

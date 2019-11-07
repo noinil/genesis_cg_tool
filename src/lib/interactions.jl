@@ -16,7 +16,7 @@
 # General Protein Native Contact
 # ------------------------------
 
-function is_protein_native_contact(resid1_atoms::Array{Int}, resid2_atoms::Array{Int}, atom_names::Array{String}, atom_coors::Array{<:Real, 2})
+function is_protein_native_contact(resid1_atoms::Vector{Int}, resid2_atoms::Vector{Int}, atom_names::Vector{String}, atom_coors::Array{<:Real, 2})
     for i in resid1_atoms
         atom_name_1 = atom_names[i]
         if atom_name_1[1] == 'H'
@@ -127,7 +127,7 @@ function is_protein_nonsb_charge_pair(atom_name_1::String, res_name_1::String, a
     return false
 end
 
-function count_aicg_atomic_contact(resid1_atoms::Array{Int}, resid2_atoms::Array{Int}, res_name_1::String, res_name_2::String, atom_names::Array{String}, atom_coors::Array{<:Real, 2})
+function count_aicg_atomic_contact(resid1_atoms::Vector{Int}, resid2_atoms::Vector{Int}, res_name_1::String, res_name_2::String, atom_names::Vector{String}, atom_coors::Array{<:Real, 2})
     contact_count                   = zeros(Int, 17)
     contact_count[AICG_ITYPE_OFFST] = 1
     num_short_range_contact         = 0
@@ -298,7 +298,7 @@ function is_RNA_hydrogen_bond(atom_name_1::Char, atom_name_2::Char)
     return false
 end
 
-function compute_RNA_native_contact(resid1_atoms::Array{Int}, resid2_atoms::Array{Int}, atom_names::Array{String}, atom_coors::Array{<:Real, 2})
+function compute_RNA_native_contact(resid1_atoms::Vector{Int}, resid2_atoms::Vector{Int}, atom_names::Vector{String}, atom_coors::Array{<:Real, 2})
     hb_count = 0
     min_dist = 1.0e50
     for i in resid1_atoms
@@ -339,7 +339,7 @@ end
 # PWMcos contact
 # ==============
 
-function is_PWMcos_contact(resid1_atoms::Array{Int}, resid2_atoms::Array{Int}, atom_names::Array{String}, atom_coors::Array{<:Real, 2})
+function is_PWMcos_contact(resid1_atoms::Vector{Int}, resid2_atoms::Vector{Int}, atom_names::Vector{String}, atom_coors::Array{<:Real, 2})
     for i in resid1_atoms
         atom_name_1 = atom_names[i]
         if atom_name_1[1] == 'H'
@@ -371,7 +371,7 @@ end
 #    |_|                                                                      #
 ###############################################################################
 
-function is_protein_RNA_native_contact(resid1_atoms::Array{Int}, resid2_atoms::Array{Int}, atom_names::Array{String}, atom_coors::Array{<:Real, 2})
+function is_protein_RNA_native_contact(resid1_atoms::Vector{Int}, resid2_atoms::Vector{Int}, atom_names::Vector{String}, atom_coors::Array{<:Real, 2})
     for i in resid1_atoms
         atom_name_1 = atom_names[i]
         if atom_name_1[1] == 'H'

@@ -216,31 +216,31 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     cg_seg_name    = fill("    ", cg_num_particles)
 
     # protein
-    top_cg_pro_bonds         = Array{TopBond}(undef, 0)
-    top_cg_pro_angles        = Array{TopAngle}(undef, 0)
-    top_cg_pro_dihedrals     = Array{TopDihedral}(undef, 0)
-    top_cg_pro_aicg13        = Array{TopAngle}(undef, 0)
-    top_cg_pro_aicg14        = Array{TopDihedral}(undef, 0)
-    top_cg_pro_go_contact    = Array{TopContact}(undef, 0)
+    top_cg_pro_bonds         = Vector{TopBond}(undef, 0)
+    top_cg_pro_angles        = Vector{TopAngle}(undef, 0)
+    top_cg_pro_dihedrals     = Vector{TopDihedral}(undef, 0)
+    top_cg_pro_aicg13        = Vector{TopAngle}(undef, 0)
+    top_cg_pro_aicg14        = Vector{TopDihedral}(undef, 0)
+    top_cg_pro_go_contact    = Vector{TopContact}(undef, 0)
 
     param_cg_pro_e_13        = []
     param_cg_pro_e_14        = []
     param_cg_pro_e_contact   = []
 
     # DNA
-    top_cg_DNA_bonds         = Array{TopBond}(undef, 0)
-    top_cg_DNA_angles        = Array{TopAngle}(undef, 0)
-    top_cg_DNA_dih_Gaussian  = Array{TopDihedral}(undef, 0)
-    top_cg_DNA_dih_periodic  = Array{TopDihedral}(undef, 0)
+    top_cg_DNA_bonds         = Vector{TopBond}(undef, 0)
+    top_cg_DNA_angles        = Vector{TopAngle}(undef, 0)
+    top_cg_DNA_dih_Gaussian  = Vector{TopDihedral}(undef, 0)
+    top_cg_DNA_dih_periodic  = Vector{TopDihedral}(undef, 0)
     param_cg_DNA_k_angles    = []
 
     # RNA
-    top_cg_RNA_bonds             = Array{TopBond}(undef, 0)
-    top_cg_RNA_angles            = Array{TopAngle}(undef, 0)
-    top_cg_RNA_dihedrals         = Array{TopDihedral}(undef, 0)
-    top_cg_RNA_base_stack        = Array{TopContact}(undef, 0)
-    top_cg_RNA_base_pair         = Array{TopContact}(undef, 0)
-    top_cg_RNA_other_contact     = Array{TopContact}(undef, 0)
+    top_cg_RNA_bonds             = Vector{TopBond}(undef, 0)
+    top_cg_RNA_angles            = Vector{TopAngle}(undef, 0)
+    top_cg_RNA_dihedrals         = Vector{TopDihedral}(undef, 0)
+    top_cg_RNA_base_stack        = Vector{TopContact}(undef, 0)
+    top_cg_RNA_base_pair         = Vector{TopContact}(undef, 0)
+    top_cg_RNA_other_contact     = Vector{TopContact}(undef, 0)
     param_cg_RNA_k_bonds         = []
     param_cg_RNA_k_angles        = []
     param_cg_RNA_k_dihedrals     = []
@@ -249,10 +249,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     param_cg_RNA_e_other_contact = []
 
     # protein-DNA
-    top_cg_pro_DNA_pwmcos    = Array{TopPWMcos}(undef, 0)
+    top_cg_pro_DNA_pwmcos    = Vector{TopPWMcos}(undef, 0)
 
     # protein-RNA
-    top_cg_pro_RNA_contact   = Array{TopContact}(undef, 0)
+    top_cg_pro_RNA_contact   = Vector{TopContact}(undef, 0)
     param_cg_pro_RNA_e_contact = []
 
     # --------------------
