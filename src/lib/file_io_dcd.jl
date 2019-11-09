@@ -20,10 +20,10 @@ function read_dcd(dcd_filename::String)
     # Read in head information
     # ========================
 
-    # DCD magic number
+    # DCD first block
     block_size_0 = read(dcd_file, Int32)
     if block_size_0 != 84
-        error("ERROR: wrong DCD format (magic number)!")
+        error("ERROR: wrong DCD format!")
     end
 
     # "CORD" or "VELD"
@@ -49,7 +49,7 @@ function read_dcd(dcd_filename::String)
 
     block_size_1 = read(dcd_file, Int32)
     if block_size_1 != 84
-        error("ERROR: wrong DCD format (magic number)!")
+        error("ERROR: wrong DCD format!")
     end
 
     # ======================
