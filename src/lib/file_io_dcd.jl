@@ -113,17 +113,19 @@ function read_dcd(dcd_filename::String)
 
     conformations = Vector{Conformation}(undef, 0)
 
-    data_block_size = n_particles * 4 # Single precision, Float32
+    data_block_size = n_particles * 4 # Single precision (4-byte), Float32
     for t in 1 : n_frames
         # ----------------
         # Read in box info
         # ----------------
         if bc_flag == 1
+            block_size_0 = read(dcd_file, Int32)
             bc_size = zeros(Float64, 6)
-            for i  in 1 : n_particles
+            for i in 1 : 6
                 l = read(dcd_file, Float64)
                 bc_size[i] = l
             end
+            block_size_1 = read(dcd_file, Int32)
         end
 
         # ------------------
