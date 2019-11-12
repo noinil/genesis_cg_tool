@@ -2,9 +2,9 @@
 #                                   File IO                                   #
 ###############################################################################
 
-include("file_io_pdb.jl")
-include("file_io_seq.jl")
-include("file_io_top.jl")
-include("file_io_crd.jl")
-include("file_io_dcd.jl")
+include("parser_pdb.jl")
+include("parser_seq.jl")
+include("parser_top.jl")
+include("parser_crd.jl")
+include("parser_dcd.jl")
 

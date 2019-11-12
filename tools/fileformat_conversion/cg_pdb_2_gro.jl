@@ -7,7 +7,7 @@ include("../../src/lib/constants.jl")
 include("../../src/lib/molecule.jl")
 include("../../src/lib/topology.jl")
 include("../../src/lib/conformation.jl")
-include("../../src/lib/file_io.jl")
+include("../../src/lib/parsers.jl")
 
 function parse_commandline()
     s = ArgParseSettings()
