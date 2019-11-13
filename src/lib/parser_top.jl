@@ -477,8 +477,333 @@ function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, syst
 
 end
 
-function read_general_grotop(top_filename::String)
+function read_groitp(itp_filename::String)
 
+    mol_name = ""
+    nonlocal_interval = 0
+    num_atom = 0
+
+    top_atoms = Vector{GenTopAtom}(undef, 0)
+    top_bonds = Vector{GenTopBond}(undef, 0)
+    top_angles = Vector{GenTopAngle}(undef, 0)
+    top_dihedrals = Vector{GenTopDihedral}(undef, 0)
+    top_pairs = Vector{GenTopPair}(undef, 0)
+    top_exclusions = Vector{GenTopExclusion}(undef, 0)
+    top_pwmcos = Vector{GenTopPWMcos}(undef, 0)
+
+    function read_top_atoms(line::AbstractString)
+        words = split(line)
+        a_indx = parse(Int, words[1])
+        a_type = words[2]
+        r_indx = parse(Int, words[3])
+        r_type = words[4]
+        a_name = words[5]
+        f_type = parse(Int, words[6])
+        charge = parse(Float64, words[7])
+        mass   = parse(Float64, words[8])
+        new_atom = GenTopAtom(a_indx, a_type, r_indx, r_type,
+                              a_name, f_type, charge, mass)
+        push!(top_atoms, new_atom)
+    end
+
+    function read_top_bonds(line::AbstractString)
+        words  = split(line)
+        i      = parse(Int, words[1])
+        j      = parse(Int, words[2])
+        f_type = parse(Int, words[3])
+        r0     = parse(Float64, words[4])
+        coef   = parse(Float64, words[5])
+        new_bond = GenTopBond(i, j, f_type, r0, coef)
+        push!(top_bonds, new_bond)
+    end
+
+    function read_top_angles(line::AbstractString)
+        words  = split(line)
+        i      = parse(Int, words[1])
+        j      = parse(Int, words[2])
+        k      = parse(Int, words[3])
+        f_type = parse(Int, words[4])
+        if f_type == 1
+            eq   = parse(Float64, words[5])
+            coef = parse(Float64, words[6])
+            w    = 0.0
+        elseif f_type == 21
+            eq   = parse(Float64, words[5])
+            coef = parse(Float64, words[6])
+            w    = parse(Float64, words[7])
+        elseif f_type == 22
+            eq   = 0.0
+            coef = 0.0
+            w    = 0.0
+        end
+        new_angle = GenTopAngle(i, j, k, f_type, eq, coef, w)
+        push!(top_angles, new_angle)
+    end
+
+    function read_top_dihedrals(line::AbstractString)
+        words  = split(line)
+        i      = parse(Int, words[1])
+        j      = parse(Int, words[2])
+        k      = parse(Int, words[3])
+        l      = parse(Int, words[4])
+        f_type = parse(Int, words[5])
+        if f_type == 1
+            eq   = parse(Float64, words[6])
+            coef = parse(Float64, words[7])
+            w    = 0.0
+            n    = parse(Int, words[8])
+        elseif f_type == 21
+            eq   = parse(Float64, words[6])
+            coef = parse(Float64, words[7])
+            w    = parse(Float64, words[8])
+            n    = 0
+        elseif f_type == 22
+            eq   = 0.0
+            coef = 0.0
+            w    = 0.0
+            n    = 0
+        end
+        new_dihedral = GenTopDihedral(i, j, k, l, f_type, eq, coef, w, n)
+        push!(top_dihedrals, new_dihedral)
+    end
+
+    function read_top_pairs(line::AbstractString)
+        words  = split(line)
+        i      = parse(Int, words[1])
+        j      = parse(Int, words[2])
+        f_type = parse(Int, words[3])
+        r0     = parse(Float64, words[4])
+        coef   = parse(Float64, words[5])
+        new_pair = GenTopPair(i, j, f_type, r0, coef)
+        push!(top_pairs, new_pair)
+    end
+
+    function read_top_exclusions(line::AbstractString)
+        words  = split(line)
+        i      = parse(Int, words[1])
+        j      = parse(Int, words[2])
+        new_ex = GenTopExclusion(i, j)
+        push!(top_exclusions, new_ex)
+    end
+
+    function read_top_pwmcos(line::AbstractString)
+        words  = split(line)
+        i      = parse(Int, words[1])
+        f_type = parse(Int, words[2])
+        r0 = parse(Float64, words[3])
+        t1 = parse(Float64, words[4])
+        t2 = parse(Float64, words[5])
+        t3 = parse(Float64, words[6])
+        eA = parse(Float64, words[7])
+        eC = parse(Float64, words[8])
+        eG = parse(Float64, words[9])
+        eT = parse(Float64, words[10])
+        gm = parse(Float64, words[11])
+        ep = parse(Float64, words[12])
+        new_pwmcos = GenTopPWMcos(i, f_type, r0, t1, t2, t3,
+                                  eA, eC, eG, eT, gm, ep)
+        push!(top_pwmcos, new_pwmcos)
+    end
+
+
+    # ---------
+    # main part
+    # ---------
+    section_name = ""
+    for line in eachline(itp_filename)
+        sep  = findfirst(";", line)
+        line = strip(line[1 : sep[1] - 1])
+        if length(line) == 0
+            continue
+        end
+
+        if line[1] == '['
+            sep = findfirst("]", line)
+            section_name = strip(line[2 : sep[1] - 1])
+            continue
+        end
+
+        if section_name == "moleculetype"
+            words = split(line)
+            mol_name = words[1]
+            nonlocal_interval = parse(Int, words[2])
+        else
+            read_function_name = "read_top_" * section_name * (line)
+            read_expression = Meta.parse(read_function_name)
+            eval(read_expression)
+        end
+    end
+
+    num_atom = length(top_atoms)
+
+    new_top_mol = GenTopMolecule(mol_name, nonlocal_interval, num_atom,
+                                 top_atoms,
+                                 top_bonds,
+                                 top_angles,
+                                 top_dihedrals,
+                                 top_pairs,
+                                 top_exclusions,
+                                 top_pwmcos)
+
+    return new_top_mol
+end
+
+function read_grotop(top_filename::String)
+
+    sys_name = ""
+    num_atom = 0
+    mol_id   = 0
+
+    top_default_params = GenTopDefault(0, 0, false, 0.0, 0.0) 
+    top_default_atomtype = Vector{GenTopAtomType}(undef, 0)
+    top_default_CGDNA_bp = Vector{GenTopCGDNABasepairType}(undef, 0)
+    top_default_CGDNA_bs = Vector{GenTopCGDNABasestackType}(undef, 0)
+    top_default_CGDNA_cs = Vector{GenTopCGDNABasecrossType}(undef, 0)
+    top_default_CGDNA_exv = Vector{GenTopCGDNAExvType}(undef, 0)
+    top_default_CGPro_flx_angle = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
+    top_default_CGPro_flx_dihedral = Vector{GenTopCGProAICGFlexDihedralType}(undef, 0)
+
+    global_index_2_local_index = Vector{Int}(undef, 0)
+    global_index_2_local_molid = Vector{Int}(undef, 0)
+    top_atoms = Vector{GenTopAtom}(undef, 0)
+    top_bonds = Vector{GenTopBond}(undef, 0)
+    top_angles = Vector{GenTopAngle}(undef, 0)
+    top_dihedrals = Vector{GenTopDihedral}(undef, 0)
+    top_pairs = Vector{GenTopPair}(undef, 0)
+    top_exclusions = Vector{GenTopExclusion}(undef, 0)
+    top_pwmcos = Vector{GenTopPWMcos}(undef, 0)
+    top_mol_list = Vector{GenTopMolList}(undef, 0)
+
+    section_name = ""
+    mol_topologies = Dict()
+    for line in eachline(top_filename)
+        sep  = findfirst(";", line)
+        line = strip(line[1 : sep[1] - 1])
+        if length(line) == 0
+            continue
+        end
+
+        if startswith(line, "#include")
+            mol_file_name = strip(line[9:end], ['\"', '\'', ' '])
+            new_mol = read_groitp(mol_file_name)
+            new_mol_name = new_mol.mol_name
+            mol_topologies[new_mol_name] = new_mol
+        end
+
+        if line[1] == '['
+            sep = findfirst("]", line)
+            section_name = strip(line[2 : sep[1] - 1])
+            continue
+        end
+
+        if section_name == "system"
+            words = split(line)
+            sys_name = words[1]
+        elseif section_name == "molecules"
+            words = split(line)
+            mol_name = words[1]
+            mol_count = parse(Int, words[2])
+
+            tmp_mol_list = GenTopMolList(mol_name, mol_count)
+            push!(top_mol_list, tmp_mol_list)
+
+            for i = 1 : mol_count
+                tmp_mol = mol_topologies[mol_name]
+                mol_id  += 1
+
+                # -----------------------
+                # add molecules to system
+                # -----------------------
+                for t in tmp_mol.top_atoms
+                    new_index = t.atom_index + num_atom
+                    s = GenTopAtom(new_index,
+                                   t.atom_type,
+                                   t.residue_index,
+                                   t.residue_type,
+                                   t.atom_name,
+                                   t.function_type,
+                                   t.charge,
+                                   t.mass)
+                    push!(top_atoms, s)
+                    push!(global_index_2_local_index, t.atom_index)
+                    push!(global_index_2_local_molid, mol_id)
+                end
+                for t in tmp_mol.top_bonds
+                    s = GenTopBond(t.i + num_atom,
+                                   t.j + num_atom,
+                                   t.function_type,
+                                   t.r0,
+                                   t.coef
+                                   )
+                    push!(top_bonds, s)
+                end
+                for t in tmp_mol.top_angles
+                    s = GenTopAngle(t.i + num_atom,
+                                    t.j + num_atom,
+                                    t.k + num_atom,
+                                    t.function_type,
+                                    t.a0, t.coef, t.w)
+                    push!(top_angles, s)
+                end
+                for t in tmp_mol.top_dihedrals
+                    s = GenTopAngle(t.i + num_atom,
+                                    t.j + num_atom,
+                                    t.k + num_atom,
+                                    t.l + num_atom,
+                                    t.function_type,
+                                    t.d0, t.coef, t.w, t.n)
+                    push!(top_dihedrals, s)
+                end
+                for t in tmp_mol.top_pairs
+                    s = GenTopAngle(t.i + num_atom,
+                                    t.j + num_atom,
+                                    t.function_type,
+                                    t.r0, t.coef)
+                    push!(top_pairs, s)
+                end
+                for t in tmp_mol.top_exclusions
+                    s = GenTopAngle(t.i + num_atom,
+                                    t.j + num_atom)
+                    push!(top_exclusions, s)
+                end
+                for t in tmp_mol.top_pwmcos
+                    s = GenTopPWMcos(t.i + num_atom,
+                                     t.function_type,
+                                     t.r0,
+                                     t.theta1,
+                                     t.theta2,
+                                     t.theta3,
+                                     t.ene_A, t.ene_C, t.ene_G, t.ene_T,
+                                     t.gamma, t.eps)
+                    push!(top_pwmcos, s)
+                end
+
+                num_atom += tmp_mol.num_atom
+            end
+        end
+    end
+
+    new_top = GenTopology(sys_name, num_atom,
+                          top_default_params,
+                          top_default_atomtype,
+                          top_default_CGDNA_bp,
+                          top_default_CGDNA_bs,
+                          top_default_CGDNA_cs,
+                          top_default_CGDNA_exv,
+                          top_default_CGPro_flx_angle,
+                          top_default_CGPro_flx_dihedral,
+                          global_index_2_local_index,
+                          global_index_2_local_molid,
+                          top_atoms,
+                          top_bonds,
+                          top_angles,
+                          top_dihedrals,
+                          top_pairs,
+                          top_exclusions,
+                          top_pwmcos,
+                          top_mol_list)
+
+    return new_top
 
 end
 
