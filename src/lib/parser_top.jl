@@ -75,31 +75,31 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
 
     wr_itp_bnd_head(io::IO) = print(io, "[ bonds ]\n")
     wr_itp_bnd_comm(io::IO) = @printf(io, ";%9s%10s%5s%18s%18s\n", "i", "j", "f", "eq", "coef")
-    function wr_itp_bnd_line(io::IO, b::TopBond, f::Int, e::Float64)
+    function wr_itp_bnd_line(io::IO, b::CGTopBond, f::Int, e::Float64)
         @printf(io, "%10d%10d%5d%18.4E%18.4E\n", b.i, b.j, f, b.r0 * 0.1, e * 100.0 * 2.0 * CAL2JOU)
     end
 
     wr_itp_13_head(io::IO) = print(io, "[ angles ] ; AICG2+ 1-3 interaction\n")
     wr_itp_13_comm(io::IO) = @printf(io, ";%9s%10s%10s%5s%15s%15s%15s\n", "i", "j", "k", "f", "eq", "coef", "w")
-    function wr_itp_13_line(io::IO, a::TopAngle, f::Int, e::Float64, sigma::Float64)
+    function wr_itp_13_line(io::IO, a::CGTopAngle, f::Int, e::Float64, sigma::Float64)
         @printf(io, "%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", a.i, a.j, a.k, f, a.a0 * 0.1, e * CAL2JOU, sigma * 0.1)
     end
 
     wr_itp_ang_f_head(io::IO) = print(io, "[ angles ] ; AICG2+ flexible local interaction\n")
     wr_itp_ang_f_comm(io::IO) = @printf(io, ";%9s%10s%10s%5s\n", "i", "j", "k", "f")
-    function wr_itp_ang_f_line(io::IO, a::TopAngle, f::Int)
+    function wr_itp_ang_f_line(io::IO, a::CGTopAngle, f::Int)
         @printf(io, "%10d%10d%10d%5d\n", a.i, a.j, a.k, f)
     end
 
     wr_itp_ang_head(io::IO) = print(io, "[ angles ] ; cannonical angle \n")
     wr_itp_ang_comm(io::IO) = @printf(io, ";%9s%10s%10s%5s%18s%18s \n", "i", "j", "k", "f", "eq", "coef")
-    function wr_itp_ang_line(io::IO, a::TopAngle, f::Int, e::Float64)
+    function wr_itp_ang_line(io::IO, a::CGTopAngle, f::Int, e::Float64)
         @printf(io, "%10d%10d%10d%5d%18.4E%18.4E\n", a.i, a.j, a.k, f, a.a0, e * 2.0 * CAL2JOU)
     end
 
     wr_itp_dih_P_head(io::IO) = print(io, "[ dihedrals ] ; periodic dihedrals\n")
     wr_itp_dih_P_comm(io::IO) = @printf(io, ";%9s%10s%10s%10s%5s%18s%18s%5s\n", "i", "j", "k", "l", "f", "eq", "coef", "n")
-    function wr_itp_dih_P_line(io::IO, d::TopDihedral, f::Int, e::Float64, n::Int)
+    function wr_itp_dih_P_line(io::IO, d::CGTopDihedral, f::Int, e::Float64, n::Int)
         if n == 1
             @printf(io, "%10d%10d%10d%10d%5d%18.4E%18.4E%5d\n", d.i, d.j, d.k, d.l, f, d.t0 - 180., e * CAL2JOU, n)
         elseif n== 3
@@ -110,25 +110,25 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
 
     wr_itp_dih_G_head(io::IO) = print(io, "[ dihedrals ] ; Gaussian dihedrals\n")
     wr_itp_dih_G_comm(io::IO) = @printf(io, ";%9s%10s%10s%10s%5s%15s%15s%15s\n", "i", "j", "k", "l", "f", "eq", "coef", "w")
-    function wr_itp_dih_G_line(io::IO, d::TopDihedral, f::Int, e::Float64, sigma::Float64)
+    function wr_itp_dih_G_line(io::IO, d::CGTopDihedral, f::Int, e::Float64, sigma::Float64)
         @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", d.i, d.j, d.k, d.l, f, d.t0, e * CAL2JOU, sigma)
     end
 
     wr_itp_dih_F_head(io::IO) = print(io, "[ dihedrals ] ; AICG2+ flexible local interation\n")
     wr_itp_dih_F_comm(io::IO) = @printf(io, ";%9s%10s%10s%10s%5s\n", "i", "j", "k", "l", "f")
-    function wr_itp_dih_F_line(io::IO, d::TopDihedral, f::Int)
+    function wr_itp_dih_F_line(io::IO, d::CGTopDihedral, f::Int)
         @printf(io, "%10d%10d%10d%10d%5d\n", d.i, d.j, d.k, d.l, f)
     end
 
     wr_itp_contact_head(io::IO, s::String) = @printf(io, "[ pairs ] ; %s - Go-type native contact\n", s)
     wr_itp_contact_comm(io::IO) = @printf(io, ";%9s%10s%10s%15s%15s\n", "i", "j", "f", "eq", "coef")
-    function wr_itp_contact_line(io::IO, c::TopContact, f::Int, e::Float64)
+    function wr_itp_contact_line(io::IO, c::CGTopContact, f::Int, e::Float64)
         @printf(io, "%10d%10d%10d%15.4E%15.4E\n", c.i, c.j, f, c.r0 * 0.1, e * CAL2JOU)
     end
 
     wr_itp_exc_head(io::IO) = print(io, "[ exclusions ] ; Genesis exclusion list\n")
     wr_itp_exc_comm(io::IO) = @printf(io, ";%9s%10s\n", "i", "j")
-    wr_itp_exc_line(io::IO, c::TopContact) = @printf(io, "%10d%10d\n", c.i, c.j)
+    wr_itp_exc_line(io::IO, c::CGTopContact) = @printf(io, "%10d%10d\n", c.i, c.j)
 
 
     # ----------------

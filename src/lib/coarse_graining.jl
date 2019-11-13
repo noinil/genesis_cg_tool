@@ -216,31 +216,31 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     cg_seg_name    = fill("    ", cg_num_particles)
 
     # protein
-    top_cg_pro_bonds         = Vector{TopBond}(undef, 0)
-    top_cg_pro_angles        = Vector{TopAngle}(undef, 0)
-    top_cg_pro_dihedrals     = Vector{TopDihedral}(undef, 0)
-    top_cg_pro_aicg13        = Vector{TopAngle}(undef, 0)
-    top_cg_pro_aicg14        = Vector{TopDihedral}(undef, 0)
-    top_cg_pro_go_contact    = Vector{TopContact}(undef, 0)
+    top_cg_pro_bonds         = Vector{CGTopBond}(undef, 0)
+    top_cg_pro_angles        = Vector{CGTopAngle}(undef, 0)
+    top_cg_pro_dihedrals     = Vector{CGTopDihedral}(undef, 0)
+    top_cg_pro_aicg13        = Vector{CGTopAngle}(undef, 0)
+    top_cg_pro_aicg14        = Vector{CGTopDihedral}(undef, 0)
+    top_cg_pro_go_contact    = Vector{CGTopContact}(undef, 0)
 
     param_cg_pro_e_13        = []
     param_cg_pro_e_14        = []
     param_cg_pro_e_contact   = []
 
     # DNA
-    top_cg_DNA_bonds         = Vector{TopBond}(undef, 0)
-    top_cg_DNA_angles        = Vector{TopAngle}(undef, 0)
-    top_cg_DNA_dih_Gaussian  = Vector{TopDihedral}(undef, 0)
-    top_cg_DNA_dih_periodic  = Vector{TopDihedral}(undef, 0)
+    top_cg_DNA_bonds         = Vector{CGTopBond}(undef, 0)
+    top_cg_DNA_angles        = Vector{CGTopAngle}(undef, 0)
+    top_cg_DNA_dih_Gaussian  = Vector{CGTopDihedral}(undef, 0)
+    top_cg_DNA_dih_periodic  = Vector{CGTopDihedral}(undef, 0)
     param_cg_DNA_k_angles    = []
 
     # RNA
-    top_cg_RNA_bonds             = Vector{TopBond}(undef, 0)
-    top_cg_RNA_angles            = Vector{TopAngle}(undef, 0)
-    top_cg_RNA_dihedrals         = Vector{TopDihedral}(undef, 0)
-    top_cg_RNA_base_stack        = Vector{TopContact}(undef, 0)
-    top_cg_RNA_base_pair         = Vector{TopContact}(undef, 0)
-    top_cg_RNA_other_contact     = Vector{TopContact}(undef, 0)
+    top_cg_RNA_bonds             = Vector{CGTopBond}(undef, 0)
+    top_cg_RNA_angles            = Vector{CGTopAngle}(undef, 0)
+    top_cg_RNA_dihedrals         = Vector{CGTopDihedral}(undef, 0)
+    top_cg_RNA_base_stack        = Vector{CGTopContact}(undef, 0)
+    top_cg_RNA_base_pair         = Vector{CGTopContact}(undef, 0)
+    top_cg_RNA_other_contact     = Vector{CGTopContact}(undef, 0)
     param_cg_RNA_k_bonds         = []
     param_cg_RNA_k_angles        = []
     param_cg_RNA_k_dihedrals     = []
@@ -249,10 +249,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     param_cg_RNA_e_other_contact = []
 
     # protein-DNA
-    top_cg_pro_DNA_pwmcos    = Vector{TopPWMcos}(undef, 0)
+    top_cg_pro_DNA_pwmcos    = Vector{CGTopPWMcos}(undef, 0)
 
     # protein-RNA
-    top_cg_pro_RNA_contact   = Vector{TopContact}(undef, 0)
+    top_cg_pro_RNA_contact   = Vector{CGTopContact}(undef, 0)
     param_cg_pro_RNA_e_contact = []
 
     # --------------------
@@ -389,7 +389,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 coor1 = cg_bead_coor[:, i_res]
                 coor2 = cg_bead_coor[:, i_res + 1]
                 dist12 = compute_distance(coor1, coor2)
-                tmp_top_bond = TopBond(i_res, i_res + 1, dist12)
+                tmp_top_bond = CGTopBond(i_res, i_res + 1, dist12)
                 push!(top_cg_pro_bonds, tmp_top_bond)
             end
         end
@@ -411,9 +411,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 coor3    = cg_bead_coor[:, i_res + 2]
                 dist13   = compute_distance(coor1, coor3)
                 angle123 = compute_angle(coor1, coor2, coor3)
-                tmp_top_angle = TopAngle(i_res, i_res + 1, i_res + 2, angle123)
+                tmp_top_angle = CGTopAngle(i_res, i_res + 1, i_res + 2, angle123)
                 push!(top_cg_pro_angles, tmp_top_angle)
-                tmp_top_angle = TopAngle(i_res, i_res + 1, i_res + 2, dist13)
+                tmp_top_angle = CGTopAngle(i_res, i_res + 1, i_res + 2, dist13)
                 push!(top_cg_pro_aicg13, tmp_top_angle)
                 # count AICG2+ 1-3 interaction atomic contact
                 contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
@@ -454,7 +454,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 coor3 = cg_bead_coor[:, i_res + 2]
                 coor4 = cg_bead_coor[:, i_res + 3]
                 dihed = compute_dihedral(coor1, coor2, coor3, coor4)
-                tmp_top_dihe = TopDihedral(i_res, i_res + 1, i_res + 2, i_res + 3, dihed)
+                tmp_top_dihe = CGTopDihedral(i_res, i_res + 1, i_res + 2, i_res + 3, dihed)
                 push!(top_cg_pro_dihedrals, tmp_top_dihe)
                 push!(top_cg_pro_aicg14, tmp_top_dihe)
 
@@ -543,7 +543,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         native_dist = compute_distance(coor_cai, coor_caj)
                         num_cg_pro_contact_all += 1
                         num_cg_pro_contact_intra += 1
-                        tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                        tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                         push!(top_cg_pro_go_contact, tmp_top_cnt)
 
                         # count AICG2+ atomic contact
@@ -623,7 +623,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                                 native_dist = compute_distance(coor_cai, coor_caj)
                                 num_cg_pro_contact_all += 1
                                 num_cg_pro_contact_inter += 1
-                                tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                                tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                                 push!(top_cg_pro_go_contact, tmp_top_cnt)
     
                                 # count AICG2+ atomic contact
@@ -790,13 +790,13 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     coor_s = cg_bead_coor[:, i_res]
                     coor_b = cg_bead_coor[:, i_res + 1]
                     r_sb   = compute_distance(coor_s, coor_b)
-                    tmp_top_bond = TopBond(i_res, i_res + 1, r_sb)
+                    tmp_top_bond = CGTopBond(i_res, i_res + 1, r_sb)
                     push!(top_cg_DNA_bonds, tmp_top_bond)
                     if i_res + 3 < chain.last
                         # bond S--P+1
                         coor_p3 = cg_bead_coor[:, i_res + 2]
                         r_sp3   = compute_distance(coor_s, coor_p3)
-                        tmp_top_bond = TopBond(i_res, i_res + 2, r_sp3)
+                        tmp_top_bond = CGTopBond(i_res, i_res + 2, r_sp3)
                         push!(top_cg_DNA_bonds, tmp_top_bond)
                         # Angle S--P+1--S+1
                         resname5  = cg_resid_name[i_res][end]
@@ -804,21 +804,21 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_s3   = cg_bead_coor[:, i_res + 3]
                         ang_sp3s3 = compute_angle(coor_s, coor_p3, coor_s3)
                         k         = get_DNA3SPN_angle_param("SPS", resname5 * resname3)
-                        tmp_top_angl = TopAngle(i_res, i_res + 2, i_res + 3, ang_sp3s3)
+                        tmp_top_angl = CGTopAngle(i_res, i_res + 2, i_res + 3, ang_sp3s3)
                         push!(top_cg_DNA_angles, tmp_top_angl)
                         push!(param_cg_DNA_k_angles, k)
                         # Dihedral S--P+1--S+1--B+1
                         coor_b3     = cg_bead_coor[:, i_res + 4]
                         dih_sp3s3b3 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_b3)
-                        tmp_top_dih = TopDihedral(i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3)
+                        tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3)
                         push!(top_cg_DNA_dih_periodic, tmp_top_dih)
                         # Dihedral S--P+1--S+1--P+2
                         if i_res + 6 < chain.last
                             coor_p33     = cg_bead_coor[:, i_res + 5]
                             dih_sp3s3p33 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_p33)
-                            tmp_top_dih = TopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
+                            tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
                             push!(top_cg_DNA_dih_periodic, tmp_top_dih)
-                            tmp_top_dih = TopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
+                            tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
                             push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
                         end
                     end
@@ -827,7 +827,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     coor_p = cg_bead_coor[:, i_res]
                     coor_s = cg_bead_coor[:, i_res + 1]
                     r_ps   = compute_distance(coor_p, coor_s)
-                    tmp_top_bond = TopBond(i_res, i_res + 1, r_ps)
+                    tmp_top_bond = CGTopBond(i_res, i_res + 1, r_ps)
                     push!(top_cg_DNA_bonds, tmp_top_bond)
                     # angle P--S--B
                     resname5 = cg_resid_name[i_res - 1][end]
@@ -835,7 +835,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     coor_b   = cg_bead_coor[:, i_res + 2]
                     ang_psb  = compute_angle(coor_p, coor_s, coor_b)
                     k        = get_DNA3SPN_angle_param("PSB", resname5 * resname3)
-                    tmp_top_angl = TopAngle(i_res, i_res + 1, i_res + 2, ang_psb)
+                    tmp_top_angl = CGTopAngle(i_res, i_res + 1, i_res + 2, ang_psb)
                     push!(top_cg_DNA_angles, tmp_top_angl)
                     push!(param_cg_DNA_k_angles, k)
                     if i_res + 4 < chain.last
@@ -843,15 +843,15 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_p3  = cg_bead_coor[:, i_res + 3]
                         ang_psp3 = compute_angle(coor_p, coor_s, coor_p3)
                         k        = get_DNA3SPN_angle_param("PSP", "all")
-                        tmp_top_angl = TopAngle(i_res, i_res + 1, i_res + 3, ang_psp3)
+                        tmp_top_angl = CGTopAngle(i_res, i_res + 1, i_res + 3, ang_psp3)
                         push!(top_cg_DNA_angles, tmp_top_angl)
                         push!(param_cg_DNA_k_angles, k)
                         # Dihedral P--S--P+1--S+1
                         coor_s3    = cg_bead_coor[:, i_res + 4]
                         dih_psp3s3 = compute_dihedral(coor_p, coor_s, coor_p3, coor_s3)
-                        tmp_top_dih = TopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
+                        tmp_top_dih = CGTopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
                         push!(top_cg_DNA_dih_periodic, tmp_top_dih)
-                        tmp_top_dih = TopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
+                        tmp_top_dih = CGTopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
                         push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
                     end
                 elseif cg_bead_name[i_res] == "DB"
@@ -864,13 +864,13 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_p3  = cg_bead_coor[:, i_res + 1]
                         ang_bsp3 = compute_angle(coor_b, coor_s, coor_p3)
                         k        = get_DNA3SPN_angle_param("BSP", resname5 * resname3)
-                        tmp_top_angl = TopAngle(i_res, i_res - 1, i_res + 1, ang_bsp3)
+                        tmp_top_angl = CGTopAngle(i_res, i_res - 1, i_res + 1, ang_bsp3)
                         push!(top_cg_DNA_angles, tmp_top_angl)
                         push!(param_cg_DNA_k_angles, k)
                         # Dihedral B--S--P+1--S+1
                         coor_s3    = cg_bead_coor[:, i_res + 2]
                         dih_bsp3s3 = compute_dihedral(coor_b, coor_s, coor_p3, coor_s3)
-                        tmp_top_dih = TopDihedral(i_res, i_res - 1, i_res + 1, i_res + 2, dih_bsp3s3)
+                        tmp_top_dih = CGTopDihedral(i_res, i_res - 1, i_res + 1, i_res + 2, dih_bsp3s3)
                         push!(top_cg_DNA_dih_periodic, tmp_top_dih)
                     end
                 else
@@ -1028,7 +1028,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     base_type = cg_resid_name[i_res] in ["RA", "RG"] ? "R" : "Y"
                     bond_type = "S" * base_type
                     k         = RNA_BOND_K_LIST[bond_type]
-                    tmp_top_bond = TopBond(i_res, i_res + 1, r_sb)
+                    tmp_top_bond = CGTopBond(i_res, i_res + 1, r_sb)
                     push!(top_cg_RNA_bonds, tmp_top_bond)
                     push!(param_cg_RNA_k_bonds, k)
                     # bond S--P+1
@@ -1036,7 +1036,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_p3 = cg_bead_coor[:, i_res + 2]
                         r_sp3   = compute_distance(coor_s, coor_p3)
                         k       = RNA_BOND_K_LIST["SP"]
-                        tmp_top_bond = TopBond(i_res, i_res + 2, r_sp3)
+                        tmp_top_bond = CGTopBond(i_res, i_res + 2, r_sp3)
                         push!(top_cg_RNA_bonds, tmp_top_bond)
                         push!(param_cg_RNA_k_bonds, k)
                     end
@@ -1045,7 +1045,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_s3   = cg_bead_coor[:, i_res + 3]
                         ang_sp3s3 = compute_angle(coor_s, coor_p3, coor_s3)
                         k         = RNA_ANGLE_K_LIST["SPS"]
-                        tmp_top_angl = TopAngle(i_res, i_res + 2, i_res + 3, ang_sp3s3)
+                        tmp_top_angl = CGTopAngle(i_res, i_res + 2, i_res + 3, ang_sp3s3)
                         push!(top_cg_RNA_angles, tmp_top_angl)
                         push!(param_cg_RNA_k_angles, k)
                         # Dihedral S--P+1--S+1--B+1
@@ -1054,7 +1054,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         base_type   = cg_resid_name[i_res + 4] in ["RA", "RG"] ? "R" : "Y"
                         dihe_type   = "SPS" * base_type
                         k           = RNA_DIHEDRAL_K_LIST[dihe_type]
-                        tmp_top_dih = TopDihedral(i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3)
+                        tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3)
                         push!(top_cg_RNA_dihedrals, tmp_top_dih)
                         push!(param_cg_RNA_k_dihedrals, k)
                     end
@@ -1063,7 +1063,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_p33     = cg_bead_coor[:, i_res + 5]
                         dih_sp3s3p33 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_p33)
                         k            = RNA_DIHEDRAL_K_LIST["SPSP"]
-                        tmp_top_dih = TopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
+                        tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
                         push!(top_cg_RNA_dihedrals, tmp_top_dih)
                         push!(param_cg_RNA_k_dihedrals, k)
                     end
@@ -1073,7 +1073,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     coor_s = cg_bead_coor[:, i_res + 1]
                     r_ps   = compute_distance(coor_p, coor_s)
                     k      = RNA_BOND_K_LIST["PS"]
-                    tmp_top_bond = TopBond(i_res, i_res + 1, r_ps)
+                    tmp_top_bond = CGTopBond(i_res, i_res + 1, r_ps)
                     push!(top_cg_RNA_bonds, tmp_top_bond)
                     push!(param_cg_RNA_k_bonds, k)
                     # angle P--S--B
@@ -1082,7 +1082,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     base_type = cg_resid_name[i_res + 2] in ["RA", "RG"] ? "R" : "Y"
                     angl_type = "PS" * base_type
                     k         = RNA_ANGLE_K_LIST[angl_type]
-                    tmp_top_angl = TopAngle(i_res, i_res + 1, i_res + 2, ang_psb)
+                    tmp_top_angl = CGTopAngle(i_res, i_res + 1, i_res + 2, ang_psb)
                     push!(top_cg_RNA_angles, tmp_top_angl)
                     push!(param_cg_RNA_k_angles, k)
                     if i_res + 4 < chain.last
@@ -1090,14 +1090,14 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_p3  = cg_bead_coor[:, i_res + 3]
                         ang_psp3 = compute_angle(coor_p, coor_s, coor_p3)
                         k        = RNA_ANGLE_K_LIST["PSP"]
-                        tmp_top_angl = TopAngle(i_res, i_res + 1, i_res + 3, ang_psp3)
+                        tmp_top_angl = CGTopAngle(i_res, i_res + 1, i_res + 3, ang_psp3)
                         push!(top_cg_RNA_angles, tmp_top_angl)
                         push!(param_cg_RNA_k_angles, k)
                         # Dihedral P--S--P+1--S+1
                         coor_s3    = cg_bead_coor[:, i_res + 4]
                         dih_psp3s3 = compute_dihedral(coor_p, coor_s, coor_p3, coor_s3)
                         k          = RNA_DIHEDRAL_K_LIST["PSPS"]
-                        tmp_top_dih = TopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
+                        tmp_top_dih = CGTopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
                         push!(top_cg_RNA_dihedrals, tmp_top_dih)
                         push!(param_cg_RNA_k_dihedrals, k)
                     end
@@ -1168,31 +1168,31 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_j_sug = cg_bead_coor[:, j_res - 1]
                         st_dih = compute_dihedral(coor_i, coor_i_sug, coor_j_sug, coor_j)
                         if abs( st_dih ) < RNA_STACK_DIH_CUTOFF && adist < RNA_STACK_DIST_CUTOFF
-                            tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                             push!(top_cg_RNA_base_stack, tmp_top_cnt)
                             push!(param_cg_RNA_e_base_stack, RNA_STACK_EPSILON)
                         else
-                            tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                             push!(top_cg_RNA_other_contact, tmp_top_cnt)
                             push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
                         end
                     elseif cg_bead_name[i_res] == "RB" && cg_bead_name[j_res] == "RB"
                         if nhb == 2
-                            tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                             push!(top_cg_RNA_base_pair, tmp_top_cnt)
                             push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_2HB)
                         elseif nhb >= 3
-                            tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                             push!(top_cg_RNA_base_pair, tmp_top_cnt)
                             push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_3HB)
                         else
-                            tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                             push!(top_cg_RNA_other_contact, tmp_top_cnt)
                             push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
                         end
                     else
                         contact_type = cg_bead_name[i_res][end] * cg_bead_name[j_res][end]
-                        tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                        tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                         push!(top_cg_RNA_other_contact, tmp_top_cnt)
                         push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER[contact_type])
                     end
@@ -1264,21 +1264,21 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                             end
                             if cg_bead_name[i_res] == "RB" && cg_bead_name[j_res] == "RB"
                                 if nhb == 2
-                                    tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                                    tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                                     push!(top_cg_RNA_base_pair, tmp_top_cnt)
                                     push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_2HB)
                                 elseif nhb >= 3
-                                    tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                                    tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                                     push!(top_cg_RNA_base_pair, tmp_top_cnt)
                                     push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_3HB)
                                 else
-                                    tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                                    tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                                     push!(top_cg_RNA_other_contact, tmp_top_cnt)
                                     push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
                                 end
                             else
                                 contact_type = cg_bead_name[i_res][end] * cg_bead_name[j_res][end]
-                                tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                                tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                                 push!(top_cg_RNA_other_contact, tmp_top_cnt)
                                 push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER[contact_type])
                             end
@@ -1365,11 +1365,11 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_j = cg_bead_coor[:, j_res]
                         native_dist = compute_distance(coor_i, coor_j)
                         if cg_bead_name[j_res] == "RS"
-                            tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                             push!(top_cg_pro_RNA_contact, tmp_top_cnt)
                             push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_S)
                         elseif cg_bead_name[j_res] == "RB"
-                            tmp_top_cnt = TopContact(i_res, j_res, native_dist)
+                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                             push!(top_cg_pro_RNA_contact, tmp_top_cnt)
                             push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_B)
                         end
@@ -1523,7 +1523,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             elseif pwm_order == -1
                 eA, eC, eG, eT = pwm_decomposed[pwm_i, 4:-1:1]
             end
-            tmp_top_pwmcos = TopPWMcos(nat_cnt[1],
+            tmp_top_pwmcos = CGTopPWMcos(nat_cnt[1],
                                        nat_cnt[3],
                                        nat_cnt[4],
                                        nat_cnt[5],
