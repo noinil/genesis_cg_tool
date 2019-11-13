@@ -7,7 +7,7 @@
 #                                                                             #
 ###############################################################################
 
-function parse_TOML_normal_line(toml_line::AbstractString)
+function read_TOML_normal_line(toml_line::AbstractString)
     # remove comments
     if occursin('#', toml_line)
         sep = findfirst("#", toml_line)
@@ -88,7 +88,7 @@ function read_TOML(toml_filename::String)
                 tmp_dict = root_dict[dict_name]
             end
         elseif occursin('=', toml_line)
-            t_key, t_val = parse_TOML_normal_line(toml_line)
+            t_key, t_val = read_TOML_normal_line(toml_line)
             tmp_dict[t_key] = t_val
         end
     end

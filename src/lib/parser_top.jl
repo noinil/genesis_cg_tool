@@ -477,6 +477,11 @@ function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, syst
 
 end
 
+function read_general_grotop(top_filename::String)
+
+
+end
+
 ###############################################################################
 #                                             __                              #
 #                                _ __   ___  / _|                             #
