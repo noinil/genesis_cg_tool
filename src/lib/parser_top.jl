@@ -477,7 +477,7 @@ function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, syst
 
 end
 
-function read_groitp(itp_filename::String)
+function read_groitp(itp_filename::AbstractString)
 
     mol_name = ""
     nonlocal_interval = 0
@@ -612,7 +612,11 @@ function read_groitp(itp_filename::String)
     section_name = ""
     for line in eachline(itp_filename)
         sep  = findfirst(";", line)
-        line = strip(line[1 : sep[1] - 1])
+        if sep != nothing
+            line = strip(line[1 : sep[1] - 1])
+        else
+            line = strip(line)
+        end
         if length(line) == 0
             continue
         end
@@ -628,9 +632,24 @@ function read_groitp(itp_filename::String)
             mol_name = words[1]
             nonlocal_interval = parse(Int, words[2])
         else
-            read_function_name = "read_top_" * section_name * (line)
-            read_expression = Meta.parse(read_function_name)
-            eval(read_expression)
+            # read_function_name = "read_top_" * section_name * "(line)"
+            # read_expression = Meta.parse(read_function_name)
+            # eval(read_expression)
+            if section_name == "atoms"
+                read_top_atoms(line)
+            elseif section_name == "bonds"
+                read_top_bonds(line)
+            elseif section_name == "angles"
+                read_top_angles(line)
+            elseif section_name == "dihedrals"
+                read_top_dihedrals(line)
+            elseif section_name == "pairs"
+                read_top_pairs(line)
+            elseif section_name == "exclusions"
+                read_top_exclusions(line)
+            elseif section_name == "pwmcos"
+                read_top_pwmcos(line)
+            end
         end
     end
 
@@ -678,13 +697,21 @@ function read_grotop(top_filename::String)
     mol_topologies = Dict()
     for line in eachline(top_filename)
         sep  = findfirst(";", line)
-        line = strip(line[1 : sep[1] - 1])
+        if sep != nothing
+            line = strip(line[1 : sep[1] - 1])
+        else
+            line = strip(line)
+        end
         if length(line) == 0
             continue
         end
 
         if startswith(line, "#include")
             mol_file_name = strip(line[9:end], ['\"', '\'', ' '])
+            mol_file_basename = basename(mol_file_name)
+            if in(mol_file_basename, ["atom_types.itp", "flexible_local_angle.itp", "flexible_local_dihedral.itp"])
+                continue
+            end
             new_mol = read_groitp(mol_file_name)
             new_mol_name = new_mol.mol_name
             mol_topologies[new_mol_name] = new_mol
@@ -746,24 +773,24 @@ function read_grotop(top_filename::String)
                     push!(top_angles, s)
                 end
                 for t in tmp_mol.top_dihedrals
-                    s = GenTopAngle(t.i + num_atom,
-                                    t.j + num_atom,
-                                    t.k + num_atom,
-                                    t.l + num_atom,
-                                    t.function_type,
-                                    t.d0, t.coef, t.w, t.n)
+                    s = GenTopDihedral(t.i + num_atom,
+                                       t.j + num_atom,
+                                       t.k + num_atom,
+                                       t.l + num_atom,
+                                       t.function_type,
+                                       t.d0, t.coef, t.w, t.n)
                     push!(top_dihedrals, s)
                 end
                 for t in tmp_mol.top_pairs
-                    s = GenTopAngle(t.i + num_atom,
-                                    t.j + num_atom,
-                                    t.function_type,
-                                    t.r0, t.coef)
+                    s = GenTopPair(t.i + num_atom,
+                                   t.j + num_atom,
+                                   t.function_type,
+                                   t.r0, t.coef)
                     push!(top_pairs, s)
                 end
                 for t in tmp_mol.top_exclusions
-                    s = GenTopAngle(t.i + num_atom,
-                                    t.j + num_atom)
+                    s = GenTopExclusion(t.i + num_atom,
+                                        t.j + num_atom)
                     push!(top_exclusions, s)
                 end
                 for t in tmp_mol.top_pwmcos
