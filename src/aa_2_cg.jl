@@ -182,7 +182,7 @@ function parse_commandline()
         "--force-field-RNA"
         help = "Force field for RNA."
         arg_type = String
-        default = "Go"
+        default = "HT"
 
         "--CCGO-contact-scale"
         help = "Scaling native contact interaction coefficient."

@@ -1108,10 +1108,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         end
 
         # -----------------------
-        # Go type native contacts
+        # HT type native contacts
         # -----------------------
         println(" - - - - - - - - - - - - - - - - - - - - - - - -")
-        println(">      $(i_step).2.2: RNA Go-type native contacts.")
+        println(">      $(i_step).2.2: RNA HT-type native contacts.")
         @printf("%11s Calculating intra-molecular contacts... \n", " ")
         @printf("              ... progress: %32s", " ")
         i_progress_count = 0

@@ -186,7 +186,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
         end
 
         # Structure-based RNA bonds
-        if ff_rna == FF_RNA_Go
+        if ff_rna == FF_RNA_HT
             for ( i_bond, bond ) in enumerate( top.top_cg_RNA_bonds )
                 wr_itp_bnd_line(itp_file, bond, RNA_BOND_FUNC_TYPE, top.param_cg_RNA_k_bonds[i_bond])
             end
@@ -244,7 +244,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     end
 
     # RNA structure-based angles
-    if ff_rna == FF_RNA_Go
+    if ff_rna == FF_RNA_HT
         if length(top.top_cg_RNA_angles) > 0
             wr_itp_ang_head(itp_file)
             wr_itp_ang_comm(itp_file)
@@ -317,7 +317,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     end
 
     # RNA structure-based Periodic dihedrals
-    if ff_rna == FF_RNA_Go
+    if ff_rna == FF_RNA_HT
         if length(top.top_cg_RNA_dihedrals) > 0
             wr_itp_dih_P_head(itp_file)
             wr_itp_dih_P_comm(itp_file)
@@ -357,8 +357,8 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
         end
     end
 
-    # print RNA Go-type native contacts
-    if ff_rna == FF_RNA_Go
+    # print RNA HT-type native contacts
+    if ff_rna == FF_RNA_HT
         if length(top.top_cg_RNA_base_stack) + length(top.top_cg_RNA_base_pair) + length(top.top_cg_RNA_other_contact) > 0
             wr_itp_contact_head(itp_file, "RNA-RNA")
             wr_itp_contact_comm(itp_file)
@@ -377,7 +377,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
 
 
     # print protein-RNA native contacts
-    if ( ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go ) && ff_rna == FF_RNA_Go
+    if ( ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go ) && ff_rna == FF_RNA_HT
         if length(top.top_cg_pro_RNA_contact) > 0
             wr_itp_contact_head(itp_file, "Protein-RNA")
             wr_itp_contact_comm(itp_file)
@@ -406,7 +406,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     end
 
     # print RNA exclusion list
-    if ff_rna == FF_RNA_Go
+    if ff_rna == FF_RNA_HT
         if length(top.top_cg_RNA_base_stack) + length(top.top_cg_RNA_base_pair) + length(top.top_cg_RNA_other_contact) > 0
             wr_itp_exc_head(itp_file)
             wr_itp_exc_comm(itp_file)
@@ -424,7 +424,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     end
 
     # print protein-RNA exclusion contacts
-    if ( ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go ) && ff_rna == FF_RNA_Go
+    if ( ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go ) && ff_rna == FF_RNA_HT
         if length(top.top_cg_pro_RNA_contact) > 0
             wr_itp_exc_head(itp_file)
             wr_itp_exc_comm(itp_file)

@@ -28,7 +28,7 @@ const FF_pro_KB_Go       = 3
 # DNA
 const FF_DNA_3SPN2C      = 1
 # RNA
-const FF_RNA_Go          = 1
+const FF_RNA_HT          = 1
 # protein-DNA
 const FF_PWMcos          = 1
 # unknown
@@ -45,7 +45,7 @@ FF_DNA_DICT = Dict(
 )
 
 FF_RNA_DICT = Dict(
-    "Go"       => FF_RNA_Go
+    "HT"       => FF_RNA_HT
 )
 
 # =====================================
