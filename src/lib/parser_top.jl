@@ -477,6 +477,10 @@ function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, syst
 
 end
 
+# ==================================
+# General Topology in Gromacs format
+# ==================================
+
 function read_groitp(itp_filename::AbstractString)
 
     mol_name = ""
@@ -844,7 +848,7 @@ end
 #                                                                             #
 ###############################################################################
 
-function write_cg_psf(top::CGTopology, system_name::String, args::Dict{String, Any})
+function write_cg_psf(top::CGTopology, system_name::String, args::Dict{String, Any}=Dict{String, Any}())
 
     psf_name = system_name * "_cg.psf"
     psf_file = open(psf_name, "w")
@@ -872,6 +876,47 @@ function write_cg_psf(top::CGTopology, system_name::String, args::Dict{String, A
                 top.cg_bead_type[i_bead],
                 top.cg_bead_charge[i_bead],
                 top.cg_bead_mass[i_bead])
+    end
+    print(psf_file,"\n")
+
+    close(psf_file)
+    println(">           ... .psf: DONE!")
+
+end
+
+function write_psf(top::GenTopology, sys_name::String="", args::Dict{String, Any}=Dict{String, Any}())
+
+    if length(sys_name) > 0
+        system_name = sys_name
+    else
+        system_name = top.system_name
+    end
+    psf_name = system_name * ".psf"
+    psf_file = open(psf_name, "w")
+
+    cg_num_particles = top.num_atom
+
+    @printf(psf_file, "PSF CMAP \n\n")
+    @printf(psf_file, "      3 !NTITLE \n")
+    @printf(psf_file, "REMARKS PSF file created with Julia. \n")
+    @printf(psf_file, "REMARKS System: %s  \n", system_name)
+    @printf(psf_file, "REMARKS ======================================== \n")
+    @printf(psf_file, "       \n")
+
+    psf_atom_line = " %6d %3s %5d %3s %3s %5s  %10.6f  %10.6f          0 \n"
+    chain_id_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+
+    @printf(psf_file, " %6d !NATOM \n", cg_num_particles)
+    for i_bead in 1 : cg_num_particles
+        @printf(psf_file, " %6d %3s %5d %3s %3s %5s  %10.6f  %10.6f          0 \n",
+                i_bead,
+                chain_id_set[top.global_index_2_local_molid[i_bead]],
+                top.top_atoms[i_bead].residue_index,
+                top.top_atoms[i_bead].residue_type,
+                top.top_atoms[i_bead].atom_name,
+                top.top_atoms[i_bead].atom_type,
+                top.top_atoms[i_bead].charge,
+                top.top_atoms[i_bead].mass)
     end
     print(psf_file,"\n")
 
