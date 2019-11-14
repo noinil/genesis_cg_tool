@@ -174,7 +174,7 @@ struct GenTopAtom
     atom_index::Int
     atom_type::String
     residue_index::Int
-    residue_type::String
+    residue_name::String
     atom_name::String
     function_type::Int
     charge::Float64

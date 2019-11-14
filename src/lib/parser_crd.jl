@@ -90,7 +90,7 @@ function write_grocrd(top::GenTopology, conf::Conformation, sys_name::String="",
     for i_bead in 1 : cg_num_particles
         @printf(gro_file, "%5d%5s%5s%5d %8.4f %8.4f %8.4f %8.4f %8.4f %8.4f \n",
                 top.top_atoms[i_bead].residue_index,
-                top.top_atoms[i_bead].residue_type,
+                top.top_atoms[i_bead].residue_name,
                 top.top_atoms[i_bead].atom_name,
                 i_bead,
                 conf.coors[1 , i_bead] * 0.1,

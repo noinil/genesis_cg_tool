@@ -500,12 +500,12 @@ function read_groitp(itp_filename::AbstractString)
         a_indx = parse(Int, words[1])
         a_type = words[2]
         r_indx = parse(Int, words[3])
-        r_type = words[4]
+        r_name = words[4]
         a_name = words[5]
         f_type = parse(Int, words[6])
         charge = parse(Float64, words[7])
         mass   = parse(Float64, words[8])
-        new_atom = GenTopAtom(a_indx, a_type, r_indx, r_type,
+        new_atom = GenTopAtom(a_indx, a_type, r_indx, r_name,
                               a_name, f_type, charge, mass)
         push!(top_atoms, new_atom)
     end
@@ -750,7 +750,7 @@ function read_grotop(top_filename::String)
                     s = GenTopAtom(new_index,
                                    t.atom_type,
                                    t.residue_index,
-                                   t.residue_type,
+                                   t.residue_name,
                                    t.atom_name,
                                    t.function_type,
                                    t.charge,
@@ -912,7 +912,7 @@ function write_psf(top::GenTopology, sys_name::String="", args::Dict{String, Any
                 i_bead,
                 chain_id_set[top.global_index_2_local_molid[i_bead]],
                 top.top_atoms[i_bead].residue_index,
-                top.top_atoms[i_bead].residue_type,
+                top.top_atoms[i_bead].residue_name,
                 top.top_atoms[i_bead].atom_name,
                 top.top_atoms[i_bead].atom_type,
                 top.top_atoms[i_bead].charge,
