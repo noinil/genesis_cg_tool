@@ -1,0 +1,28 @@
+================================================================================
+ PDB info (atomic):
+ - Number of atoms    : 4209
+ - Number of residues : 521
+ - Number of chains   : 3
+================================================================================
+ Chain info (CG):
+ - Number of protein chains:     1 
+ - Number of DNA strands:        1 
+ - Number of RNA strands:        1 
+ |--------------------------------------------------------------------|
+ | Chain | Mol Type | # bead | start --   end |   Rg (Å) | net charge | 
+ |-------+----------+--------+----------------+----------+------------|
+ |     1 |  protein |    488 |     1 --   488 |   25.560 |     +3.000 | 
+ |     2 |      DNA |     50 |   489 --   538 |   18.016 |     -9.600 | 
+ |     3 |      RNA |     47 |   539 --   585 |   16.878 |    -15.000 | 
+ |--------------------------------------------------------------------|
+ CG mol info:
+ - Number of CG particles:      585 
+ - Radius of gyration:       24.644 Å 
+ - Radius of circumsphere:   37.840 Å 
+ - Net Charge:              -21.600 e 
+================================================================================
+ Interaction info:
+ - Number of protein contacts:             2362  
+ - Number of RNA contacts:                   15  
+ - Number of protein-RNA contacts:           31  
+================================================================================
