@@ -2,6 +2,7 @@
 #                                   File IO                                   #
 ###############################################################################
 
+include("parser_toml.jl")
 include("parser_pdb.jl")
 include("parser_seq.jl")
 include("parser_top.jl")

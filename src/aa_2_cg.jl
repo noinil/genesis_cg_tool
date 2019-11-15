@@ -21,6 +21,7 @@ include("./lib/biomath.jl")
 include("./lib/constants.jl")
 include("./lib/molecule.jl")
 include("./lib/topology.jl")
+include("./lib/selection.jl")
 include("./lib/conformation.jl")
 include("./lib/interactions.jl")
 include("./lib/parsers.jl")
@@ -183,6 +184,11 @@ function parse_commandline()
         help = "Force field for RNA."
         arg_type = String
         default = "HT"
+
+        "--config", "-f"
+        help = "Force field configuration details."
+        arg_type = String
+        default = ""
 
         "--CCGO-contact-scale"
         help = "Scaling native contact interaction coefficient."

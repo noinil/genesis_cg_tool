@@ -23,6 +23,30 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     gen_3spn_itp       = args["3spn-param"]
     ccgo_contact_scale = args["CCGO-contact-scale"]
 
+    # =====================
+    # Prepare modifications
+    # =====================
+    toml_filename = args["config"]
+
+    has_toml_mod  = false
+    if length(toml_filename) > 0
+        has_toml_mod    = true
+        new_toml_config = read_TOML(toml_filename)
+
+        AICG2p_flexible_local    = []
+        AICG2p_flexible_nonlocal = []
+        if haskey(new_toml_config, "IDR")
+            if haskey(new_toml_config["IDR"], "AICG2p_IDR_local")
+                index_string = new_toml_config["IDR"]["AICG2p_IDR_local"]
+                AICG2p_flexible_local = parse_selection(index_string)
+            end
+            if haskey(new_toml_config["IDR"], "AICG2p_IDR_nonlocal")
+                index_string = new_toml_config["IDR"]["AICG2p_IDR_nonlocal"]
+                AICG2p_flexible_nonlocal = parse_selection(index_string)
+            end
+        end
+    end
+
 
     # ========
     # top file
@@ -206,6 +230,13 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             wr_itp_13_head(itp_file)
             wr_itp_13_comm(itp_file)
             for ( i_13, a13 ) in enumerate( top.top_cg_pro_aicg13 )
+                if has_toml_mod
+                    if  in(a13.i, AICG2p_flexible_local) ||
+                        in(a13.j, AICG2p_flexible_local) ||
+                        in(a13.k, AICG2p_flexible_local)
+                        continue
+                    end
+                end
                 wr_itp_13_line(itp_file, a13, AICG_ANG_G_FUNC_TYPE, top.param_cg_pro_e_13[i_13], AICG_13_SIGMA)
             end
             print(itp_file, "\n")
@@ -266,6 +297,14 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             wr_itp_dih_G_head(itp_file)
             wr_itp_dih_G_comm(itp_file)
             for ( i_dih, dih ) in enumerate( top.top_cg_pro_aicg14 )
+                if has_toml_mod
+                    if  in(dih.i, AICG2p_flexible_local) ||
+                        in(dih.j, AICG2p_flexible_local) ||
+                        in(dih.k, AICG2p_flexible_local) || 
+                        in(dih.l, AICG2p_flexible_local)
+                        continue
+                    end
+                end
                 wr_itp_dih_G_line(itp_file, dih, AICG_DIH_G_FUNC_TYPE, top.param_cg_pro_e_14[i_dih], AICG_14_SIGMA)
             end
             print(itp_file, "\n")
@@ -341,6 +380,12 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             wr_itp_contact_head(itp_file, "AICG2+")
             wr_itp_contact_comm(itp_file)
             for (i_c, c) in enumerate(top.top_cg_pro_go_contact)
+                if has_toml_mod
+                    if  in(c.i, AICG2p_flexible_nonlocal) ||
+                        in(c.j, AICG2p_flexible_nonlocal)
+                        continue
+                    end
+                end
                 wr_itp_contact_line(itp_file, c, AICG_CONTACT_FUNC_TYPE, top.param_cg_pro_e_contact[i_c])
             end
             print(itp_file, "\n")
@@ -399,6 +444,12 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             wr_itp_exc_head(itp_file)
             wr_itp_exc_comm(itp_file)
             for c in top.top_cg_pro_go_contact
+                if has_toml_mod
+                    if  in(c.i, AICG2p_flexible_nonlocal) ||
+                        in(c.j, AICG2p_flexible_nonlocal)
+                        continue
+                    end
+                end
                 wr_itp_exc_line(itp_file, c)
             end
             print(itp_file, "\n")

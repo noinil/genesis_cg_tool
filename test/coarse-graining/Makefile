@@ -3,15 +3,15 @@
 
 default:
 	
-run_all: run_VP run_ROM run_TAL run_DNA
+run_all: run_VP run_ROM run_TAL run_DNA run_NHP
 	@echo "-------------------------------------------"
 	@echo "New files generated."
 
-diff_all: diff_VP diff_ROM diff_TAL diff_DNA
+diff_all: diff_VP diff_ROM diff_TAL diff_DNA diff_NHP
 	@echo "-------------------------------------------"
 	@echo "File comparison finished."
 
-clean_all: clean_VP clean_TAL clean_ROM clean_DNA
+clean_all: clean_VP clean_TAL clean_ROM clean_DNA clean_NHP
 	@echo "-------------------------------------------"
 	@echo "Cleaning finished."
 
@@ -74,3 +74,12 @@ diff_TBP:
 
 clean_TBP:
 	rm -f TBP_cg_pwmcos.itp_patch
+
+run_NHP:
+	../../src/aa_2_cg.jl -f NHP_IDR.toml NHP.pdb
+
+diff_NHP:
+	diff NHP_cg.itp NHP_cg_ref.itp || exit 0
+
+clean_NHP:
+	rm -f NHP_cg.{itp,gro,top}
