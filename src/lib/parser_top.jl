@@ -35,6 +35,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
 
         AICG2p_flexible_local    = []
         AICG2p_flexible_nonlocal = []
+        HPS_IDR_region           = []
         if haskey(new_toml_config, "IDR")
             if haskey(new_toml_config["IDR"], "AICG2p_IDR_local")
                 index_string = new_toml_config["IDR"]["AICG2p_IDR_local"]
@@ -43,6 +44,10 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             if haskey(new_toml_config["IDR"], "AICG2p_IDR_nonlocal")
                 index_string = new_toml_config["IDR"]["AICG2p_IDR_nonlocal"]
                 AICG2p_flexible_nonlocal = parse_selection(index_string)
+            end
+            if haskey(new_toml_config["IDR"], "HPS_region")
+                index_string = new_toml_config["IDR"]["HPS_region"]
+                HPS_IDR_region = parse_selection(index_string)
             end
         end
     end
@@ -79,6 +84,22 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     print(top_file, "; ON 1 - 2 : 3 - 4 \n")
     print(top_file, "; OFF 1 - 1 : 3 - 3 \n\n")
     print(top_file, "; OFF 2 - 3 \n\n")
+
+    if has_toml_mod
+        if haskey(new_toml_config["IDR"], "HPS_region")
+            index_string = new_toml_config["IDR"]["HPS_region"]
+
+            print(top_file, "[ cg_IDR_HPS_region ] \n")
+            hps_words = split(index_string, r"\s*,\s*", keepempty=false)
+            for w in hps_words
+                if occursin("to", w)
+                    println(top_file, replace(w, "to" => " - "))
+                else
+                    println(top_file, w, " - ", w)
+                end
+            end
+        end
+    end
 
     close(top_file)
     
@@ -235,6 +256,10 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
                         in(a13.j, AICG2p_flexible_local) ||
                         in(a13.k, AICG2p_flexible_local)
                         continue
+                    elseif in(a13.i, HPS_IDR_region) ||
+                        in(a13.j, HPS_IDR_region) ||
+                        in(a13.k, HPS_IDR_region)
+                        continue
                     end
                 end
                 wr_itp_13_line(itp_file, a13, AICG_ANG_G_FUNC_TYPE, top.param_cg_pro_e_13[i_13], AICG_13_SIGMA)
@@ -246,6 +271,11 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             wr_itp_ang_f_head(itp_file)
             wr_itp_ang_f_comm(itp_file)
             for ang in top.top_cg_pro_angles
+                if  in(ang.i, HPS_IDR_region) ||
+                    in(ang.j, HPS_IDR_region) ||
+                    in(ang.k, HPS_IDR_region)
+                    continue
+                end
                 wr_itp_ang_f_line(itp_file, ang, AICG_ANG_F_FUNC_TYPE)
             end
             print(itp_file, "\n")
@@ -303,6 +333,11 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
                         in(dih.k, AICG2p_flexible_local) || 
                         in(dih.l, AICG2p_flexible_local)
                         continue
+                    elseif  in(dih.i, HPS_IDR_region) ||
+                        in(dih.j, HPS_IDR_region) ||
+                        in(dih.k, HPS_IDR_region) ||
+                        in(dih.l, HPS_IDR_region)
+                        continue
                     end
                 end
                 wr_itp_dih_G_line(itp_file, dih, AICG_DIH_G_FUNC_TYPE, top.param_cg_pro_e_14[i_dih], AICG_14_SIGMA)
@@ -314,6 +349,12 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             wr_itp_dih_F_head(itp_file)
             wr_itp_dih_F_comm(itp_file)
             for dih in top.top_cg_pro_dihedrals
+                if  in(dih.i, HPS_IDR_region) ||
+                    in(dih.j, HPS_IDR_region) ||
+                    in(dih.k, HPS_IDR_region) ||
+                    in(dih.l, HPS_IDR_region)
+                    continue
+                end
                 wr_itp_dih_F_line(itp_file, dih, AICG_DIH_F_FUNC_TYPE)
             end
             print(itp_file, "\n")
@@ -384,6 +425,9 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
                     if  in(c.i, AICG2p_flexible_nonlocal) ||
                         in(c.j, AICG2p_flexible_nonlocal)
                         continue
+                    elseif in(c.i, HPS_IDR_region) ||
+                        in(c.j, HPS_IDR_region)
+                        continue
                     end
                 end
                 wr_itp_contact_line(itp_file, c, AICG_CONTACT_FUNC_TYPE, top.param_cg_pro_e_contact[i_c])
@@ -447,6 +491,9 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
                 if has_toml_mod
                     if  in(c.i, AICG2p_flexible_nonlocal) ||
                         in(c.j, AICG2p_flexible_nonlocal)
+                        continue
+                    elseif in(c.i, HPS_IDR_region) ||
+                        in(c.j, HPS_IDR_region)
                         continue
                     end
                 end
