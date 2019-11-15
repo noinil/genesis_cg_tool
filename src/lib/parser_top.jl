@@ -92,11 +92,12 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             print(top_file, "[ cg_IDR_HPS_region ] \n")
             hps_words = split(index_string, r"\s*,\s*", keepempty=false)
             for w in hps_words
-                if occursin("to", w)
-                    println(top_file, replace(w, "to" => " - "))
-                else
-                    println(top_file, w, " - ", w)
-                end
+                println(top_file, w)
+                # if occursin("to", w)
+                    # println(top_file, replace(w, "to" => " - "))
+                # else
+                    # println(top_file, w, " - ", w)
+                # end
             end
         end
     end
