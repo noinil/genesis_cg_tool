@@ -77,12 +77,12 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
 
     print(top_file, "; [ cg_ele_mol_pairs ] \n")
     print(top_file, "; ON 1 - 2 : 3 - 4 \n")
-    print(top_file, "; OFF 1 - 1 : 3 - 3 \n\n")
+    print(top_file, "; OFF 1 - 1 : 3 - 3 \n")
     print(top_file, "; OFF 1 - 1 \n\n")
 
     print(top_file, "; [ pwmcos_mol_pairs ] \n")
     print(top_file, "; ON 1 - 2 : 3 - 4 \n")
-    print(top_file, "; OFF 1 - 1 : 3 - 3 \n\n")
+    print(top_file, "; OFF 1 - 1 : 3 - 3 \n")
     print(top_file, "; OFF 2 - 3 \n\n")
 
     if has_toml_mod
