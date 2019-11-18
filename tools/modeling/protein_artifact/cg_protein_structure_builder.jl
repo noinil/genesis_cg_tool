@@ -1,0 +1,164 @@
+#!/usr/bin/env julia
+
+using Random
+using Printf
+using ArgParse
+
+include("../../../src/lib/constants.jl")
+include("../../../src/lib/molecule.jl")
+include("../../../src/lib/topology.jl")
+include("../../../src/lib/conformation.jl")
+include("../../../src/lib/coarse_graining.jl")
+include("../../../src/lib/parsers.jl")
+
+function parse_commandline()
+    s = ArgParseSettings()
+
+    @add_arg_table s begin
+
+        "--sequence", "-s"
+        help = "Protein sequence file."
+        arg_type = String
+        default = ""
+
+        "--length",
+        help = "Number of amino acids in the protein with random-sequence."
+        arg_type = Int
+        default = 100
+
+        "--strategy"
+        help = "Strategy to construct the conformation of protein."
+        arg_type = String
+        default = "straight"
+    end
+
+    return parse_args(s)
+end
+
+
+function make_cg_protein_structure(args)
+
+    seq_name = args["sequence"]
+
+    println("============================================================")
+
+    AA_FULLNAME_DICT = Dict(
+        'A' => "ALA",
+        'R' => "ARG",
+        'N' => "ASN",
+        'D' => "ASP",
+        'C' => "CYS",
+        'C' => "CYM",
+        'Q' => "GLN",
+        'E' => "GLU",
+        'G' => "GLY",
+        'H' => "HIS",
+        'H' => "HSD",
+        'H' => "HSE",
+        'H' => "HSP",
+        'H' => "HID",
+        'H' => "HIE",
+        'H' => "HIP",
+        'I' => "ILE",
+        'L' => "LEU",
+        'K' => "LYS",
+        'M' => "MET",
+        'F' => "PHE",
+        'P' => "PRO",
+        'S' => "SER",
+        'T' => "THR",
+        'W' => "TRP",
+        'Y' => "TYR",
+        'V' => "VAL"
+    )
+
+    # ========================================================
+    # Protein sequence (read from file or generate random one)
+    # ========================================================
+    if length(seq_name) > 0
+        println("> Open sequence file:", seq_name)
+
+        mol_name = split(basename( seq_name ), '.')[1]
+
+        # -----------------------------------
+        # read in protein sequence from fasta
+        # -----------------------------------
+        protein_seqence = ""
+        num_chain = 0
+        for line in eachline(seq_name)
+            if line[1] == '>'
+                num_chain += 1
+                continue
+            end
+            if num_chain > 1
+                error("Only support single-chain protein!")
+            end
+            seq = strip(line)
+            if length(seq) == 0
+                continue
+            end
+            for b in seq
+                if ! haskey(AA_FULLNAME_DICT, b)
+                    error("Wrong protein sequence!")
+                end
+            end
+            protein_seqence *= seq
+        end
+        protein_length = length(protein_seqence)
+    else
+        println("> Generating random protein sequence:")
+
+        mol_name = "random_protein"
+
+        # --------------------------------
+        # generate random protein sequence
+        # --------------------------------
+        protein_length = args["length"]
+        protein_seqence = randstring("ARNDCQEGHILKMFPSTWYVX", protein_length)
+    end
+    println("> Protein sequence:   ( Length: $protein_length ) ")
+    println("> ", protein_seqence)
+
+    # =======================================
+    # Generating AAMolecule based on sequence
+    # =======================================
+    atom_names = Vector{String}(undef, protein_length)
+    atom_coors = zeros(3, protein_length)
+    residues   = Vector{AAResidue}(undef, protein_length)
+    chains     = Vector{AAChain}(undef, 1)
+
+    if args["strategy"] == "straight"
+        for i in 1 : protein_length
+            aa_short_name = protein_seqence[i]
+            aa_residue_name = AA_FULLNAME_DICT[aa_short_name]
+            
+            atom_names[i] = "CA"
+            atom_coors[1, i] = 3.8 * i
+            residues[i] = AAResidue(aa_residue_name, [i])
+        end
+        new_chain = AAChain('A', mol_name[1:4], MOL_PROTEIN, [i for i = 1 : protein_length])
+        chains[1] = new_chain
+    elseif args["strategy"] == "random-walk"
+        println("Self-avoiding random walk not support yet.")
+    end
+
+    new_mol = AAMolecule(atom_names, atom_coors, residues, chains)
+
+    # ===============================
+    # coarse graining from AAMolecule
+    # ===============================
+    force_field = ForceFieldCG(1, 1, 1, 1, 0, 0)
+    cg_top, cg_conf = coarse_graining(new_mol, force_field, args)
+
+    return 0
+end
+
+
+function main()
+    args = parse_commandline()
+    make_cg_protein_structure(args)
+end
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end
