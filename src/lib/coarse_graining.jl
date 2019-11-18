@@ -9,12 +9,12 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # -----------------
     # Parsing arguments
     # -----------------
-    pdb_name                = args["pdb"]
-    scale_scheme            = args["aicg-scale"]
-    protein_charge_filename = args["respac"]
-    pfm_filename            = args["pfm"]
-    do_debug                = args["debug"]
-    do_output_log           = args["log"]
+    pdb_name                = get(args, "pdb", "random.pdb")
+    scale_scheme            = get(args, "aicg-scale", 1)
+    protein_charge_filename = get(args, "respac", "")
+    pfm_filename            = get(args, "pfm", "")
+    do_debug                = get(args, "debug", false)
+    do_output_log           = get(args, "log", false)
 
     # ===============
     # Step 0: numbers

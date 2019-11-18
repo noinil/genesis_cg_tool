@@ -68,6 +68,15 @@ function aa_2_cg(args)
     end
     force_field = ForceFieldCG(ff_pro, ff_dna, ff_rna, ff_pro_dna, FF_UNKNOWN, FF_UNKNOWN)
 
+    # -----------------------------------
+    # FF modeling options from .toml file
+    # -----------------------------------
+    toml_filename = get(args, "config", "")
+    if length(toml_filename) > 0
+        new_toml_config = read_TOML(toml_filename)
+        args["modeling-options"] = new_toml_config
+    end
+
 
     ###########################################################################
     #                              Core Functions                             #

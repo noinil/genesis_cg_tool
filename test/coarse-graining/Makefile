@@ -26,7 +26,7 @@ diff_VP:
 	diff VP_cg.log VP_cg_ref.log || exit 0
 
 clean_VP:
-	rm -f VP_cg.{log,itp,psf,pdb,gro}
+	rm -f VP_cg.{log,itp,psf,pdb,gro,top}
 
 run_ROM:
 	../../src/aa_2_cg.jl --cgpdb --psf --log --force-field-protein Clementi ROM.pdb
@@ -39,7 +39,7 @@ diff_ROM:
 	diff ROM_cg.log ROM_cg_ref.log || exit 0
 
 clean_ROM:
-	rm -f ROM_cg.{log,itp,psf,pdb,gro}
+	rm -f ROM_cg.{log,itp,psf,pdb,gro,top}
 
 run_TAL:
 	../../src/aa_2_cg.jl --cgpdb --psf --log TAL.pdb
@@ -52,10 +52,10 @@ diff_TAL:
 	diff TAL_cg.log TAL_cg_ref.log || exit 0
 
 clean_TAL:
-	rm -f TAL_cg.{log,itp,psf,pdb,gro}
+	rm -f TAL_cg.{log,itp,psf,pdb,gro,top}
 
 run_DNA:
-	../../tools/DNA_3SPN.2C/bdna_3spn2c_gen.sh DNA.fasta
+	../../tools/modeling/DNA_3SPN.2C/bdna_3spn2c_gen.sh DNA.fasta
 
 diff_DNA:
 	diff DNA_x3dna_new_cg.gro DNA_cg_ref.gro || exit 0

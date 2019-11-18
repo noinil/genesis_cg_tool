@@ -356,7 +356,7 @@ function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::String, 
     cg_pdb_name      = system_name * "_cg.pdb"
     cg_pdb_file      = open(cg_pdb_name, "w")
 
-    do_output_cgconect      = args["cgconect"]
+    do_output_cgconect      = get(args, "cgconect", false)
 
     cg_num_particles = conf.num_particle
     is_huge_system   = cg_num_particles > 9999

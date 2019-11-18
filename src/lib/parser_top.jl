@@ -20,33 +20,31 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     top_name = system_name * "_cg.top"
     itp_name = system_name * "_cg.itp"
 
-    gen_3spn_itp       = args["3spn-param"]
-    ccgo_contact_scale = args["CCGO-contact-scale"]
+    gen_3spn_itp       = get(args, "3spn-param", false)
+    ccgo_contact_scale = get(args, "CCGO-contact-scale", 1.0)
 
     # =====================
     # Prepare modifications
     # =====================
-    toml_filename = args["config"]
-
     has_toml_mod  = false
-    if length(toml_filename) > 0
+    if haskey(args, "modeling-options")
         has_toml_mod    = true
-        new_toml_config = read_TOML(toml_filename)
+        ff_detail_config = args["modeling-options"]
 
         AICG2p_flexible_local    = []
         AICG2p_flexible_nonlocal = []
         HPS_IDR_region           = []
-        if haskey(new_toml_config, "IDR")
-            if haskey(new_toml_config["IDR"], "AICG2p_IDR_local")
-                index_string = new_toml_config["IDR"]["AICG2p_IDR_local"]
+        if haskey(ff_detail_config, "IDR")
+            if haskey(ff_detail_config["IDR"], "AICG2p_IDR_local")
+                index_string = ff_detail_config["IDR"]["AICG2p_IDR_local"]
                 AICG2p_flexible_local = parse_selection(index_string)
             end
-            if haskey(new_toml_config["IDR"], "AICG2p_IDR_nonlocal")
-                index_string = new_toml_config["IDR"]["AICG2p_IDR_nonlocal"]
+            if haskey(ff_detail_config["IDR"], "AICG2p_IDR_nonlocal")
+                index_string = ff_detail_config["IDR"]["AICG2p_IDR_nonlocal"]
                 AICG2p_flexible_nonlocal = parse_selection(index_string)
             end
-            if haskey(new_toml_config["IDR"], "HPS_region")
-                index_string = new_toml_config["IDR"]["HPS_region"]
+            if haskey(ff_detail_config["IDR"], "HPS_region")
+                index_string = ff_detail_config["IDR"]["HPS_region"]
                 HPS_IDR_region = parse_selection(index_string)
             end
         end
@@ -86,8 +84,8 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     print(top_file, "; OFF 2 - 3 \n\n")
 
     if has_toml_mod
-        if haskey(new_toml_config["IDR"], "HPS_region")
-            index_string = new_toml_config["IDR"]["HPS_region"]
+        if haskey(ff_detail_config["IDR"], "HPS_region")
+            index_string = ff_detail_config["IDR"]["HPS_region"]
 
             print(top_file, "[ cg_IDR_HPS_region ] \n")
             hps_words = split(index_string, r"\s*,\s*", keepempty=false)
@@ -272,10 +270,12 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             wr_itp_ang_f_head(itp_file)
             wr_itp_ang_f_comm(itp_file)
             for ang in top.top_cg_pro_angles
-                if  in(ang.i, HPS_IDR_region) ||
-                    in(ang.j, HPS_IDR_region) ||
-                    in(ang.k, HPS_IDR_region)
-                    continue
+                if has_toml_mod
+                    if  in(ang.i, HPS_IDR_region) ||
+                        in(ang.j, HPS_IDR_region) ||
+                        in(ang.k, HPS_IDR_region)
+                        continue
+                    end
                 end
                 wr_itp_ang_f_line(itp_file, ang, AICG_ANG_F_FUNC_TYPE)
             end
@@ -350,11 +350,13 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
             wr_itp_dih_F_head(itp_file)
             wr_itp_dih_F_comm(itp_file)
             for dih in top.top_cg_pro_dihedrals
-                if  in(dih.i, HPS_IDR_region) ||
-                    in(dih.j, HPS_IDR_region) ||
-                    in(dih.k, HPS_IDR_region) ||
-                    in(dih.l, HPS_IDR_region)
-                    continue
+                if has_toml_mod
+                    if  in(dih.i, HPS_IDR_region) ||
+                        in(dih.j, HPS_IDR_region) ||
+                        in(dih.k, HPS_IDR_region) ||
+                        in(dih.l, HPS_IDR_region)
+                        continue
+                    end
                 end
                 wr_itp_dih_F_line(itp_file, dih, AICG_DIH_F_FUNC_TYPE)
             end
@@ -542,9 +544,9 @@ end
 
 function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, system_name::String, args::Dict{String, Any})
 
-    appendto_filename = args["patch"]
-    pwmcos_gamma      = args["pwmcos-scale"]
-    pwmcos_epsil      = args["pwmcos-shift"]
+    appendto_filename = get(args, "patch", "")
+    pwmcos_gamma      = get(args, "pwmcos-scale", 1.0)
+    pwmcos_epsil      = get(args, "pwmcos-shift", 0.0)
 
     if length( appendto_filename ) == 0
         itp_pwmcos_name = system_name * "_cg_pwmcos.itp_patch"

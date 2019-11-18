@@ -38,7 +38,7 @@ end
 
 function make_cg_protein_structure(args)
 
-    seq_name = args["sequence"]
+    seq_name = get(args, "sequence", "")
 
     println("============================================================")
 
