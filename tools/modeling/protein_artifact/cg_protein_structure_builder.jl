@@ -4,9 +4,12 @@ using Random
 using Printf
 using ArgParse
 
-include("../../../src/lib/constants.jl")
+include("../../../src/lib/biomath.jl")
 include("../../../src/lib/molecule.jl")
 include("../../../src/lib/topology.jl")
+include("../../../src/lib/constants.jl")
+include("../../../src/lib/selection.jl")
+include("../../../src/lib/interactions.jl")
 include("../../../src/lib/conformation.jl")
 include("../../../src/lib/coarse_graining.jl")
 include("../../../src/lib/parsers.jl")
@@ -21,7 +24,7 @@ function parse_commandline()
         arg_type = String
         default = ""
 
-        "--length",
+        "--length"
         help = "Number of amino acids in the protein with random-sequence."
         arg_type = Int
         default = 100
@@ -86,6 +89,9 @@ function make_cg_protein_structure(args)
         protein_seqence = ""
         num_chain = 0
         for line in eachline(seq_name)
+            if length(line) == 0
+                continue
+            end
             if line[1] == '>'
                 num_chain += 1
                 continue
@@ -136,7 +142,7 @@ function make_cg_protein_structure(args)
             atom_coors[1, i] = 3.8 * i
             residues[i] = AAResidue(aa_residue_name, [i])
         end
-        new_chain = AAChain('A', mol_name[1:4], MOL_PROTEIN, [i for i = 1 : protein_length])
+        new_chain = AAChain('A', rpad(mol_name, 4)[1:4], MOL_PROTEIN, [i for i = 1 : protein_length])
         chains[1] = new_chain
     elseif args["strategy"] == "random-walk"
         println("Self-avoiding random walk not support yet.")
@@ -147,8 +153,14 @@ function make_cg_protein_structure(args)
     # ===============================
     # coarse graining from AAMolecule
     # ===============================
-    force_field = ForceFieldCG(1, 1, 1, 1, 0, 0)
+    force_field = ForceFieldCG(1, 1, 1, 0, 0, 0)
     cg_top, cg_conf = coarse_graining(new_mol, force_field, args)
+
+    args["modeling-options"] = Dict("IDR" => Dict("HPS_region" => "1 to $protein_length"))
+    args["cgconect"] = true
+    write_cg_grotop(cg_top, force_field, mol_name, args)
+    write_cg_grocrd(cg_top, cg_conf, mol_name, args)
+    write_cg_pdb(cg_top, cg_conf, mol_name, args)
 
     return 0
 end

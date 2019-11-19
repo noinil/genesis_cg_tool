@@ -25,7 +25,7 @@ struct PDBLine
     charge::Float64      # line[79:80]
 end
 
-function parse_PDB_line(pdb_line::String)
+function parse_PDB_line(pdb_line::AbstractString)
     atom_serial     = 0
     try
         atom_serial = parse(Int, pdb_line[7:11])
@@ -91,7 +91,7 @@ end
 # Read PDB!!!
 # ===========
 
-function read_aaPDB(pdb_name::String)
+function read_aaPDB(pdb_name::AbstractString)
     aa_pdb_lines = []
 
     # =================================
@@ -224,7 +224,7 @@ function read_aaPDB(pdb_name::String)
 
 end
 
-function read_cgPDB(pdb_name::String)
+function read_cgPDB(pdb_name::AbstractString)
     cg_pdb_lines = []
 
     # =====================
@@ -351,19 +351,19 @@ end
 # =============
 # Output CG PDB
 # =============
-function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::String, args::Dict{String, Any})
+function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::AbstractString, args::Dict{String, Any})
 
-    cg_pdb_name      = system_name * "_cg.pdb"
-    cg_pdb_file      = open(cg_pdb_name, "w")
+    cg_pdb_name        = system_name * "_cg.pdb"
+    cg_pdb_file        = open(cg_pdb_name, "w")
 
-    do_output_cgconect      = get(args, "cgconect", false)
+    do_output_cgconect = get(args, "cgconect", false)
 
-    cg_num_particles = conf.num_particle
-    is_huge_system   = cg_num_particles > 9999
+    cg_num_particles   = conf.num_particle
+    is_huge_system     = cg_num_particles > 9999
 
-    chain_id_set     = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
-    tmp_chain_id     = 0
-    tmp_chain_head   = 0
+    chain_id_set       = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+    tmp_chain_id       = 0
+    tmp_chain_head     = 0
     for i_bead in 1 : cg_num_particles
         i_chain = top.cg_chain_id[i_bead]
         if i_chain > tmp_chain_id

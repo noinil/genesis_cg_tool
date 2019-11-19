@@ -10,7 +10,7 @@
 
 using Printf
 
-function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name::String, args::Dict{String, Any})
+function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name::AbstractString, args::Dict{String, Any})
 
     ff_pro     = force_field.ff_protein
     ff_dna     = force_field.ff_DNA
@@ -109,7 +109,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
 
     wr_itp_mol_head(io::IO) = print(io, "[ moleculetype ]\n")
     wr_itp_mol_comm(io::IO) = @printf(io, ";%15s %6s\n", rpad("name", 15), "nrexcl")
-    wr_itp_mol_line(io::IO, name::String, n::Int) = @printf(io, "%16s %6d\n", rpad(name, 16), n)
+    wr_itp_mol_line(io::IO, name::AbstractString, n::Int) = @printf(io, "%16s %6d\n", rpad(name, 16), n)
 
     wr_itp_atm_head(io::IO) = print(io, "[ atoms ]\n")
     wr_itp_atm_comm(io::IO) = @printf(io, ";%9s%5s%10s%5s%5s%5s %8s %8s\n", "nr", "type", "resnr", "res", "atom", "cg", "charge", "mass")
@@ -542,7 +542,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
 end
 
 
-function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, system_name::String, args::Dict{String, Any})
+function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, system_name::AbstractString, args::Dict{String, Any})
 
     appendto_filename = get(args, "patch", "")
     pwmcos_gamma      = get(args, "pwmcos-scale", 1.0)
@@ -772,7 +772,7 @@ function read_groitp(itp_filename::AbstractString)
     return new_top_mol
 end
 
-function read_grotop(top_filename::String)
+function read_grotop(top_filename::AbstractString)
 
     sys_name = ""
     num_atom = 0
@@ -949,7 +949,7 @@ end
 #                                                                             #
 ###############################################################################
 
-function write_cg_psf(top::CGTopology, system_name::String, args::Dict{String, Any}=Dict{String, Any}())
+function write_cg_psf(top::CGTopology, system_name::AbstractString, args::Dict{String, Any}=Dict{String, Any}())
 
     psf_name = system_name * "_cg.psf"
     psf_file = open(psf_name, "w")
@@ -985,7 +985,7 @@ function write_cg_psf(top::CGTopology, system_name::String, args::Dict{String, A
 
 end
 
-function write_psf(top::GenTopology, sys_name::String="", args::Dict{String, Any}=Dict{String, Any}())
+function write_psf(top::GenTopology, sys_name::AbstractString="", args::Dict{String, Any}=Dict{String, Any}())
 
     if length(sys_name) > 0
         system_name = sys_name

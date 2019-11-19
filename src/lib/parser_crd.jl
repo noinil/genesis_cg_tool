@@ -10,7 +10,7 @@
 
 using Printf
 
-function write_cg_grocrd(top::CGTopology, conf::Conformation, system_name::String, args::Dict{String, Any}=Dict{String, Any}())
+function write_cg_grocrd(top::CGTopology, conf::Conformation, system_name::AbstractString, args::Dict{String, Any}=Dict{String, Any}())
 
     gro_name = system_name * "_cg.gro"
     gro_file = open(gro_name, "w")
@@ -38,7 +38,7 @@ function write_cg_grocrd(top::CGTopology, conf::Conformation, system_name::Strin
     println(">           ... .gro: DONE!")
 end
 
-function write_cg_grocrd(cgmol::CGMolecule, system_name::String, args::Dict{String, Any}=Dict{String, Any}())
+function write_cg_grocrd(cgmol::CGMolecule, system_name::AbstractString, args::Dict{String, Any}=Dict{String, Any}())
 
     gro_name = system_name * ".gro"
     gro_file = open(gro_name, "w")
@@ -72,7 +72,7 @@ function write_cg_grocrd(cgmol::CGMolecule, system_name::String, args::Dict{Stri
 
 end
 
-function write_grocrd(top::GenTopology, conf::Conformation, sys_name::String="", args::Dict{String, Any}=Dict{String, Any}())
+function write_grocrd(top::GenTopology, conf::Conformation, sys_name::AbstractString="", args::Dict{String, Any}=Dict{String, Any}())
 
     if length(sys_name) > 0
         system_name = sys_name

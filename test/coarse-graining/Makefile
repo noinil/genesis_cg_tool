@@ -3,15 +3,15 @@
 
 default:
 	
-run_all: run_VP run_ROM run_TAL run_DNA run_NHP
+run_all: run_VP run_ROM run_TAL run_DNA run_NHP run_FUS
 	@echo "-------------------------------------------"
 	@echo "New files generated."
 
-diff_all: diff_VP diff_ROM diff_TAL diff_DNA diff_NHP
+diff_all: diff_VP diff_ROM diff_TAL diff_DNA diff_NHP diff_FUS
 	@echo "-------------------------------------------"
 	@echo "File comparison finished."
 
-clean_all: clean_VP clean_TAL clean_ROM clean_DNA clean_NHP
+clean_all: clean_VP clean_TAL clean_ROM clean_DNA clean_NHP clean_FUS
 	@echo "-------------------------------------------"
 	@echo "Cleaning finished."
 
@@ -83,3 +83,16 @@ diff_NHP:
 
 clean_NHP:
 	rm -f NHP_cg.{itp,gro,top}
+
+run_FUS:
+	../../tools/modeling/protein_artifact/cg_protein_structure_builder.jl -s FUS.fasta 
+
+diff_FUS:
+	diff FUS_cg.itp FUS_cg_ref.itp || exit 0
+	diff FUS_cg.gro FUS_cg_ref.gro || exit 0
+	diff FUS_cg.pdb FUS_cg_ref.pdb || exit 0
+	diff FUS_cg.top FUS_cg_ref.top || exit 0
+
+clean_FUS:
+	rm -f FUS_cg.{itp,gro,top,pdb}
+

@@ -26,13 +26,13 @@ function compute_angle(coor1::Vector{<:Real}, coor2::Vector{<:Real}, coor3::Vect
     v2 = coor3 - coor2
     n1 = norm(v1)
     n2 = norm(v2)
-    return acos( dot(v1, v2) / n1 / n2) / pi * 180.0
+    return acosd(clamp( dot(v1, v2) / n1 / n2, -1.0, 1.0 ))
 end
 
 function compute_vec_angle(vec1::Vector{<:Real}, vec2::Vector{<:Real})
     n1 = norm(vec1)
     n2 = norm(vec2)
-    return acos( dot(vec1, vec2) / n1 / n2) / pi * 180.0
+    return acosd(clamp( dot(vec1, vec2) / n1 / n2, -1.0, 1.0 ))
 end
 
 # --------
@@ -47,11 +47,11 @@ function compute_dihedral(coor1::Vector{<:Real}, coor2::Vector{<:Real}, coor3::V
     c234  = cross(v23, v34)
     nc123 = norm(c123)
     nc234 = norm(c234)
-    dih   = acos( dot(c123, c234) / nc123 / nc234)
+    dih   = acosd(clamp( dot(c123, c234) / nc123 / nc234, -1.0, 1.0 ))
     c1234 = cross(c123, c234)
     judge = dot(c1234, v23)
     dih   = judge < 0 ? - dih : dih
-    return dih / pi * 180.0
+    return dih
 end
 
 
