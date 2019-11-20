@@ -85,14 +85,15 @@ clean_NHP:
 	rm -f NHP_cg.{itp,gro,top}
 
 run_FUS:
-	../../tools/modeling/protein_artifact/cg_protein_structure_builder.jl -s FUS.fasta 
+	../../tools/modeling/protein_artifact/cg_protein_structure_builder.jl -s FUS.fasta --straightness 0.0
 
 diff_FUS:
 	diff FUS_cg.itp FUS_cg_ref.itp || exit 0
 	diff FUS_cg.gro FUS_cg_ref.gro || exit 0
 	diff FUS_cg.pdb FUS_cg_ref.pdb || exit 0
 	diff FUS_cg.top FUS_cg_ref.top || exit 0
+	diff FUS_cg.psf FUS_cg_ref.psf || exit 0
 
 clean_FUS:
-	rm -f FUS_cg.{itp,gro,top,pdb}
+	rm -f FUS_cg.{itp,gro,top,pdb,psf}
 

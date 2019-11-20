@@ -29,10 +29,21 @@ function parse_commandline()
         arg_type = Int
         default = 100
 
+        "--straightness"
+        help = "Angle threshold to create a (non)-straight chain."
+        arg_type = Float64
+        default = 45.0
+
         "--strategy"
         help = "Strategy to construct the conformation of protein."
         arg_type = String
         default = "straight"
+
+        "--force-field-protein"
+        help = "Force field for protein."
+        arg_type = String
+        default = "AICG2+"
+
     end
 
     return parse_args(s)
@@ -42,6 +53,17 @@ end
 function make_cg_protein_structure(args)
 
     seq_name = get(args, "sequence", "")
+
+    # protein model
+    ff_protein_name = get(args, "force-field-protein", "")
+    if haskey(FF_PRO_DICT, ff_protein_name)
+        ff_pro = FF_PRO_DICT[ff_protein_name]
+    else
+        error("Wrong force field for protein.")
+    end
+
+    # non-straightness (because ideal straight chain could have problem...)
+    threshold_angle = get( args, "straightness", 45.0)
 
     println("============================================================")
 
@@ -139,7 +161,11 @@ function make_cg_protein_structure(args)
             aa_residue_name = AA_FULLNAME_DICT[aa_short_name]
             
             atom_names[i] = "CA"
-            atom_coors[1, i] = 3.8 * i
+            if i > 1
+                theta = rand() * threshold_angle
+                phi   = ( rand() - 0.5 ) * threshold_angle
+                atom_coors[:, i] = atom_coors[:, i - 1] + [cosd(theta), sind(theta) * cosd(phi), sind(theta) * sind(phi)] * 3.8
+            end
             residues[i] = AAResidue(aa_residue_name, [i])
         end
         new_chain = AAChain('A', rpad(mol_name, 4)[1:4], MOL_PROTEIN, [i for i = 1 : protein_length])
@@ -153,7 +179,7 @@ function make_cg_protein_structure(args)
     # ===============================
     # coarse graining from AAMolecule
     # ===============================
-    force_field = ForceFieldCG(1, 1, 1, 0, 0, 0)
+    force_field = ForceFieldCG(ff_pro, 1, 1, 0, 0, 0)
     cg_top, cg_conf = coarse_graining(new_mol, force_field, args)
 
     args["modeling-options"] = Dict("IDR" => Dict("HPS_region" => "1 to $protein_length"))
@@ -161,6 +187,7 @@ function make_cg_protein_structure(args)
     write_cg_grotop(cg_top, force_field, mol_name, args)
     write_cg_grocrd(cg_top, cg_conf, mol_name, args)
     write_cg_pdb(cg_top, cg_conf, mol_name, args)
+    write_cg_psf(cg_top, mol_name, args)
 
     return 0
 end
