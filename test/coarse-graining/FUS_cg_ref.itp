@@ -345,3 +345,5 @@ FUS                   3
 [ dihedrals ] ; AICG2+ flexible local interation
 ;        i         j         k         l    f
 
+[ cg_IDR_HPS_region ] 
+1 to 163

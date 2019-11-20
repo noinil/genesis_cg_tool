@@ -83,23 +83,6 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     print(top_file, "; OFF 1 - 1 : 3 - 3 \n")
     print(top_file, "; OFF 2 - 3 \n\n")
 
-    if has_toml_mod
-        if haskey(ff_detail_config["IDR"], "HPS_region")
-            index_string = ff_detail_config["IDR"]["HPS_region"]
-
-            print(top_file, "[ cg_IDR_HPS_region ] \n")
-            hps_words = split(index_string, r"\s*,\s*", keepempty=false)
-            for w in hps_words
-                println(top_file, w)
-                # if occursin("to", w)
-                    # println(top_file, replace(w, "to" => " - "))
-                # else
-                    # println(top_file, w, " - ", w)
-                # end
-            end
-        end
-    end
-
     close(top_file)
     
     # ========
@@ -533,6 +516,22 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
                 wr_itp_exc_line(itp_file, c)
             end
             print(itp_file, "\n")
+        end
+    end
+
+    # ---------------------
+    # [ cg_IDR_HPS_region ]
+    # ---------------------
+
+    if has_toml_mod
+        if haskey(ff_detail_config["IDR"], "HPS_region")
+            index_string = ff_detail_config["IDR"]["HPS_region"]
+
+            print(itp_file, "[ cg_IDR_HPS_region ] \n")
+            hps_words = split(index_string, r"\s*,\s*", keepempty=false)
+            for w in hps_words
+                println(itp_file, w)
+            end
         end
     end
 
