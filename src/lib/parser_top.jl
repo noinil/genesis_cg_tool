@@ -533,6 +533,18 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
         end
     end
 
+    # print protein-DNA exclusion contacts
+    if ff_pro_dna == FF_pro_DNA_Go
+        if length(top.top_cg_pro_DNA_contact) > 0
+            wr_itp_exc_head(itp_file)
+            wr_itp_exc_comm(itp_file)
+            for c in top.top_cg_pro_DNA_contact
+                wr_itp_exc_line(itp_file, c)
+            end
+            print(itp_file, "\n")
+        end
+    end
+
     # ---------------------
     # [ cg_IDR_HPS_region ]
     # ---------------------

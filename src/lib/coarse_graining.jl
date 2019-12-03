@@ -1607,9 +1607,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
                         native_dist = compute_distance(coor_i, coor_j)
 
-                        push!(top_cg_pro_DNA_contact, (i_res,
-                                                       j_res,
-                                                       native_dist))
+                        tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                        push!(top_cg_pro_DNA_contact, tmp_top_cnt)
 
                     end
                 end
@@ -1620,9 +1619,6 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         @printf("          > Total number of protein-DNA contacts: %8d  \n",
                 length(top_cg_pro_DNA_contact) )
     end
-
-
-
 
 
 
