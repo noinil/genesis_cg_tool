@@ -87,6 +87,7 @@ struct CGTopology
     param_cg_RNA_e_other_contact::Vector{Float64}
     # protein-DNA
     top_cg_pro_DNA_pwmcos::Vector{CGTopPWMcos}
+    top_cg_pro_DNA_contact::Vector{CGTopContact}
     # protein-RNA
     top_cg_pro_RNA_contact::Vector{CGTopContact}
     param_cg_pro_RNA_e_contact::Vector{Float64}

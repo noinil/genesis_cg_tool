@@ -464,6 +464,20 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     end
 
 
+    # print protein-RNA native contacts
+    if ff_pro_dna == FF_pro_DNA_Go
+        if length(top.top_cg_pro_DNA_contact) > 0
+            wr_itp_contact_head(itp_file, "Protein-DNA (experimental)")
+            wr_itp_contact_comm(itp_file)
+            for c in top.top_cg_pro_DNA_contact
+                wr_itp_contact_line(itp_file, c, CCGO_CONTACT_FUNC_TYPE, CCGO_NATIVE_EPSILON * ccgo_contact_scale)
+            end
+            print(itp_file, "\n")
+        end
+    end
+
+
+
     # ---------------------
     #        [ exclusions ]
     # ---------------------

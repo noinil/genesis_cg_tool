@@ -63,10 +63,14 @@ function aa_2_cg(args)
 
     if gen_pwmcos_itp
         ff_pro_dna = FF_PWMcos
+    elseif args["protein-DNA-Go"]
+        ff_pro_dna = FF_pro_DNA_Go
     else
         ff_pro_dna = FF_UNKNOWN
     end
-    force_field = ForceFieldCG(ff_pro, ff_dna, ff_rna, ff_pro_dna, FF_UNKNOWN, FF_UNKNOWN)
+    ff_pro_rna = FF_UNKNOWN
+    ff_dna_rna = FF_UNKNOWN
+    force_field = ForceFieldCG(ff_pro, ff_dna, ff_rna, ff_pro_dna, ff_pro_rna, ff_dna_rna)
 
     # -----------------------------------
     # FF modeling options from .toml file
@@ -216,6 +220,10 @@ function parse_commandline()
 
         "--3spn-param"
         help = "Generate 3SPN.2C parameters from x3DNA generated PDB structure."
+        action = :store_true
+
+        "--protein-DNA-Go"
+        help = "Generate parameters for protein-DNA Go-like contact interactions."
         action = :store_true
 
         "--pwmcos"

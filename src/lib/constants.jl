@@ -31,6 +31,7 @@ const FF_DNA_3SPN2C      = 1
 const FF_RNA_HT          = 1
 # protein-DNA
 const FF_PWMcos          = 1
+const FF_pro_DNA_Go      = 2
 # unknown
 const FF_UNKNOWN         = 0
 
@@ -439,7 +440,8 @@ RNA_PAIR_EPSILON_OTHER = Dict(
 # PWMcos parameters
 # =================
 # PWMcos atomistic contact cutoff
-const PWMCOS_ATOMIC_CUTOFF    = 4.0
+const PWMCOS_ATOMIC_CUTOFF     = 4.0
+const pro_DNA_GO_ATOMIC_CUTOFF = 6.5
 
 # ======================
 # Protein-RNA parameters

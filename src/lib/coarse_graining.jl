@@ -250,6 +250,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
     # protein-DNA
     top_cg_pro_DNA_pwmcos    = Vector{CGTopPWMcos}(undef, 0)
+    top_cg_pro_DNA_contact   = Vector{CGTopContact}(undef, 0)
 
     # protein-RNA
     top_cg_pro_RNA_contact   = Vector{CGTopContact}(undef, 0)
@@ -1415,7 +1416,6 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         println("------------------------------------------------------------")
         println(">      $(i_step).1: determine contacts between protein and DNA.")
 
-        i_count_DNA = 0
         for i_chain in 1:aa_num_chain
             chain_pro = cg_chains[i_chain]
 
@@ -1540,6 +1540,88 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         println(">           ... DONE!")
     end
 
+    # ============================================================
+    # Protein-DNA structure-based Go-like interaction
+    # ============================================================
+    #                        ____  _   _    _       ____
+    #  _ __  _ __ ___       |  _ \| \ | |  / \     / ___| ___
+    # | '_ \| '__/ _ \ _____| | | |  \| | / _ \   | |  _ / _ \
+    # | |_) | | | (_) |_____| |_| | |\  |/ ___ \  | |_| | (_) |
+    # | .__/|_|  \___/      |____/|_| \_/_/   \_\  \____|\___/
+    # |_|
+    # ============================================================
+    if ff_pro_dna == FF_pro_DNA_Go
+
+        if num_chain_pro == 0
+            error("Cannot generate protein-DNA parameters without protein...")
+        end
+        if num_chain_DNA == 0
+            error("Cannot generate protein-DNA parameters without DNA...")
+        end
+
+        i_step += 1
+        println("============================================================")
+        println("> Step $(i_step): Generating protein-DNA Go-like interactions.")
+
+        for i_chain in 1:aa_num_chain
+            chain_pro = cg_chains[i_chain]
+
+            if chain_pro.moltype != MOL_PROTEIN
+                continue
+            end
+
+            centroid_chain_pro = geo_centroid[:, i_chain]
+            radius_of_circ_pro = geo_radius_of_circumsphere[i_chain]
+
+
+            for j_chain in 1:aa_num_chain
+                chain_DNA = cg_chains[j_chain]
+
+                if chain_DNA.moltype != MOL_DNA
+                    continue
+                end
+
+                centroid_chain_dna = geo_centroid[:, j_chain]
+                radius_of_circ_dna = geo_radius_of_circumsphere[j_chain]
+
+                cent_cent_dist = compute_distance(centroid_chain_pro, centroid_chain_dna)
+                if cent_cent_dist > radius_of_circ_pro + radius_of_circ_dna + CG_CONTACT_CUTOFF
+                    continue
+                end
+
+                for i_res in chain_pro.first : chain_pro.last
+                    coor_i = cg_bead_coor[:, i_res]
+
+                    cai_centj_dist = compute_distance(coor_i, centroid_chain_dna)
+                    if cai_centj_dist > radius_of_circ_dna + CG_CONTACT_CUTOFF
+                        continue
+                    end
+
+                    for j_res in chain_DNA.first : chain_DNA.last
+
+                        if !is_protein_DNA_Go_contact(cg_residues[i_res].atoms, cg_residues[j_res].atoms, aa_atom_name, aa_coor)
+                            continue
+                        end
+
+                        coor_j = cg_bead_coor[:, j_res]
+
+                        native_dist = compute_distance(coor_i, coor_j)
+
+                        push!(top_cg_pro_DNA_contact, (i_res,
+                                                       j_res,
+                                                       native_dist))
+
+                    end
+                end
+            end
+        end
+
+        println("\n------------------------------------------------------------")
+        @printf("          > Total number of protein-DNA contacts: %8d  \n",
+                length(top_cg_pro_DNA_contact) )
+    end
+
+
 
 
 
@@ -1583,6 +1665,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                        param_cg_RNA_e_base_pair,
                        param_cg_RNA_e_other_contact,
                        top_cg_pro_DNA_pwmcos,
+                       top_cg_pro_DNA_contact,
                        top_cg_pro_RNA_contact,
                        param_cg_pro_RNA_e_contact)
 

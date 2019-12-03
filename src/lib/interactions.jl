@@ -361,6 +361,33 @@ function is_PWMcos_contact(resid1_atoms::Vector{Int}, resid2_atoms::Vector{Int},
     return false
 end
 
+# ==============
+# PWMcos contact
+# ==============
+
+function is_protein_DNA_Go_contact(resid1_atoms::Vector{Int}, resid2_atoms::Vector{Int}, atom_names::Vector{String}, atom_coors::Array{<:Real, 2})
+    for i in resid1_atoms
+        atom_name_1 = atom_names[i]
+        if atom_name_1[1] == 'H'
+            continue
+        end
+        coor_1 = atom_coors[:, i]
+        for j in resid2_atoms
+            atom_name_2 = atom_names[j]
+            if atom_name_2[1] == 'H'
+                continue
+            end
+            coor_2  = atom_coors[:, j]
+            dist_12 = compute_distance(coor_1, coor_2)
+            if dist_12 < pro_DNA_GO_ATOMIC_CUTOFF
+                return true
+            end
+        end
+    end
+    return false
+end
+
+
 
 ###############################################################################
 #                        _         _                ____   _   _     _        #
