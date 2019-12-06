@@ -361,7 +361,7 @@ function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::Abstract
     cg_num_particles   = conf.num_particle
     is_huge_system     = cg_num_particles > 9999
 
-    chain_id_set       = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+    chain_id_set       = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
     tmp_chain_id       = 0
     tmp_chain_head     = 0
     for i_bead in 1 : cg_num_particles
@@ -385,7 +385,7 @@ function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::Abstract
                 top.cg_bead_name[i_bead],
                 ' ',
                 rpad( top.cg_resid_name[i_bead], 4 ),
-                chain_id_set[top.cg_chain_id[i_bead]],
+                chain_id_set[mod(i_chain, 63) + 1],
                 resid_index_tmp,
                 ' ',
                 conf.coors[1 , i_bead],

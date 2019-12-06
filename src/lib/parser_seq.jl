@@ -42,7 +42,7 @@ end
 
 function write_sequence(aa_molecule::AAMolecule, system_name::String)
 
-    chain_id_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+    chain_id_set = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
     cg_seq_name = system_name * "_cg.fasta"
     cg_seq_file = open(cg_seq_name, "w")
 
@@ -57,7 +57,7 @@ function write_sequence(aa_molecule::AAMolecule, system_name::String)
         mol_type = chain.moltype
         @printf(cg_seq_file,
                 "> Chain %s : %s \n",
-                chain_id_set[i_chain],
+                chain_id_set[mod(i_chain, 63) + 1],
                 MOL_TYPE_LIST[mol_type])
 
         for i_res in chain.residues

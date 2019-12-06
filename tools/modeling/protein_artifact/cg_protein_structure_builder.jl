@@ -39,6 +39,21 @@ function parse_commandline()
         arg_type = String
         default = "straight"
 
+        "--copy"
+        help = "Number of chains created."
+        arg_type = Int
+        default = 1
+
+        "--dx"
+        help = "Delta x of the chain grid."
+        arg_type = Float64
+        default = 10.0
+
+        "--dy"
+        help = "Delta y of the chain grid."
+        arg_type = Float64
+        default = 10.0
+
         "--force-field-protein"
         help = "Force field for protein."
         arg_type = String
@@ -65,6 +80,11 @@ function make_cg_protein_structure(args)
     # non-straightness (because ideal straight chain could have problem...)
     threshold_angle = get( args, "straightness", 45.0)
 
+    grid_dx = get(args, "dx", 10.0)
+    grid_dy = get(args, "dy", 10.0)
+    mol_num = get(args, "copy", 1)
+    mol_grid_size = floor(Int, sqrt(mol_num))
+
     println("============================================================")
 
     AA_FULLNAME_DICT = Dict(
@@ -89,6 +109,8 @@ function make_cg_protein_structure(args)
         'Y' => "TYR",
         'V' => "VAL"
     )
+
+    chain_id_lib = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
     # ========================================================
     # Protein sequence (read from file or generate random one)
@@ -143,44 +165,61 @@ function make_cg_protein_structure(args)
     # =======================================
     # Generating AAMolecule based on sequence
     # =======================================
-    atom_names = Vector{String}(undef, protein_length)
-    atom_coors = zeros(3, protein_length)
-    residues   = Vector{AAResidue}(undef, protein_length)
-    chains     = Vector{AAChain}(undef, 1)
+    atom_names = Vector{String}(undef, protein_length * mol_num)
+    atom_coors = zeros(3, protein_length * mol_num)
+    residues   = Vector{AAResidue}(undef, protein_length * mol_num)
+    chains     = Vector{AAChain}(undef, mol_num)
+    chain0     = Vector{AAChain}(undef, 1)
 
     if args["strategy"] == "straight"
-        for i in 1 : protein_length
-            aa_short_name = protein_seqence[i]
-            aa_residue_name = AA_FULLNAME_DICT[aa_short_name]
-            
-            atom_names[i] = "CA"
-            if i > 1
-                theta = rand() * threshold_angle
-                phi   = ( rand() - 0.5 ) * threshold_angle
-                atom_coors[:, i] = atom_coors[:, i - 1] + [cosd(theta), sind(theta) * cosd(phi), sind(theta) * sind(phi)] * 3.8
+        for l in 1 : mol_num
+            i_offset = (l - 1) * protein_length
+            theta = rand() * threshold_angle
+            for i in 1 : protein_length
+                j = i + i_offset
+
+                aa_short_name = protein_seqence[i]
+                aa_residue_name = AA_FULLNAME_DICT[aa_short_name]
+                
+                atom_names[j] = "CA"
+                if i == 1
+                    (m, n) = fldmod(l, mol_grid_size)
+                    atom_coors[:, j] = [m * grid_dx, n * grid_dy, 0]
+                else
+                    if mod(i, 2) == 0
+                        theta = rand() * threshold_angle
+                        phi   = rand() * 360
+                        atom_coors[:, j] = atom_coors[:, j - 1] + [sind(theta) * cosd(phi), sind(theta) * sind(phi), cosd(theta)] * 3.8
+                    else
+                        atom_coors[:, j] = atom_coors[:, j - 2] + [0, 0, cosd(theta)] * 3.8 * 2
+                    end
+                end
+                residues[j] = AAResidue(aa_residue_name, [j])
             end
-            residues[i] = AAResidue(aa_residue_name, [i])
+            new_chain = AAChain(chain_id_lib[mod(l, 63) + 1], rpad(mol_name, 4)[1:4], MOL_PROTEIN, [i + i_offset for i = 1 : protein_length])
+            chains[l] = new_chain
         end
-        new_chain = AAChain('A', rpad(mol_name, 4)[1:4], MOL_PROTEIN, [i for i = 1 : protein_length])
-        chains[1] = new_chain
+        chain0[1] = chains[1]
     elseif args["strategy"] == "random-walk"
         println("Self-avoiding random walk not support yet.")
     end
 
-    new_mol = AAMolecule(atom_names, atom_coors, residues, chains)
+    new_mol0 = AAMolecule(atom_names[1:protein_length], atom_coors[1:3, 1:protein_length], residues[1:protein_length], chain0)
+    new_mols = AAMolecule(atom_names, atom_coors, residues, chains)
 
     # ===============================
     # coarse graining from AAMolecule
     # ===============================
     force_field = ForceFieldCG(ff_pro, 1, 1, 0, 0, 0)
-    cg_top, cg_conf = coarse_graining(new_mol, force_field, args)
+    cg_top0, cg_conf0 = coarse_graining(new_mol0, force_field, args)
+    cg_tops, cg_confs = coarse_graining(new_mols, force_field, args)
 
     args["modeling-options"] = Dict("IDR" => Dict("HPS_region" => "1 to $protein_length"))
     args["cgconect"] = true
-    write_cg_grotop(cg_top, force_field, mol_name, args)
-    write_cg_grocrd(cg_top, cg_conf, mol_name, args)
-    write_cg_pdb(cg_top, cg_conf, mol_name, args)
-    write_cg_psf(cg_top, mol_name, args)
+    write_cg_grotop(cg_top0, force_field, mol_name, args)
+    write_cg_grocrd(cg_tops, cg_confs, mol_name, args)
+    write_cg_pdb(cg_tops, cg_confs, mol_name, args)
+    write_cg_psf(cg_tops, mol_name, args)
 
     return 0
 end
