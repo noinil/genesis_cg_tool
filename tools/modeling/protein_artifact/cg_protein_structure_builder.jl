@@ -183,7 +183,7 @@ function make_cg_protein_structure(args)
                 
                 atom_names[j] = "CA"
                 if i == 1
-                    (m, n) = fldmod(l, mol_grid_size)
+                    (m, n) = fldmod(l - 1, mol_grid_size)
                     atom_coors[:, j] = [m * grid_dx, n * grid_dy, 0]
                 else
                     if mod(i, 2) == 0
