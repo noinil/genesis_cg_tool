@@ -1103,7 +1103,28 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         push!(param_cg_RNA_k_dihedrals, k)
                     end
                 elseif cg_bead_name[i_res] == "RB"
-                    # do nothing...
+                    # add fake angles and dihedrals...
+                    coor_b = cg_bead_coor[:, i_res]
+                    coor_s = cg_bead_coor[:, i_res - 1]
+                    if i_res + 1 < chain.last
+                        # angle B--S--P+1
+                        coor_p3  = cg_bead_coor[:, i_res + 1]
+                        ang_bsp3 = compute_angle(coor_b, coor_s, coor_p3)
+                        k        = 0.0
+                        tmp_top_angl = CGTopAngle(i_res, i_res - 1, i_res + 1, ang_bsp3)
+                        push!(top_cg_RNA_angles, tmp_top_angl)
+                        push!(param_cg_RNA_k_angles, k)
+                    end
+                    if i_res + 2 < chain.last
+                        # Dihedral B--S--P+1--S+1
+                        coor_p3    = cg_bead_coor[:, i_res + 1]
+                        coor_s3    = cg_bead_coor[:, i_res + 2]
+                        dih_bsp3s3 = compute_dihedral(coor_b, coor_s, coor_p3, coor_s3)
+                        k          = 0.0
+                        tmp_top_dih = CGTopDihedral(i_res, i_res - 1, i_res + 1, i_res + 2, dih_bsp3s3)
+                        push!(top_cg_RNA_dihedrals, tmp_top_dih)
+                        push!(param_cg_RNA_k_dihedrals, k)
+                    end
                 end
             end
         end
