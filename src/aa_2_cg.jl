@@ -252,6 +252,10 @@ function parse_commandline()
         help = "Prepare CG PDB file with CONECTed bonds."
         action = :store_true
 
+        "--cgRNA-phosphate-Go"
+        help = "Include phosphate in Go-type contact interactions."
+        action = :store_true
+
         "--pfm", "-p"
         help = "Position frequency matrix file for protein-DNA sequence-specific interactions."
         arg_type = String

@@ -433,7 +433,13 @@ RNA_PAIR_EPSILON_OTHER = Dict(
     "SS" => 1.48,
     "BS" => 0.98,
     "SB" => 0.98,
-    "BB" => 0.93
+    "BB" => 0.93,
+    # undetermined...
+    "PP" => 1.00,
+    "PS" => 1.00,
+    "SP" => 1.00,
+    "PB" => 1.00,
+    "BP" => 1.00
 )
 
 # =================
@@ -449,6 +455,7 @@ const pro_DNA_GO_ATOMIC_CUTOFF = 6.5
 # protein-RNA Go-term coefficient
 const PRO_RNA_GO_EPSILON_B    = 0.62
 const PRO_RNA_GO_EPSILON_S    = 0.74
+const PRO_RNA_GO_EPSILON_P    = 0.50
 
 
 # ====================

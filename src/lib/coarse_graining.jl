@@ -15,6 +15,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     pfm_filename            = get(args, "pfm", "")
     do_debug                = get(args, "debug", false)
     do_output_log           = get(args, "log", false)
+    cgRNA_use_phosphate_go  = get(args, "cgRNA-phosphate-Go", false)
 
     # ===============
     # Step 0: numbers
@@ -1130,7 +1131,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         end
 
         # -----------------------
-        # HT type native contacts
+        # Go type native contacts
         # -----------------------
         println(" - - - - - - - - - - - - - - - - - - - - - - - -")
         println(">      $(i_step).2.2: RNA HT-type native contacts.")
@@ -1156,7 +1157,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
             for i_res in chain.first : chain.last - 3
 
-                if cg_bead_name[i_res] == "RP"
+                if cg_bead_name[i_res] == "RP" && ! cgRNA_use_phosphate_go
                     continue
                 end
 
@@ -1164,7 +1165,13 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
                 for j_res in i_res + 3 : chain.last
 
-                    if cg_bead_name[j_res] == "RP"
+                    if cgRNA_use_phosphate_go
+                        if cg_bead_name[i_res] == "RP" || cg_bead_name[j_res] == "RP"
+                            if j_res < i_res + 6
+                                continue
+                            end
+                        end
+                    elseif cg_bead_name[j_res] == "RP"
                         continue
                     end
 
@@ -1261,7 +1268,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     end
 
                     for i_res in chain_1.first : chain_1.last
-                        if cg_bead_name[i_res] == "RP"
+                        if cg_bead_name[i_res] == "RP" && ! cgRNA_use_phosphate_go
                             continue
                         end
                         coor_i = cg_bead_coor[:, i_res]
@@ -1272,7 +1279,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         end
 
                         for j_res in chain_2.first : chain_2.last
-                            if cg_bead_name[j_res] == "RP"
+                            if cg_bead_name[j_res] == "RP" && ! cgRNA_use_phosphate_go
                                 continue
                             end
                             coor_j = cg_bead_coor[:, j_res]
@@ -1378,7 +1385,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     end
 
                     for j_res in chain_RNA.first : chain_RNA.last
-                        if cg_bead_name[j_res] == "RP"
+                        if cg_bead_name[j_res] == "RP" && ! cgRNA_use_phosphate_go
                             continue
                         end
                         if !is_protein_RNA_native_contact(cg_residues[i_res].atoms, cg_residues[j_res].atoms, aa_atom_name, aa_coor)
@@ -1394,6 +1401,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                             tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                             push!(top_cg_pro_RNA_contact, tmp_top_cnt)
                             push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_B)
+                        elseif cg_bead_name[j_res] == "RP" && ! cgRNA_use_phosphate_go
+                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                            push!(top_cg_pro_RNA_contact, tmp_top_cnt)
+                            push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_P)
                         end
                     end
                 end
