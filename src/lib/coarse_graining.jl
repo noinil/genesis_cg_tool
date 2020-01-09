@@ -1167,7 +1167,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
                     if cgRNA_use_phosphate_go
                         if cg_bead_name[i_res] == "RP" || cg_bead_name[j_res] == "RP"
-                            if j_res < i_res + 6
+                            if j_res < i_res + 4
                                 continue
                             end
                         end
