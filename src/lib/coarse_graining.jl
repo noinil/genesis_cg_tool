@@ -15,6 +15,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     pfm_filename            = get(args, "pfm", "")
     do_debug                = get(args, "debug", false)
     do_output_log           = get(args, "log", false)
+    cgRNA_use_phosphate_go  = get(args, "cgRNA-phosphate-Go", false)
 
     # ===============
     # Step 0: numbers
@@ -1103,13 +1104,34 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         push!(param_cg_RNA_k_dihedrals, k)
                     end
                 elseif cg_bead_name[i_res] == "RB"
-                    # do nothing...
+                    # add fake angles and dihedrals...
+                    coor_b = cg_bead_coor[:, i_res]
+                    coor_s = cg_bead_coor[:, i_res - 1]
+                    if i_res + 1 < chain.last
+                        # angle B--S--P+1
+                        coor_p3  = cg_bead_coor[:, i_res + 1]
+                        ang_bsp3 = compute_angle(coor_b, coor_s, coor_p3)
+                        k        = 0.0
+                        tmp_top_angl = CGTopAngle(i_res, i_res - 1, i_res + 1, ang_bsp3)
+                        push!(top_cg_RNA_angles, tmp_top_angl)
+                        push!(param_cg_RNA_k_angles, k)
+                    end
+                    if i_res + 2 < chain.last
+                        # Dihedral B--S--P+1--S+1
+                        coor_p3    = cg_bead_coor[:, i_res + 1]
+                        coor_s3    = cg_bead_coor[:, i_res + 2]
+                        dih_bsp3s3 = compute_dihedral(coor_b, coor_s, coor_p3, coor_s3)
+                        k          = 0.0
+                        tmp_top_dih = CGTopDihedral(i_res, i_res - 1, i_res + 1, i_res + 2, dih_bsp3s3)
+                        push!(top_cg_RNA_dihedrals, tmp_top_dih)
+                        push!(param_cg_RNA_k_dihedrals, k)
+                    end
                 end
             end
         end
 
         # -----------------------
-        # HT type native contacts
+        # Go type native contacts
         # -----------------------
         println(" - - - - - - - - - - - - - - - - - - - - - - - -")
         println(">      $(i_step).2.2: RNA HT-type native contacts.")
@@ -1135,7 +1157,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
             for i_res in chain.first : chain.last - 3
 
-                if cg_bead_name[i_res] == "RP"
+                if cg_bead_name[i_res] == "RP" && ! cgRNA_use_phosphate_go
                     continue
                 end
 
@@ -1143,7 +1165,13 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
                 for j_res in i_res + 3 : chain.last
 
-                    if cg_bead_name[j_res] == "RP"
+                    if cgRNA_use_phosphate_go
+                        if cg_bead_name[i_res] == "RP" || cg_bead_name[j_res] == "RP"
+                            if j_res < i_res + 4
+                                continue
+                            end
+                        end
+                    elseif cg_bead_name[j_res] == "RP"
                         continue
                     end
 
@@ -1240,7 +1268,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     end
 
                     for i_res in chain_1.first : chain_1.last
-                        if cg_bead_name[i_res] == "RP"
+                        if cg_bead_name[i_res] == "RP" && ! cgRNA_use_phosphate_go
                             continue
                         end
                         coor_i = cg_bead_coor[:, i_res]
@@ -1251,7 +1279,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         end
 
                         for j_res in chain_2.first : chain_2.last
-                            if cg_bead_name[j_res] == "RP"
+                            if cg_bead_name[j_res] == "RP" && ! cgRNA_use_phosphate_go
                                 continue
                             end
                             coor_j = cg_bead_coor[:, j_res]
@@ -1357,7 +1385,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     end
 
                     for j_res in chain_RNA.first : chain_RNA.last
-                        if cg_bead_name[j_res] == "RP"
+                        if cg_bead_name[j_res] == "RP" && ! cgRNA_use_phosphate_go
                             continue
                         end
                         if !is_protein_RNA_native_contact(cg_residues[i_res].atoms, cg_residues[j_res].atoms, aa_atom_name, aa_coor)
@@ -1373,6 +1401,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                             tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                             push!(top_cg_pro_RNA_contact, tmp_top_cnt)
                             push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_B)
+                        elseif cg_bead_name[j_res] == "RP" && ! cgRNA_use_phosphate_go
+                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                            push!(top_cg_pro_RNA_contact, tmp_top_cnt)
+                            push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_P)
                         end
                     end
                 end
@@ -1607,9 +1639,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
                         native_dist = compute_distance(coor_i, coor_j)
 
-                        push!(top_cg_pro_DNA_contact, (i_res,
-                                                       j_res,
-                                                       native_dist))
+                        tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                        push!(top_cg_pro_DNA_contact, tmp_top_cnt)
 
                     end
                 end
@@ -1620,9 +1651,6 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         @printf("          > Total number of protein-DNA contacts: %8d  \n",
                 length(top_cg_pro_DNA_contact) )
     end
-
-
-
 
 
 

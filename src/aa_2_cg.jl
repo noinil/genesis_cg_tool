@@ -53,17 +53,17 @@ function aa_2_cg(args)
     if haskey(FF_DNA_DICT, ff_DNA_name)
         ff_dna = FF_DNA_DICT[ff_DNA_name]
     else
-        error("Wrong force field for protein.")
+        error("Wrong force field for DNA.")
     end
     if haskey(FF_RNA_DICT, ff_RNA_name)
         ff_rna = FF_RNA_DICT[ff_RNA_name]
     else
-        error("Wrong force field for protein.")
+        error("Wrong force field for RNA.")
     end
 
     if gen_pwmcos_itp
         ff_pro_dna = FF_PWMcos
-    elseif args["protein-DNA-Go"]
+    elseif get( args, "protein-DNA-Go", false )
         ff_pro_dna = FF_pro_DNA_Go
     else
         ff_pro_dna = FF_UNKNOWN
@@ -250,6 +250,10 @@ function parse_commandline()
 
         "--cgconect"
         help = "Prepare CG PDB file with CONECTed bonds."
+        action = :store_true
+
+        "--cgRNA-phosphate-Go"
+        help = "Include phosphate in Go-type contact interactions."
         action = :store_true
 
         "--pfm", "-p"
