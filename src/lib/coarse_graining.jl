@@ -10,11 +10,13 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # Parsing arguments
     # -----------------
     pdb_name                = get(args, "pdb", "random.pdb")
-    scale_scheme            = get(args, "aicg-scale", 1)
     protein_charge_filename = get(args, "respac", "")
     pfm_filename            = get(args, "pfm", "")
     do_debug                = get(args, "debug", false)
     do_output_log           = get(args, "log", false)
+    do_test_local_only      = get(args, "test-local-only", false)
+
+    aicg_scale_scheme       = get(args, "aicg-scale", 1)
     cgRNA_use_phosphate_go  = get(args, "cgRNA-phosphate-Go", false)
 
     # ===============
@@ -491,14 +493,14 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         e_ground_13    /= num_angle
         e_ground_14    /= num_dih
 
-        if scale_scheme == 0
+        if aicg_scale_scheme == 0
             for i in 1:length(param_cg_pro_e_13)
                 param_cg_pro_e_13[i] *= AICG_13_AVE / e_ground_13
             end
             for i in 1:length(param_cg_pro_e_14)
                 param_cg_pro_e_14[i] *= AICG_14_AVE / e_ground_14
             end
-        elseif scale_scheme == 1
+        elseif aicg_scale_scheme == 1
             for i in 1:length(param_cg_pro_e_13)
                 param_cg_pro_e_13[i] *= -AICG_13_GEN
             end
@@ -520,6 +522,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         @printf("              ... chain   : %32s", " ")
         i_progress_count = 0
         for i_chain in 1:aa_num_chain
+
+            if do_test_local_only
+                continue
+            end
 
             chain = cg_chains[i_chain]
 
@@ -574,7 +580,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         print("\n              ... intra-molecular contacts: DONE! \n")
 
         # inter-molecular ( protein-protein ) contacts
-        if num_chain_pro > 1
+        if num_chain_pro > 1 && !do_test_local_only
             @printf("%11s Calculating inter-molecular contacts... \n", " ")
             @printf("              ... progress: %32s", " ")
             for i_chain in 1 : aa_num_chain - 1
@@ -656,13 +662,17 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         end
 
         # normalize
-        e_ground_contact /= num_contact
+        if num_contact > 0
+            e_ground_contact /= num_contact
+        else
+            e_ground_contact = 0
+        end
 
-        if scale_scheme == 0
+        if aicg_scale_scheme == 0
             for i in 1:length(param_cg_pro_e_contact)
                 param_cg_pro_e_contact[i] *= AICG_CONTACT_AVE / e_ground_contact
             end
-        elseif scale_scheme == 1
+        elseif aicg_scale_scheme == 1
             for i in 1:length(param_cg_pro_e_contact)
                 param_cg_pro_e_contact[i] *= -AICG_CONTACT_GEN
             end
@@ -1139,6 +1149,11 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         @printf("              ... progress: %32s", " ")
         i_progress_count = 0
         for i_chain in 1:aa_num_chain
+
+            if do_test_local_only
+                continue
+            end
+
             chain = cg_chains[i_chain]
 
             if chain.moltype != MOL_RNA
@@ -1230,7 +1245,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         end
         print("\n              ... intra-molecular contacts: DONE! \n")
  
-        if num_chain_RNA > 1
+        if num_chain_RNA > 1 && !do_test_local_only
             @printf("%11s Calculating inter-molecular contacts... \n", " ")
             @printf("              ... progress: %32s", " ")
             for i_chain in 1:aa_num_chain - 1
@@ -1336,7 +1351,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # 
     # ============================================================
 
-    if num_chain_RNA > 0 && num_chain_pro > 0
+    if num_chain_RNA > 0 && num_chain_pro > 0 && !do_test_local_only
         i_step += 1
         println("============================================================")
         println("> Step $(i_step): Generating protein-RNA native contacts.")
@@ -1766,3 +1781,4 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     return ( mytop, myconf )
 
 end
+

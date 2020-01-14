@@ -836,11 +836,15 @@ function read_grotop(top_filename::AbstractString)
             continue
         end
 
+        top_dirname = dirname(top_filename) * "/"
         if startswith(line, "#include")
             mol_file_name = strip(line[9:end], ['\"', '\'', ' '])
             mol_file_basename = basename(mol_file_name)
             if in(mol_file_basename, ["atom_types.itp", "flexible_local_angle.itp", "flexible_local_dihedral.itp"])
                 continue
+            end
+            if !isabspath(mol_file_name)
+                mol_file_name = normpath( joinpath( top_dirname, mol_file_name ) ) 
             end
             new_mol = read_groitp(mol_file_name)
             new_mol_name = new_mol.mol_name

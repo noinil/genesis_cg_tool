@@ -261,6 +261,10 @@ function parse_commandline()
         arg_type = String
         default = ""
 
+        "--test-local-only"
+        help = "TEST: only generate local interaction parameters."
+        action = :store_true
+
         "--patch"
         help = "Append (apply patch) to .itp file."
         arg_type = String
