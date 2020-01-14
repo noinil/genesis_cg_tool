@@ -35,7 +35,7 @@ function write_cg_grocrd(top::CGTopology, conf::Conformation, system_name::Abstr
 
     close(gro_file)
 
-    println(">           ... .gro: DONE!")
+    # println(">           ... .gro: DONE!")
 end
 
 function write_cg_grocrd(cgmol::CGMolecule, system_name::AbstractString, args::Dict{String, Any}=Dict{String, Any}())
@@ -68,7 +68,7 @@ function write_cg_grocrd(cgmol::CGMolecule, system_name::AbstractString, args::D
 
     close(gro_file)
 
-    println(">           ... .gro: DONE!")
+    # println(">           ... .gro: DONE!")
 
 end
 
@@ -102,6 +102,6 @@ function write_grocrd(top::GenTopology, conf::Conformation, sys_name::AbstractSt
 
     close(gro_file)
 
-    println(">           ... .gro: DONE!")
+    # println(">           ... .gro: DONE!")
 end
 

@@ -563,7 +563,7 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
 
     close(itp_file)
 
-    println(">           ... .top: DONE!")
+    # println(">           ... .top: DONE!")
 end
 
 
@@ -599,7 +599,7 @@ function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, syst
     print(itp_pwmcos_file, "\n")
 
     close(itp_pwmcos_file)
-    println(">           ... ", itp_pwmcos_name, " pwmcos.itp: DONE!")
+    # println(">           ... ", itp_pwmcos_name, " pwmcos.itp: DONE!")
 
 end
 
@@ -1010,7 +1010,7 @@ function write_cg_psf(top::CGTopology, system_name::AbstractString, args::Dict{S
     print(psf_file,"\n")
 
     close(psf_file)
-    println(">           ... .psf: DONE!")
+    # println(">           ... .psf: DONE!")
 
 end
 
@@ -1051,7 +1051,7 @@ function write_psf(top::GenTopology, sys_name::AbstractString="", args::Dict{Str
     print(psf_file,"\n")
 
     close(psf_file)
-    println(">           ... .psf: DONE!")
+    # println(">           ... .psf: DONE!")
 
 end
 

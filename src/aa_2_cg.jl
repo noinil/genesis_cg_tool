@@ -33,6 +33,7 @@ function aa_2_cg(args)
     # -----------------
     # Parsing arguments
     # -----------------
+    verbose            = args["verbose"]
     pdb_name           = args["pdb"]
     gen_pwmcos_itp     = args["pwmcos"]
     do_output_psf      = args["psf"]
@@ -91,8 +92,10 @@ function aa_2_cg(args)
     # --------
     # Read PDB
     # --------
-    println("============================================================")
-    println("> Open PDB file:")
+    if verbose
+        println("============================================================")
+        println("> Open PDB file:")
+    end
 
     aa_molecule = read_aaPDB(pdb_name)
 
@@ -100,16 +103,20 @@ function aa_2_cg(args)
     aa_num_residue = length(aa_molecule.residues)
     aa_num_chain   = length(aa_molecule.chains)
 
-    println("          > Number of atoms    : $(aa_num_atom)")
-    println("          > Number of residues : $(aa_num_residue)")
-    println("          > Number of chains   : $(aa_num_chain)")
+    if verbose
+        println("          > Number of atoms    : $(aa_num_atom)")
+        println("          > Number of residues : $(aa_num_residue)")
+        println("          > Number of chains   : $(aa_num_chain)")
+    end
 
     if do_output_sequence
         write_sequence(aa_molecule, mol_name)
 
-        println("------------------------------------------------------------")
-        println("[1;32m DONE! [0m ")
-        println("============================================================")
+        if verbose
+            println("------------------------------------------------------------")
+            println("[1;32m DONE! [0m ")
+            println("============================================================")
+        end
 
         return 0
     end
@@ -136,6 +143,10 @@ function aa_2_cg(args)
         do_output_pwmcos = false
     end
 
+    if verbose
+        println("============================================================")
+        println("> Output CG .itp and .gro files.")
+    end
 
     if do_output_top
         write_cg_grotop(cg_top, force_field, mol_name, args)
@@ -156,17 +167,13 @@ function aa_2_cg(args)
         write_cg_pdb(cg_top, cg_conf, mol_name, args)
     end
 
-
-    println("============================================================")
-    println("> Output CG .itp and .gro files.")
-
-
-    println("------------------------------------------------------------")
-    println("------------------------------------------------------------")
-    println(">[1;32m FINISH! [0m ")
-    println(" Please check the .itp and .gro files.")
-    println("============================================================")
-
+    if verbose
+        println("------------------------------------------------------------")
+        println("------------------------------------------------------------")
+        println(">[1;32m FINISH! [0m ")
+        println(" Please check the .itp and .gro files.")
+        println("============================================================")
+    end
 
 end
 
@@ -272,6 +279,10 @@ function parse_commandline()
 
         "--show-sequence"
         help = "Show sequence of molecules in PDB."
+        action = :store_true
+
+        "--verbose", "-v"
+        help = "Output more information."
         action = :store_true
 
         "--log"

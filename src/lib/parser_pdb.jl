@@ -416,7 +416,7 @@ function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::Abstract
     print(cg_pdb_file,"\n")
 
     close(cg_pdb_file)
-    println(">           ... .pdb (CG) : DONE!")
+    # println(">           ... .pdb (CG) : DONE!")
 
 end
 
