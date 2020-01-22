@@ -1,9 +1,10 @@
 [ moleculetype ]
 ;name            nrexcl
-VP                    3
+VP_cg                 3
 
 [ atoms ]
 ;       nr type     resnr  res atom   cg   charge     mass
+; +INFO+ CHAIN:      1     SEGNAME:      
          1  ALA         1  ALA   CA    1    0.000   71.090
          2  THR         2  THR   CA    1    0.000  101.110
          3  LEU         3  LEU   CA    1    0.000  113.160
@@ -126,6 +127,7 @@ VP                    3
        120  PHE       120  PHE   CA    1    0.000  147.180
        121  TYR       121  TYR   CA    1    0.000  163.180
        122  ALA       122  ALA   CA    1    0.000   71.090
+; +INFO+ CHAIN:      2     SEGNAME:      
        123  ALA       123  ALA   CA    1    0.000   71.090
        124  THR       124  THR   CA    1    0.000  101.110
        125  LEU       125  LEU   CA    1    0.000  113.160
@@ -494,7 +496,7 @@ VP                    3
        242       243    1        3.7844E-01        9.2383E+04
        243       244    1        3.8106E-01        9.2383E+04
 
-[ angles ] ; AICG2+ 1-3 interaction
+[ angles ]
 ;        i         j         k    f             eq           coef              w
          1         2         3   21     5.2709E-01     1.5705E+01     1.5000E-02
          2         3         4   21     6.0191E-01     1.4747E+01     1.5000E-02
@@ -736,9 +738,6 @@ VP                    3
        240       241       242   21     6.9586E-01     7.1921E+00     1.5000E-02
        241       242       243   21     6.1665E-01     1.5785E+01     1.5000E-02
        242       243       244   21     6.9636E-01     4.4404E+00     1.5000E-02
-
-[ angles ] ; AICG2+ flexible local interaction
-;        i         j         k    f
          1         2         3   22
          2         3         4   22
          3         4         5   22
@@ -980,8 +979,8 @@ VP                    3
        241       242       243   22
        242       243       244   22
 
-[ dihedrals ] ; Gaussian dihedrals
-;        i         j         k         l    f             eq           coef              w
+[ dihedrals ]
+;        i         j         k         l    f             eq           coef            w/n
          1         2         3         4   21     6.6978E+01     1.1450E+01     1.5000E-01
          2         3         4         5   21     1.2170E+02     1.8200E+00     1.5000E-01
          3         4         5         6   21    -8.2538E+01     1.8200E+00     1.5000E-01
@@ -1220,9 +1219,6 @@ VP                    3
        239       240       241       242   21    -1.3715E+02     1.8200E+00     1.5000E-01
        240       241       242       243   21    -6.5881E+01     5.8926E+00     1.5000E-01
        241       242       243       244   21     1.4820E+02     1.8200E+00     1.5000E-01
-
-[ dihedrals ] ; AICG2+ flexible local interation
-;        i         j         k         l    f
          1         2         3         4   22
          2         3         4         5   22
          3         4         5         6   22
@@ -1462,7 +1458,7 @@ VP                    3
        240       241       242       243   22
        241       242       243       244   22
 
-[ pairs ] ; AICG2+ - Go-type native contact
+[ pairs ]
 ;        i         j         f             eq           coef
          2         6         2     1.0376E+00     6.6944E-01
          2        31         2     1.1614E+00     1.2642E+00

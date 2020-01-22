@@ -64,13 +64,14 @@ function aa_2_cg(args)
 
     if gen_pwmcos_itp
         ff_pro_dna = FF_PWMcos
-    elseif get( args, "protein-DNA-Go", false )
+    elseif args["protein-DNA-Go"]
         ff_pro_dna = FF_pro_DNA_Go
     else
         ff_pro_dna = FF_UNKNOWN
     end
-    ff_pro_rna = FF_UNKNOWN
+    ff_pro_rna = FF_pro_RNA_Go
     ff_dna_rna = FF_UNKNOWN
+
     force_field = ForceFieldCG(ff_pro, ff_dna, ff_rna, ff_pro_dna, ff_pro_rna, ff_dna_rna)
 
     # -----------------------------------
@@ -87,7 +88,7 @@ function aa_2_cg(args)
     #                              Core Functions                             #
     ###########################################################################
 
-    mol_name = pdb_name[1:end-4]
+    mol_name = pdb_name[1:end-4] * "_cg"
 
     # --------
     # Read PDB
@@ -149,22 +150,22 @@ function aa_2_cg(args)
     end
 
     if do_output_top
-        write_cg_grotop(cg_top, force_field, mol_name, args)
+        write_grotop(cg_top, mol_name, args)
     end
     if do_output_pwmcos
-        write_cg_grotop_pwmcos(cg_top, force_field, mol_name, args)
+        write_grotop_pwmcos(cg_top, mol_name, args)
     end
 
     if do_output_gro
-        write_cg_grocrd(cg_top, cg_conf, mol_name, args)
+        write_grocrd(cg_top, cg_conf, mol_name, args)
     end
 
     if do_output_psf
-        write_cg_psf(cg_top, mol_name, args)
+        write_psf(cg_top, mol_name, args)
     end
 
     if do_output_cgpdb
-        write_cg_pdb(cg_top, cg_conf, mol_name, args)
+        write_pdb(cg_top, cg_conf, mol_name, args)
     end
 
     if verbose

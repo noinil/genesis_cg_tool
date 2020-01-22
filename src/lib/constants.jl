@@ -32,6 +32,8 @@ const FF_RNA_HT          = 1
 # protein-DNA
 const FF_PWMcos          = 1
 const FF_pro_DNA_Go      = 2
+# protein-RNA
+const FF_pro_RNA_Go      = 1
 # unknown
 const FF_UNKNOWN         = 0
 

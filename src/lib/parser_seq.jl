@@ -43,7 +43,7 @@ end
 function write_sequence(aa_molecule::AAMolecule, system_name::String)
 
     chain_id_set = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
-    cg_seq_name = system_name * "_cg.fasta"
+    cg_seq_name = system_name * ".fasta"
     cg_seq_file = open(cg_seq_name, "w")
 
     aa_residues   = aa_molecule.residues

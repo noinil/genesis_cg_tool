@@ -118,7 +118,7 @@ function make_cg_protein_structure(args)
     if length(seq_name) > 0
         println("> Open sequence file:", seq_name)
 
-        mol_name = split(basename( seq_name ), '.')[1]
+        mol_name = split(basename( seq_name ), '.')[1] * "_cg"
 
         # -----------------------------------
         # read in protein sequence from fasta
@@ -151,7 +151,7 @@ function make_cg_protein_structure(args)
     else
         println("> Generating random protein sequence:")
 
-        mol_name = "random_protein"
+        mol_name = "random_protein_cg"
 
         # --------------------------------
         # generate random protein sequence
@@ -196,7 +196,7 @@ function make_cg_protein_structure(args)
                 end
                 residues[j] = AAResidue(aa_residue_name, [j])
             end
-            new_chain = AAChain(chain_id_lib[mod(l, 63) + 1], rpad(mol_name, 4)[1:4], MOL_PROTEIN, [i + i_offset for i = 1 : protein_length])
+            new_chain = AAChain(chain_id_lib[mod(l, 63) + 1], rpad(mol_name, 6)[1:6], MOL_PROTEIN, [i + i_offset for i = 1 : protein_length])
             chains[l] = new_chain
         end
         chain0[1] = chains[1]
@@ -211,15 +211,16 @@ function make_cg_protein_structure(args)
     # coarse graining from AAMolecule
     # ===============================
     force_field = ForceFieldCG(ff_pro, 1, 1, 0, 0, 0)
+    args["modeling-options"] = Dict("IDR" => Dict("HPS_region" => "1 to $protein_length"))
+    args["cgconect"] = true
+
     cg_top0, cg_conf0 = coarse_graining(new_mol0, force_field, args)
     cg_tops, cg_confs = coarse_graining(new_mols, force_field, args)
 
-    args["modeling-options"] = Dict("IDR" => Dict("HPS_region" => "1 to $protein_length"))
-    args["cgconect"] = true
-    write_cg_grotop(cg_top0, force_field, mol_name, args)
-    write_cg_grocrd(cg_tops, cg_confs, mol_name, args)
-    write_cg_pdb(cg_tops, cg_confs, mol_name, args)
-    write_cg_psf(cg_tops, mol_name, args)
+    write_grotop(cg_top0, mol_name, args)
+    write_grocrd(cg_tops, cg_confs, mol_name, args)
+    write_pdb(cg_tops, cg_confs, mol_name, args)
+    write_psf(cg_tops, mol_name, args)
 
     return 0
 end

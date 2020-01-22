@@ -4,11 +4,50 @@
 
 using Printf
 
+struct CGTopBond
+    i::Int
+    j::Int
+    r0::Float64
+end
+
+struct CGTopAngle
+    i::Int
+    j::Int
+    k::Int
+    a0::Float64
+end
+
+struct CGTopDihedral
+    i::Int
+    j::Int
+    k::Int
+    l::Int
+    t0::Float64
+end
+
+struct CGTopContact
+    i::Int
+    j::Int
+    r0::Float64
+end
+
+struct CGTopPWMcos
+    i::Int
+    r0::Float64
+    t1::Float64
+    t2::Float64
+    t3::Float64
+    eA::Float64
+    eC::Float64
+    eG::Float64
+    eT::Float64
+end
+
 function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, args)
 
-    # -----------------
+    # =================
     # Parsing arguments
-    # -----------------
+    # =================
     pdb_name                = get(args, "pdb", "random.pdb")
     protein_charge_filename = get(args, "respac", "")
     pfm_filename            = get(args, "pfm", "")
@@ -16,9 +55,13 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     do_debug                = get(args, "debug", false)
     do_output_log           = get(args, "log", false)
     do_test_local_only      = get(args, "test-local-only", false)
+    gen_3spn_itp            = get(args, "3spn-param", false)
 
+    ccgo_contact_scale      = get(args, "CCGO-contact-scale", 1.0)
     aicg_scale_scheme       = get(args, "aicg-scale", 1)
     cgRNA_use_phosphate_go  = get(args, "cgRNA-phosphate-Go", false)
+    pwmcos_gamma            = get(args, "pwmcos-scale", 1.0)
+    pwmcos_epsil            = get(args, "pwmcos-shift", 0.0)
 
     # ===============
     # Step 0: numbers
@@ -29,7 +72,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     ff_dna     = force_field.ff_DNA
     ff_rna     = force_field.ff_RNA
     ff_pro_dna = force_field.ff_protein_DNA
-
+    ff_pro_rna = force_field.ff_protein_RNA
+    ff_dna_rna = force_field.ff_DNA_RNA
 
     aa_atom_name  = aa_molecule.atom_names
     aa_coor       = aa_molecule.atom_coors
@@ -219,6 +263,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     #
     # =========================================================================
 
+    # ========================================
+    # Coarse Grained Model Topology Structures
+    # ========================================
+
     cg_resid_name  = fill("    ", cg_num_particles)
     cg_resid_index = zeros(Int, cg_num_particles)
     cg_bead_name   = fill("    ", cg_num_particles)
@@ -240,6 +288,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     param_cg_pro_e_13        = []
     param_cg_pro_e_14        = []
     param_cg_pro_e_contact   = []
+
+    AICG2p_flexible_local    = []
+    AICG2p_flexible_nonlocal = []
+    HPS_IDR_region           = []
 
     # DNA
     top_cg_DNA_bonds         = Vector{CGTopBond}(undef, 0)
@@ -442,26 +494,29 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 push!(top_cg_pro_angles, tmp_top_angle)
                 tmp_top_angle = CGTopAngle(i_res, i_res + 1, i_res + 2, dist13)
                 push!(top_cg_pro_aicg13, tmp_top_angle)
-                # count AICG2+ 1-3 interaction atomic contact
-                contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
-                                                           cg_residues[ i_res + 2 ].atoms,
-                                                           cg_resid_name[i_res],
-                                                           cg_resid_name[i_res + 2],
-                                                           aa_atom_name,
-                                                           aa_coor)
 
-                # calculate AICG2+ 1-3 interaction pairwise energy
-                e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
-                if e_local > AICG_ENE_UPPER_LIM
-                    e_local = AICG_ENE_UPPER_LIM
+                if ff_pro == FF_pro_AICG2p
+                    # count AICG2+ 1-3 interaction atomic contact
+                    contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
+                                                               cg_residues[ i_res + 2 ].atoms,
+                                                               cg_resid_name[i_res],
+                                                               cg_resid_name[i_res + 2],
+                                                               aa_atom_name,
+                                                               aa_coor)
+
+                    # calculate AICG2+ 1-3 interaction pairwise energy
+                    e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
+                    if e_local > AICG_ENE_UPPER_LIM
+                        e_local = AICG_ENE_UPPER_LIM
+                    end
+                    if e_local < AICG_ENE_LOWER_LIM
+                        e_local = AICG_ENE_LOWER_LIM
+                    end
+                    e_ground_local += e_local
+                    e_ground_13    += e_local
+                    num_angle      += 1
+                    push!(param_cg_pro_e_13, e_local)
                 end
-                if e_local < AICG_ENE_LOWER_LIM
-                    e_local = AICG_ENE_LOWER_LIM
-                end
-                e_ground_local += e_local
-                e_ground_13    += e_local
-                num_angle      += 1
-                push!(param_cg_pro_e_13, e_local)
             end
         end
         if verbose
@@ -487,26 +542,28 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 push!(top_cg_pro_dihedrals, tmp_top_dihe)
                 push!(top_cg_pro_aicg14, tmp_top_dihe)
 
-                # count AICG2+ dihedral atomic contact
-                contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
-                                                           cg_residues[ i_res + 3 ].atoms,
-                                                           cg_resid_name[i_res],
-                                                           cg_resid_name[i_res + 3],
-                                                           aa_atom_name,
-                                                           aa_coor)
+                if ff_pro == FF_pro_AICG2p
+                    # count AICG2+ dihedral atomic contact
+                    contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
+                                                               cg_residues[ i_res + 3 ].atoms,
+                                                               cg_resid_name[i_res],
+                                                               cg_resid_name[i_res + 3],
+                                                               aa_atom_name,
+                                                               aa_coor)
 
-                # calculate AICG2+ dihedral pairwise energy
-                e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
-                if e_local > AICG_ENE_UPPER_LIM
-                    e_local = AICG_ENE_UPPER_LIM
+                    # calculate AICG2+ dihedral pairwise energy
+                    e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
+                    if e_local > AICG_ENE_UPPER_LIM
+                        e_local = AICG_ENE_UPPER_LIM
+                    end
+                    if e_local < AICG_ENE_LOWER_LIM
+                        e_local = AICG_ENE_LOWER_LIM
+                    end
+                    e_ground_local += e_local
+                    e_ground_14    += e_local
+                    num_dih      += 1
+                    push!(param_cg_pro_e_14, e_local)
                 end
-                if e_local < AICG_ENE_LOWER_LIM
-                    e_local = AICG_ENE_LOWER_LIM
-                end
-                e_ground_local += e_local
-                e_ground_14    += e_local
-                num_dih      += 1
-                push!(param_cg_pro_e_14, e_local)
             end
         end
         if verbose
@@ -516,23 +573,25 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         # ------------------------
         # Normalize local energies
         # ------------------------
-        e_ground_local /= (num_angle + num_dih)
-        e_ground_13    /= num_angle
-        e_ground_14    /= num_dih
+        if ff_pro == FF_pro_AICG2p
+            e_ground_local /= (num_angle + num_dih)
+            e_ground_13    /= num_angle
+            e_ground_14    /= num_dih
 
-        if aicg_scale_scheme == 0
-            for i in 1:length(param_cg_pro_e_13)
-                param_cg_pro_e_13[i] *= AICG_13_AVE / e_ground_13
-            end
-            for i in 1:length(param_cg_pro_e_14)
-                param_cg_pro_e_14[i] *= AICG_14_AVE / e_ground_14
-            end
-        elseif aicg_scale_scheme == 1
-            for i in 1:length(param_cg_pro_e_13)
-                param_cg_pro_e_13[i] *= -AICG_13_GEN
-            end
-            for i in 1:length(param_cg_pro_e_14)
-                param_cg_pro_e_14[i] *= -AICG_14_GEN
+            if aicg_scale_scheme == 0
+                for i in 1:length(param_cg_pro_e_13)
+                    param_cg_pro_e_13[i] *= AICG_13_AVE / e_ground_13
+                end
+                for i in 1:length(param_cg_pro_e_14)
+                    param_cg_pro_e_14[i] *= AICG_14_AVE / e_ground_14
+                end
+            elseif aicg_scale_scheme == 1
+                for i in 1:length(param_cg_pro_e_13)
+                    param_cg_pro_e_13[i] *= -AICG_13_GEN
+                end
+                for i in 1:length(param_cg_pro_e_14)
+                    param_cg_pro_e_14[i] *= -AICG_14_GEN
+                end
             end
         end
 
@@ -587,25 +646,27 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                         push!(top_cg_pro_go_contact, tmp_top_cnt)
 
-                        # count AICG2+ atomic contact
-                        contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
-                                                                   cg_residues[ j_res ].atoms,
-                                                                   cg_resid_name[i_res],
-                                                                   cg_resid_name[j_res],
-                                                                   aa_atom_name,
-                                                                   aa_coor)
+                        if ff_pro == FF_pro_AICG2p
+                            # count AICG2+ atomic contact
+                            contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
+                                                                       cg_residues[ j_res ].atoms,
+                                                                       cg_resid_name[i_res],
+                                                                       cg_resid_name[j_res],
+                                                                       aa_atom_name,
+                                                                       aa_coor)
 
-                        # calculate AICG2+ pairwise energy
-                        e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
-                        if e_local > AICG_ENE_UPPER_LIM
-                            e_local = AICG_ENE_UPPER_LIM
+                            # calculate AICG2+ pairwise energy
+                            e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
+                            if e_local > AICG_ENE_UPPER_LIM
+                                e_local = AICG_ENE_UPPER_LIM
+                            end
+                            if e_local < AICG_ENE_LOWER_LIM
+                                e_local = AICG_ENE_LOWER_LIM
+                            end
+                            e_ground_contact += e_local
+                            num_contact      += 1
+                            push!(param_cg_pro_e_contact, e_local)
                         end
-                        if e_local < AICG_ENE_LOWER_LIM
-                            e_local = AICG_ENE_LOWER_LIM
-                        end
-                        e_ground_contact += e_local
-                        num_contact      += 1
-                        push!(param_cg_pro_e_contact, e_local)
                     end
                 end
             end
@@ -673,25 +734,27 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                                 tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
                                 push!(top_cg_pro_go_contact, tmp_top_cnt)
 
-                                # count AICG2+ atomic contact
-                                contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
-                                                                           cg_residues[ j_res ].atoms,
-                                                                           cg_resid_name[i_res],
-                                                                           cg_resid_name[j_res],
-                                                                           aa_atom_name,
-                                                                           aa_coor)
+                                if ff_pro == FF_pro_AICG2p
+                                    # count AICG2+ atomic contact
+                                    contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
+                                                                               cg_residues[ j_res ].atoms,
+                                                                               cg_resid_name[i_res],
+                                                                               cg_resid_name[j_res],
+                                                                               aa_atom_name,
+                                                                               aa_coor)
 
-                                # calculate AICG2+ pairwise energy
-                                e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
-                                if e_local > AICG_ENE_UPPER_LIM
-                                    e_local = AICG_ENE_UPPER_LIM
+                                    # calculate AICG2+ pairwise energy
+                                    e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
+                                    if e_local > AICG_ENE_UPPER_LIM
+                                        e_local = AICG_ENE_UPPER_LIM
+                                    end
+                                    if e_local < AICG_ENE_LOWER_LIM
+                                        e_local = AICG_ENE_LOWER_LIM
+                                    end
+                                    e_ground_contact += e_local
+                                    num_contact      += 1
+                                    push!(param_cg_pro_e_contact, e_local)
                                 end
-                                if e_local < AICG_ENE_LOWER_LIM
-                                    e_local = AICG_ENE_LOWER_LIM
-                                end
-                                e_ground_contact += e_local
-                                num_contact      += 1
-                                push!(param_cg_pro_e_contact, e_local)
                             end
                         end
                     end
@@ -702,20 +765,22 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             end
         end
 
-        # normalize
-        if num_contact > 0
-            e_ground_contact /= num_contact
-        else
-            e_ground_contact = 0
-        end
-
-        if aicg_scale_scheme == 0
-            for i in 1:length(param_cg_pro_e_contact)
-                param_cg_pro_e_contact[i] *= AICG_CONTACT_AVE / e_ground_contact
+        if ff_pro == FF_pro_AICG2p
+            # normalize
+            if num_contact > 0
+                e_ground_contact /= num_contact
+            else
+                e_ground_contact = 0
             end
-        elseif aicg_scale_scheme == 1
-            for i in 1:length(param_cg_pro_e_contact)
-                param_cg_pro_e_contact[i] *= -AICG_CONTACT_GEN
+
+            if aicg_scale_scheme == 0
+                for i in 1:length(param_cg_pro_e_contact)
+                    param_cg_pro_e_contact[i] *= AICG_CONTACT_AVE / e_ground_contact
+                end
+            elseif aicg_scale_scheme == 1
+                for i in 1:length(param_cg_pro_e_contact)
+                    param_cg_pro_e_contact[i] *= -AICG_CONTACT_GEN
+                end
             end
         end
 
@@ -726,6 +791,32 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         end
 
     end
+
+    # ===============================
+    # Intrinsically disordered region
+    # ===============================
+    has_toml_mod  = false
+    if haskey(args, "modeling-options")
+        has_toml_mod    = true
+        ff_detail_config = args["modeling-options"]
+
+        if haskey(ff_detail_config, "IDR")
+            if haskey(ff_detail_config["IDR"], "AICG2p_IDR_local")
+                index_string = ff_detail_config["IDR"]["AICG2p_IDR_local"]
+                AICG2p_flexible_local = parse_selection(index_string)
+            end
+            if haskey(ff_detail_config["IDR"], "AICG2p_IDR_nonlocal")
+                index_string = ff_detail_config["IDR"]["AICG2p_IDR_nonlocal"]
+                AICG2p_flexible_nonlocal = parse_selection(index_string)
+            end
+            if haskey(ff_detail_config["IDR"], "HPS_region")
+                index_string = ff_detail_config["IDR"]["HPS_region"]
+                HPS_IDR_region = parse_selection(index_string)
+            end
+        end
+    end
+
+
 
     # =============================
     # Step 5: 3SPN.2C model for DNA
@@ -1436,7 +1527,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     #
     # ============================================================
 
-    if num_chain_RNA > 0 && num_chain_pro > 0 && !do_test_local_only
+    if ff_pro_rna == FF_pro_RNA_Go && num_chain_RNA > 0 && num_chain_pro > 0 && !do_test_local_only
         i_step += 1
         if verbose
             println("============================================================")
@@ -1777,48 +1868,361 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # Make a new topology structure
     # =============================
 
-    mytop = CGTopology(cg_resid_name,
-                       cg_resid_index,
-                       cg_bead_name,
-                       cg_bead_type,
-                       cg_bead_charge,
-                       cg_bead_mass,
-                       cg_chain_id,
-                       cg_seg_name,
-                       top_cg_pro_bonds,
-                       top_cg_pro_angles,
-                       top_cg_pro_dihedrals,
-                       top_cg_pro_aicg13,
-                       top_cg_pro_aicg14,
-                       top_cg_pro_go_contact,
-                       param_cg_pro_e_13,
-                       param_cg_pro_e_14,
-                       param_cg_pro_e_contact,
-                       top_cg_DNA_bonds,
-                       top_cg_DNA_angles,
-                       top_cg_DNA_dih_Gaussian,
-                       top_cg_DNA_dih_periodic,
-                       param_cg_DNA_k_angles,
-                       top_cg_RNA_bonds,
-                       top_cg_RNA_angles,
-                       top_cg_RNA_dihedrals,
-                       top_cg_RNA_base_stack,
-                       top_cg_RNA_base_pair,
-                       top_cg_RNA_other_contact,
-                       param_cg_RNA_k_bonds,
-                       param_cg_RNA_k_angles,
-                       param_cg_RNA_k_dihedrals,
-                       param_cg_RNA_e_base_stack,
-                       param_cg_RNA_e_base_pair,
-                       param_cg_RNA_e_other_contact,
-                       top_cg_pro_DNA_pwmcos,
-                       top_cg_pro_DNA_contact,
-                       top_cg_pro_RNA_contact,
-                       param_cg_pro_RNA_e_contact)
+    top_default_params             = GenTopDefault(0, 0, false, 0.0, 0.0) 
+    top_default_atomtype           = Vector{GenTopAtomType}(undef, 0)
+    top_default_CGDNA_bp           = Vector{GenTopCGDNABasepairType}(undef, 0)
+    top_default_CGDNA_bs           = Vector{GenTopCGDNABasestackType}(undef, 0)
+    top_default_CGDNA_cs           = Vector{GenTopCGDNABasecrossType}(undef, 0)
+    top_default_CGDNA_exv          = Vector{GenTopCGDNAExvType}(undef, 0)
+    top_default_CGPro_flx_angle    = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
+    top_default_CGPro_flx_dihedral = Vector{GenTopCGProAICGFlexDihedralType}(undef, 0)
 
+    global_index_2_local_index     = Vector{Int}(undef, 0)
+    global_index_2_local_molid     = Vector{Int}(undef, 0)
+    top_atoms                      = Vector{GenTopAtom}(undef, 0)
+    top_bonds                      = Vector{GenTopBond}(undef, 0)
+    top_angles                     = Vector{GenTopAngle}(undef, 0)
+    top_dihedrals                  = Vector{GenTopDihedral}(undef, 0)
+    top_pairs                      = Vector{GenTopPair}(undef, 0)
+    top_exclusions                 = Vector{GenTopExclusion}(undef, 0)
+    top_pwmcos                     = Vector{GenTopPWMcos}(undef, 0)
+    top_idr_hps                    = Vector{GenTopIDRHPS}(undef, 0)
+    top_mol_list                   = Vector{GenTopMolList}(undef, 0)
+
+    # ---------
+    # [ atoms ]
+    # ---------
+    for i_bead in 1 : cg_num_particles
+        a_type = cg_bead_type[i_bead]
+        r_indx = cg_resid_index[i_bead]
+        r_name = cg_resid_name[i_bead]
+        a_name = cg_bead_name[i_bead]
+        f_type = AICG_ATOM_FUNC_NR
+        charge = cg_bead_charge[i_bead]
+        mass   = cg_bead_mass[i_bead]
+        c_id   = cg_chain_id[i_bead]
+        s_name = cg_seg_name[i_bead]
+        new_atom = GenTopAtom(i_bead, a_type, r_indx, r_name, a_name, f_type, charge, mass, c_id, s_name)
+        push!(top_atoms, new_atom)
+        push!(global_index_2_local_index, i_bead)
+        push!(global_index_2_local_molid, c_id)
+    end
+
+    # ---------
+    # [ bonds ]
+    # ---------
+    # AICG2+ bonds
+    if ff_pro == FF_pro_AICG2p
+        for bond in top_cg_pro_bonds
+            new_bond = GenTopBond(bond.i, bond.j, AICG_BOND_FUNC_TYPE, bond.r0 * 0.1, AICG_BOND_K * 100.0 * 2.0 * CAL2JOU)
+            push!(top_bonds, new_bond)
+        end
+    # Clementi Go bonds
+    elseif ff_pro == FF_pro_Clementi_Go
+        for bond in top_cg_pro_bonds
+            new_bond = GenTopBond(bond.i, bond.j, CCGO_BOND_FUNC_TYPE, bond.r0 * 0.1, CCGO_BOND_K * 100.0 * 2.0 * CAL2JOU)
+            push!(top_bonds, new_bond)
+        end
+    end
+
+    # 3SPN.2C bonds
+    if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp
+        for bond in top_cg_DNA_bonds
+            new_bond = GenTopBond(bond.i, bond.j, DNA3SPN_BOND_FUNC4_TYPE, bond.r0 * 0.1, DNA3SPN_BOND_K_2 * 2.0 * CAL2JOU)
+            push!(top_bonds, new_bond)
+        end
+    end
+
+    # Structure-based RNA bonds
+    if ff_rna == FF_RNA_HT
+        for ( i_bond, bond ) in enumerate( top_cg_RNA_bonds )
+            new_bond = GenTopBond(bond.i, bond.j, RNA_BOND_FUNC_TYPE, bond.r0 * 0.1, param_cg_RNA_k_bonds[i_bond] * 100.0 * 2.0 * CAL2JOU)
+            push!(top_bonds, new_bond)
+        end
+    end
+
+    # ----------
+    # [ angles ]
+    # ----------
+    # AICG2+ angles
+    if ff_pro == FF_pro_AICG2p
+        # AICG2+ 1-3
+        if length(top_cg_pro_aicg13) > 0
+            for ( i_13, a13 ) in enumerate( top_cg_pro_aicg13 )
+                if  in(a13.i, AICG2p_flexible_local) || in(a13.j, AICG2p_flexible_local) || in(a13.k, AICG2p_flexible_local) ||
+                    in(a13.i, HPS_IDR_region) || in(a13.j, HPS_IDR_region) || in(a13.k, HPS_IDR_region)
+                    continue
+                end
+                new_angle = GenTopAngle(a13.i, a13.j, a13.k, AICG_ANG_G_FUNC_TYPE, a13.a0 * 0.1, param_cg_pro_e_13[i_13] * CAL2JOU, AICG_13_SIGMA * 0.1)
+                push!(top_angles, new_angle)
+            end
+        end
+        # AICG2+ flexible
+        if length(top_cg_pro_angles) > 0
+            for ang in top_cg_pro_angles
+                if  in(ang.i, HPS_IDR_region) || in(ang.j, HPS_IDR_region) || in(ang.k, HPS_IDR_region)
+                    continue
+                end
+                new_angle = GenTopAngle(ang.i, ang.j, ang.k, AICG_ANG_F_FUNC_TYPE, 0.0, 0.0, 0.0)
+                push!(top_angles, new_angle)
+            end
+        end
+    # Clementi Go angles
+    elseif ff_pro == FF_pro_Clementi_Go
+        for ang in top_cg_pro_angles
+            new_angle = GenTopAngle(ang.i, ang.j, ang.k, CCGO_ANG_FUNC_TYPE, ang.a0, CCGO_ANGL_K * 2.0 * CAL2JOU, 0.0)
+            push!(top_angles, new_angle)
+        end
+    end
+
+    # 3SPN.2C angles
+    if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp
+        for ( i_ang, ang ) in enumerate( top_cg_DNA_angles )
+            new_angle = GenTopAngle(ang.i, ang.j, ang.k, DNA3SPN_ANG_FUNC_TYPE, ang.a0, param_cg_DNA_k_angles[i_ang] * 2.0 * CAL2JOU, 0.0)
+            push!(top_angles, new_angle)
+        end
+    end
+
+    # RNA structure-based angles
+    if ff_rna == FF_RNA_HT
+        for ( i_ang, ang ) in enumerate( top_cg_RNA_angles )
+            new_angle = GenTopAngle(ang.i, ang.j, ang.k, RNA_ANG_FUNC_TYPE, ang.a0, param_cg_RNA_k_angles[i_ang] * 2.0 * CAL2JOU, 0.0)
+            push!(top_angles, new_angle)
+        end
+    end
+
+    # -------------
+    # [ dihedrals ]
+    # -------------
+    # AICG2+ dihedrals
+    if ff_pro == FF_pro_AICG2p
+        # AICG2+ Gaussian dihedrals
+        for ( i_dih, dih ) in enumerate( top_cg_pro_aicg14 )
+            if  in(dih.i, AICG2p_flexible_local) || in(dih.j, AICG2p_flexible_local) ||
+                in(dih.k, AICG2p_flexible_local) || in(dih.l, AICG2p_flexible_local)
+                continue
+            elseif  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
+                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region)
+                continue
+            end
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, AICG_DIH_G_FUNC_TYPE,
+                                          dih.t0, param_cg_pro_e_14[i_dih] * CAL2JOU, AICG_14_SIGMA, 0)
+            push!(top_dihedrals, new_dihedral)
+        end
+        # AICG2+ flexible dihedrals
+        for dih in top_cg_pro_dihedrals
+            if  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
+                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region)
+                continue
+            end
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, AICG_DIH_F_FUNC_TYPE, 0.0, 0.0, 0.0, 0)
+            push!(top_dihedrals, new_dihedral)
+        end
+    # Clementi Go dihedral
+    elseif ff_pro == FF_pro_Clementi_Go
+        for dih in top_cg_pro_dihedrals
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, CCGO_DIH_P_FUNC_TYPE,
+                                          dih.t0 - 180.0, CCGO_DIHE_K_1 * CAL2JOU, 0.0, 1)
+            push!(top_dihedrals, new_dihedral)
+        end
+        for dih in top_cg_pro_dihedrals
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, CCGO_DIH_P_FUNC_TYPE,
+                                          3 * dih.t0 - 180.0, CCGO_DIHE_K_3 * CAL2JOU, 0.0, 3)
+            push!(top_dihedrals, new_dihedral)
+        end
+    end
+
+    # 3SPN.2C dihedrals
+    if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp
+        # 3SPN.2C Gaussian dihedrals
+        for dih in top_cg_DNA_dih_Gaussian
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, DNA3SPN_DIH_G_FUNC_TYPE,
+                                          dih.t0, DNA3SPN_DIH_G_K * CAL2JOU, DNA3SPN_DIH_G_SIGMA, 0)
+            push!(top_dihedrals, new_dihedral)
+        end
+
+        # 3SPN.2C Periodic dihedrals
+        for dih in top_cg_DNA_dih_periodic
+            n_dih_tmp = DNA3SPN_DIH_P_FUNC_PERI
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, DNA3SPN_DIH_P_FUNC_TYPE,
+                                          n_dih_tmp * dih.t0 - 180.0, DNA3SPN_DIH_P_K * CAL2JOU, 0.0, n_dih_tmp)
+            push!(top_dihedrals, new_dihedral)
+        end
+    end
+
+    # RNA structure-based Periodic dihedrals
+    if ff_rna == FF_RNA_HT
+        for ( i_dih, dih ) in enumerate( top_cg_RNA_dihedrals )
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, RNA_DIH_FUNC_TYPE,
+                                          dih.t0 - 180.0, param_cg_RNA_k_dihedrals[i_dih] * CAL2JOU, 0.0, 1)
+            push!(top_dihedrals, new_dihedral)
+        end
+        for ( i_dih, dih ) in enumerate( top_cg_RNA_dihedrals )
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, RNA_DIH_FUNC_TYPE,
+                                          3 * dih.t0 - 180.0, param_cg_RNA_k_dihedrals[i_dih] / 2 * CAL2JOU, 0.0, 3)
+            push!(top_dihedrals, new_dihedral)
+        end
+    end
+
+
+    # ---------
+    # [ pairs ]
+    # ---------
+    # protein Go-type native contacts
+    if ff_pro == FF_pro_AICG2p
+        for (i_c, c) in enumerate(top_cg_pro_go_contact)
+            if  in(c.i, AICG2p_flexible_nonlocal) || in(c.j, AICG2p_flexible_nonlocal) ||
+                in(c.i, HPS_IDR_region) || in(c.j, HPS_IDR_region)
+                continue
+            end
+            new_pair = GenTopPair(c.i, c.j, AICG_CONTACT_FUNC_TYPE, c.r0 * 0.1, param_cg_pro_e_contact[i_c] * CAL2JOU)
+            push!(top_pairs, new_pair)
+        end
+    # Clementi Go native contacts
+    elseif ff_pro == FF_pro_Clementi_Go
+        for c in top_cg_pro_go_contact
+            new_pair = GenTopPair(c.i, c.j, CCGO_CONTACT_FUNC_TYPE, c.r0 * 0.1, CCGO_NATIVE_EPSILON * ccgo_contact_scale * CAL2JOU)
+            push!(top_pairs, new_pair)
+        end
+    end
+
+    # RNA HT-type native contacts
+    if ff_rna == FF_RNA_HT
+        for (i_c, c) in enumerate(top_cg_RNA_base_stack)
+            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0 * 0.1, param_cg_RNA_e_base_stack[i_c] * CAL2JOU)
+            push!(top_pairs, new_pair)
+        end
+        for (i_c, c) in enumerate(top_cg_RNA_base_pair)
+            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0 * 0.1, param_cg_RNA_e_base_pair[i_c] * CAL2JOU)
+            push!(top_pairs, new_pair)
+        end
+        for (i_c, c) in enumerate(top_cg_RNA_other_contact)
+            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0 * 0.1, param_cg_RNA_e_other_contact[i_c] * CAL2JOU)
+            push!(top_pairs, new_pair)
+        end
+    end
+
+    # protein-RNA native contacts
+    if ff_pro_rna == FF_pro_RNA_Go
+        for (i_c, c) in enumerate(top_cg_pro_RNA_contact)
+            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0 * 0.1, param_cg_pro_RNA_e_contact[i_c] * CAL2JOU)
+            push!(top_pairs, new_pair)
+        end
+    end
+
+
+    # protein-DNA native contacts
+    if ff_pro_dna == FF_pro_DNA_Go
+        for c in top_cg_pro_DNA_contact
+            new_pair = GenTopPair(c.i, c.j, CCGO_CONTACT_FUNC_TYPE, c.r0 * 0.1, CCGO_NATIVE_EPSILON * ccgo_contact_scale * CAL2JOU)
+            push!(top_pairs, new_pair)
+        end
+    end
+
+
+    # ---------------------
+    #        [ exclusions ]
+    # ---------------------
+    # Protein exclusion list
+    if ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go
+        for c in top_cg_pro_go_contact
+            if  in(c.i, AICG2p_flexible_nonlocal) || in(c.j, AICG2p_flexible_nonlocal) ||
+                in(c.i, HPS_IDR_region) || in(c.j, HPS_IDR_region)
+                continue
+            end
+            new_ex = GenTopExclusion(c.i, c.j)
+            push!(top_exclusions, new_ex)
+        end
+    end
+
+    # RNA exclusion list
+    if ff_rna == FF_RNA_HT
+        for c in top_cg_RNA_base_stack
+            new_ex = GenTopExclusion(c.i, c.j)
+            push!(top_exclusions, new_ex)
+        end
+        for c in top_cg_RNA_base_pair
+            new_ex = GenTopExclusion(c.i, c.j)
+            push!(top_exclusions, new_ex)
+        end
+        for c in top_cg_RNA_other_contact
+            new_ex = GenTopExclusion(c.i, c.j)
+            push!(top_exclusions, new_ex)
+        end
+    end
+
+    # protein-RNA exclusion contacts
+    if ff_pro_rna == FF_pro_RNA_Go
+        for c in top_cg_pro_RNA_contact
+            new_ex = GenTopExclusion(c.i, c.j)
+            push!(top_exclusions, new_ex)
+        end
+    end
+
+    # protein-DNA exclusion contacts
+    if ff_pro_dna == FF_pro_DNA_Go
+        for c in top_cg_pro_DNA_contact
+            new_ex = GenTopExclusion(c.i, c.j)
+            push!(top_exclusions, new_ex)
+        end
+    end
+
+
+    # ----------
+    # [ pwmcos ]
+    # ----------
+    for p in top_cg_pro_DNA_pwmcos
+        new_pwmcos = GenTopPWMcos(p.i, PWMCOS_FUNC_TYPE, p.r0 * 0.1, p.t1, p.t2, p.t3,
+                                  p.eA, p.eC, p.eG, p.eT, pwmcos_gamma, pwmcos_epsil)
+        push!(top_pwmcos, new_pwmcos)
+    end
+
+    
+    # ---------------------
+    # [ cg_IDR_HPS_region ]
+    # ---------------------
+    if has_toml_mod
+        if haskey(ff_detail_config, "IDR")
+            if haskey(ff_detail_config["IDR"], "HPS_region")
+                index_string = ff_detail_config["IDR"]["HPS_region"]
+                hps_words = split(index_string, r"\s*,\s*", keepempty=false)
+                for w in hps_words
+                    idxwords = split(index_string, r"\s*to\s*", keepempty=false)
+                    i = parse(Int, idxwords[1])
+                    if length(idxwords) > 1
+                        j = parse(Int, idxwords[2])
+                    else
+                        j = i
+                    end
+                    new_idr = GenTopIDRHPS(i, j)
+                    push!(top_idr_hps, new_idr)
+                end
+            end
+        end
+    end
+
+    mol_name = pdb_name[1:end-4]
+    mytop = GenTopology(mol_name, cg_num_particles,
+                        top_default_params,
+                        top_default_atomtype,
+                        top_default_CGDNA_bp,
+                        top_default_CGDNA_bs,
+                        top_default_CGDNA_cs,
+                        top_default_CGDNA_exv,
+                        top_default_CGPro_flx_angle,
+                        top_default_CGPro_flx_dihedral,
+                        global_index_2_local_index,
+                        global_index_2_local_molid,
+                        top_atoms,
+                        top_bonds,
+                        top_angles,
+                        top_dihedrals,
+                        top_pairs,
+                        top_exclusions,
+                        top_pwmcos,
+                        top_idr_hps,
+                        top_mol_list)
     myconf = Conformation(cg_num_particles, cg_bead_coor)
-
-
 
 
     # ----------

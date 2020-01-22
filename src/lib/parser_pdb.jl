@@ -351,40 +351,42 @@ end
 # =============
 # Output CG PDB
 # =============
-function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::AbstractString, args::Dict{String, Any})
+function write_pdb(top::GenTopology, conf::Conformation, system_name::AbstractString, args::Dict{String, Any})
 
-    cg_pdb_name        = system_name * "_cg.pdb"
-    cg_pdb_file        = open(cg_pdb_name, "w")
+    verbose = get(args, "verbose", false)
+
+    pdb_name        = system_name * ".pdb"
+    pdb_file        = open(pdb_name, "w")
 
     do_output_cgconect = get(args, "cgconect", false)
 
-    cg_num_particles   = conf.num_particle
-    is_huge_system     = cg_num_particles > 9999
+    num_particles   = conf.num_particle
+    is_huge_system  = num_particles > 9999
 
     chain_id_set       = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
     tmp_chain_id       = 0
     tmp_chain_head     = 0
-    for i_bead in 1 : cg_num_particles
-        i_chain = top.cg_chain_id[i_bead]
+    for i_bead in 1 : num_particles
+        i_chain = top.top_atoms[i_bead].chain_id
         if i_chain > tmp_chain_id
             if tmp_chain_id > 0
-                print(cg_pdb_file, "TER\n")
+                print(pdb_file, "TER\n")
             end
             tmp_chain_id = i_chain
-            tmp_chain_head = top.cg_resid_index[i_bead]
+            tmp_chain_head = top.top_atoms[i_bead].residue_index
         end
         if is_huge_system
-            resid_index_tmp = top.cg_resid_index[i_bead] - tmp_chain_head + 1
+            resid_index_tmp = top.top_atoms[i_bead].residue_index - tmp_chain_head + 1
         else
-            resid_index_tmp = top.cg_resid_index[i_bead]
+            resid_index_tmp = top.top_atoms[i_bead].residue_index
         end
 
-        @printf(cg_pdb_file,
+        @printf(pdb_file,
                 "ATOM  %5d %4s%1s%4s%1s%4d%1s   %8.3f%8.3f%8.3f%6.2f%6.2f%10s%2s%2s \n",
                 i_bead,
-                top.cg_bead_name[i_bead],
+                top.top_atoms[i_bead].atom_name,
                 ' ',
-                rpad( top.cg_resid_name[i_bead], 4 ),
+                rpad( top.top_atoms[i_bead].residue_name, 4 ),
                 chain_id_set[mod(i_chain, 63) + 1],
                 resid_index_tmp,
                 ' ',
@@ -393,30 +395,27 @@ function write_cg_pdb(top::CGTopology, conf::Conformation, system_name::Abstract
                 conf.coors[3 , i_bead],
                 0.0,
                 0.0,
-                top.cg_seg_name[i_bead],
+                top.top_atoms[i_bead].seg_name,
                 "",
                 "")
     end
-    print(cg_pdb_file,"TER\n")
+    print(pdb_file,"TER\n")
 
     cg_pdb_cnct_line = "CONECT%5d%5d \n"
     if do_output_cgconect
-        for bond in top.top_cg_pro_bonds
-            @printf(cg_pdb_file, "CONECT%5d%5d \n", bond.i, bond.j)
-        end
-        for bond in top.top_cg_DNA_bonds
-            @printf(cg_pdb_file, "CONECT%5d%5d \n", bond.i, bond.j)
-        end
-        for bond in top.top_cg_RNA_bonds
-            @printf(cg_pdb_file, "CONECT%5d%5d \n", bond.i, bond.j)
+        for bond in top.top_bonds
+            @printf(pdb_file, "CONECT%5d%5d \n", bond.i, bond.j)
         end
     end
 
-    print(cg_pdb_file,"END\n")
-    print(cg_pdb_file,"\n")
+    print(pdb_file,"END\n")
+    print(pdb_file,"\n")
 
-    close(cg_pdb_file)
-    # println(">           ... .pdb (CG) : DONE!")
+    close(pdb_file)
+
+    if verbose
+        println(">           ... .pdb (CG) : DONE!")
+    end
 
 end
 

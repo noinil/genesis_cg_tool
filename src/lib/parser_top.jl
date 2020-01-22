@@ -8,55 +8,31 @@
 #                                                                             #
 ###############################################################################
 
+
+###############################################################################
+#                                function lists                               
+# write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{String, Any})
+# write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args::Dict{String, Any})
+# read_groitp(itp_filename::AbstractString)
+# read_grotop(top_filename::AbstractString)
+# write_psf(top::GenTopology, sys_name::AbstractString, args::Dict{String, Any})
+###############################################################################
+
 using Printf
 
-function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name::AbstractString, args::Dict{String, Any})
+function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{String, Any}=Dict{String, Any}())
 
-    ff_pro     = force_field.ff_protein
-    ff_dna     = force_field.ff_DNA
-    ff_rna     = force_field.ff_RNA
-    ff_pro_dna = force_field.ff_protein_DNA
+    verbose  = get(args, "verbose", false)
 
-    top_name = system_name * "_cg.top"
-    itp_name = system_name * "_cg.itp"
-
-    gen_3spn_itp       = get(args, "3spn-param", false)
-    ccgo_contact_scale = get(args, "CCGO-contact-scale", 1.0)
-
-    # =====================
-    # Prepare modifications
-    # =====================
-    has_toml_mod  = false
-    if haskey(args, "modeling-options")
-        has_toml_mod    = true
-        ff_detail_config = args["modeling-options"]
-
-        AICG2p_flexible_local    = []
-        AICG2p_flexible_nonlocal = []
-        HPS_IDR_region           = []
-        if haskey(ff_detail_config, "IDR")
-            if haskey(ff_detail_config["IDR"], "AICG2p_IDR_local")
-                index_string = ff_detail_config["IDR"]["AICG2p_IDR_local"]
-                AICG2p_flexible_local = parse_selection(index_string)
-            end
-            if haskey(ff_detail_config["IDR"], "AICG2p_IDR_nonlocal")
-                index_string = ff_detail_config["IDR"]["AICG2p_IDR_nonlocal"]
-                AICG2p_flexible_nonlocal = parse_selection(index_string)
-            end
-            if haskey(ff_detail_config["IDR"], "HPS_region")
-                index_string = ff_detail_config["IDR"]["HPS_region"]
-                HPS_IDR_region = parse_selection(index_string)
-            end
-        end
-    end
-
+    top_name = system_name * ".top"
+    itp_name = system_name * ".itp"
 
     # ========
     # top file
     # ========
     top_file = open(top_name, "w")
 
-    print(top_file, "; atom types for coarse-grained models\n")
+    print(top_file, "; common interaction parameters for CG models\n")
     print(top_file, "#include \"./param/atom_types.itp\" \n")
     print(top_file, "; AICG2+ flexible local angle parameters \n")
     print(top_file, "#include \"./param/flexible_local_angle.itp\" \n")
@@ -90,73 +66,102 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     # ========
     itp_file = open(itp_name, "w")
 
+
+
+    ###########################################################################
+    #                         define output functions                         #
+    ###########################################################################
+
+    # ----------------
+    # [ moleculetype ]
+    # ----------------
     wr_itp_mol_head(io::IO) = print(io, "[ moleculetype ]\n")
     wr_itp_mol_comm(io::IO) = @printf(io, ";%15s %6s\n", rpad("name", 15), "nrexcl")
     wr_itp_mol_line(io::IO, name::AbstractString, n::Int) = @printf(io, "%16s %6d\n", rpad(name, 16), n)
 
+    # ---------
+    # [ atoms ]
+    # ---------
     wr_itp_atm_head(io::IO) = print(io, "[ atoms ]\n")
     wr_itp_atm_comm(io::IO) = @printf(io, ";%9s%5s%10s%5s%5s%5s %8s %8s\n", "nr", "type", "resnr", "res", "atom", "cg", "charge", "mass")
-    function wr_itp_atm_line(io::IO, i, beadtype, resid, resname, beadname, n, charge, mass)
-        @printf(io, "%10d%5s%10d%5s%5s%5d %8.3f %8.3f\n", i, beadtype, resid, resname, beadname, n, charge, mass)
+    function wr_itp_atm_chain_info(io::IO, a::GenTopAtom)
+        @printf(io, "; +INFO+ CHAIN: %6d     SEGNAME: %5s\n", a.chain_id, a.seg_name)
+    end
+    function wr_itp_atm_line(io::IO, a::GenTopAtom)
+        @printf(io, "%10d%5s%10d%5s%5s%5d %8.3f %8.3f\n",
+                a.atom_index, a.atom_type, a.residue_index, a.residue_name, a.atom_name,
+                a.function_type, a.charge, a.mass)
     end
 
+    # ---------
+    # [ bonds ]
+    # ---------
     wr_itp_bnd_head(io::IO) = print(io, "[ bonds ]\n")
     wr_itp_bnd_comm(io::IO) = @printf(io, ";%9s%10s%5s%18s%18s\n", "i", "j", "f", "eq", "coef")
-    function wr_itp_bnd_line(io::IO, b::CGTopBond, f::Int, e::Float64)
-        @printf(io, "%10d%10d%5d%18.4E%18.4E\n", b.i, b.j, f, b.r0 * 0.1, e * 100.0 * 2.0 * CAL2JOU)
+    function wr_itp_bnd_line(io::IO, b::GenTopBond)
+        @printf(io, "%10d%10d%5d%18.4E%18.4E\n", b.i, b.j, b.function_type, b.r0, b.coef)
     end
 
-    wr_itp_13_head(io::IO) = print(io, "[ angles ] ; AICG2+ 1-3 interaction\n")
-    wr_itp_13_comm(io::IO) = @printf(io, ";%9s%10s%10s%5s%15s%15s%15s\n", "i", "j", "k", "f", "eq", "coef", "w")
-    function wr_itp_13_line(io::IO, a::CGTopAngle, f::Int, e::Float64, sigma::Float64)
-        @printf(io, "%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", a.i, a.j, a.k, f, a.a0 * 0.1, e * CAL2JOU, sigma * 0.1)
-    end
-
-    wr_itp_ang_f_head(io::IO) = print(io, "[ angles ] ; AICG2+ flexible local interaction\n")
-    wr_itp_ang_f_comm(io::IO) = @printf(io, ";%9s%10s%10s%5s\n", "i", "j", "k", "f")
-    function wr_itp_ang_f_line(io::IO, a::CGTopAngle, f::Int)
-        @printf(io, "%10d%10d%10d%5d\n", a.i, a.j, a.k, f)
-    end
-
-    wr_itp_ang_head(io::IO) = print(io, "[ angles ] ; cannonical angle \n")
-    wr_itp_ang_comm(io::IO) = @printf(io, ";%9s%10s%10s%5s%18s%18s \n", "i", "j", "k", "f", "eq", "coef")
-    function wr_itp_ang_line(io::IO, a::CGTopAngle, f::Int, e::Float64)
-        @printf(io, "%10d%10d%10d%5d%18.4E%18.4E\n", a.i, a.j, a.k, f, a.a0, e * 2.0 * CAL2JOU)
-    end
-
-    wr_itp_dih_P_head(io::IO) = print(io, "[ dihedrals ] ; periodic dihedrals\n")
-    wr_itp_dih_P_comm(io::IO) = @printf(io, ";%9s%10s%10s%10s%5s%18s%18s%5s\n", "i", "j", "k", "l", "f", "eq", "coef", "n")
-    function wr_itp_dih_P_line(io::IO, d::CGTopDihedral, f::Int, e::Float64, n::Int)
-        if n == 1
-            @printf(io, "%10d%10d%10d%10d%5d%18.4E%18.4E%5d\n", d.i, d.j, d.k, d.l, f, d.t0 - 180., e * CAL2JOU, n)
-        elseif n== 3
-            @printf(io, "%10d%10d%10d%10d%5d%18.4E%18.4E%5d\n", d.i, d.j, d.k, d.l, f, 3*d.t0-180., e * CAL2JOU, n)
+    # ----------
+    # [ angles ]
+    # ----------
+    wr_itp_ang_head(io::IO) = print(io, "[ angles ]\n")
+    wr_itp_ang_comm(io::IO) = @printf(io, ";%9s%10s%10s%5s%15s%15s%15s\n", "i", "j", "k", "f", "eq", "coef", "w")
+    function wr_itp_ang_line(io::IO, a::GenTopAngle)
+        f = a.function_type
+        if f == 1
+            @printf(io, "%10d%10d%10d%5d%15.4E%15.4E\n", a.i, a.j, a.k, f, a.a0, a.coef)
+        elseif f == 21
+            @printf(io, "%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", a.i, a.j, a.k, f, a.a0, a.coef, a.w)
+        elseif f == 22
+            @printf(io, "%10d%10d%10d%5d\n", a.i, a.j, a.k, f)
         end
     end
 
-
-    wr_itp_dih_G_head(io::IO) = print(io, "[ dihedrals ] ; Gaussian dihedrals\n")
-    wr_itp_dih_G_comm(io::IO) = @printf(io, ";%9s%10s%10s%10s%5s%15s%15s%15s\n", "i", "j", "k", "l", "f", "eq", "coef", "w")
-    function wr_itp_dih_G_line(io::IO, d::CGTopDihedral, f::Int, e::Float64, sigma::Float64)
-        @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", d.i, d.j, d.k, d.l, f, d.t0, e * CAL2JOU, sigma)
+    # -------------
+    # [ dihedrals ]
+    # -------------
+    wr_itp_dih_head(io::IO) = print(io, "[ dihedrals ]\n")
+    wr_itp_dih_comm(io::IO) = @printf(io, ";%9s%10s%10s%10s%5s%15s%15s%15s\n", "i", "j", "k", "l", "f", "eq", "coef", "w/n")
+    function wr_itp_dih_line(io::IO, d::GenTopDihedral)
+        f = d.function_type
+        if f == 1
+            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef, d.n)
+        elseif f == 21
+            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef, d.w)
+        elseif f == 22
+            @printf(io, "%10d%10d%10d%10d%5d\n", d.i, d.j, d.k, d.l, f)
+        end
     end
 
-    wr_itp_dih_F_head(io::IO) = print(io, "[ dihedrals ] ; AICG2+ flexible local interation\n")
-    wr_itp_dih_F_comm(io::IO) = @printf(io, ";%9s%10s%10s%10s%5s\n", "i", "j", "k", "l", "f")
-    function wr_itp_dih_F_line(io::IO, d::CGTopDihedral, f::Int)
-        @printf(io, "%10d%10d%10d%10d%5d\n", d.i, d.j, d.k, d.l, f)
+    # ---------
+    # [ pairs ]
+    # ---------
+    wr_itp_pair_head(io::IO) = @printf(io, "[ pairs ]\n")
+    wr_itp_pair_comm(io::IO) = @printf(io, ";%9s%10s%10s%15s%15s\n", "i", "j", "f", "eq", "coef")
+    function wr_itp_pair_line(io::IO, c::GenTopPair)
+        @printf(io, "%10d%10d%10d%15.4E%15.4E\n", c.i, c.j, c.function_type, c.r0, c.coef)
     end
 
-    wr_itp_contact_head(io::IO, s::String) = @printf(io, "[ pairs ] ; %s - Go-type native contact\n", s)
-    wr_itp_contact_comm(io::IO) = @printf(io, ";%9s%10s%10s%15s%15s\n", "i", "j", "f", "eq", "coef")
-    function wr_itp_contact_line(io::IO, c::CGTopContact, f::Int, e::Float64)
-        @printf(io, "%10d%10d%10d%15.4E%15.4E\n", c.i, c.j, f, c.r0 * 0.1, e * CAL2JOU)
-    end
-
+    # -------------
+    # [ exclusions]
+    # -------------
     wr_itp_exc_head(io::IO) = print(io, "[ exclusions ] ; Genesis exclusion list\n")
     wr_itp_exc_comm(io::IO) = @printf(io, ";%9s%10s\n", "i", "j")
-    wr_itp_exc_line(io::IO, c::CGTopContact) = @printf(io, "%10d%10d\n", c.i, c.j)
+    wr_itp_exc_line(io::IO, e::GenTopExclusion) = @printf(io, "%10d%10d\n", e.i, e.j)
 
+    # ---------------------
+    # [ cg_IDR_HPS_region ]
+    # ---------------------
+    wr_itp_idr_hps_head(io::IO) = print(io, "[ cg_IDR_HPS_region ] ; IDR HPS model \n")
+    wr_itp_idr_hps_comm(io::IO) = @printf(io, ";%9s to %10s\n", "i", "j")
+    wr_itp_idr_hps_line(io::IO, e::GenTopIDRHPS) = @printf(io, "%10d to %10d\n", e.istart, e.iend)
+
+
+
+    ###########################################################################
+    #                        Beging writing to file...                        #
+    ###########################################################################
 
     # ----------------
     # [ moleculetype ]
@@ -169,412 +174,107 @@ function write_cg_grotop(top::CGTopology, force_field::ForceFieldCG, system_name
     # ---------
     # [ atoms ]
     # ---------
-    cg_num_particles = length(top.cg_bead_name)
+    cg_num_particles = top.num_atom
     wr_itp_atm_head(itp_file)
     wr_itp_atm_comm(itp_file)
-    for i_bead in 1 : cg_num_particles
-        wr_itp_atm_line(itp_file, 
-                        i_bead,
-                        top.cg_bead_type[i_bead],
-                        top.cg_resid_index[i_bead],
-                        top.cg_resid_name[i_bead],
-                        top.cg_bead_name[i_bead],
-                        AICG_ATOM_FUNC_NR,
-                        top.cg_bead_charge[i_bead],
-                        top.cg_bead_mass[i_bead])
+    tmp_chain_id       = 0
+    for atom in top.top_atoms
+        i_chain = atom.chain_id
+        if i_chain > tmp_chain_id
+            wr_itp_atm_chain_info(itp_file, atom)
+            tmp_chain_id = i_chain
+        end
+        wr_itp_atm_line(itp_file, atom)
     end
     print(itp_file,"\n")
-
 
     # ---------
     # [ bonds ]
     # ---------
-    if length(top.top_cg_pro_bonds) + length(top.top_cg_DNA_bonds) + length(top.top_cg_RNA_bonds) > 0
+    if length(top.top_bonds) > 0
         wr_itp_bnd_head(itp_file)
         wr_itp_bnd_comm(itp_file)
-        
-        # AICG2+ bonds
-        if ff_pro == FF_pro_AICG2p
-            for bond in top.top_cg_pro_bonds
-                wr_itp_bnd_line(itp_file, bond, AICG_BOND_FUNC_TYPE, AICG_BOND_K)
-            end
-        # Clementi Go bonds
-        elseif ff_pro == FF_pro_Clementi_Go
-            for bond in top.top_cg_pro_bonds
-                wr_itp_bnd_line(itp_file, bond, CCGO_BOND_FUNC_TYPE, CCGO_BOND_K)
-            end
+        for bond in top.top_bonds
+            wr_itp_bnd_line(itp_file, bond)
         end
-
-        # 3SPN.2C bonds
-        if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp
-            for bond in top.top_cg_DNA_bonds
-                wr_itp_bnd_line(itp_file, bond, DNA3SPN_BOND_FUNC4_TYPE, DNA3SPN_BOND_K_2 / 100.0)
-            end
-        end
-
-        # Structure-based RNA bonds
-        if ff_rna == FF_RNA_HT
-            for ( i_bond, bond ) in enumerate( top.top_cg_RNA_bonds )
-                wr_itp_bnd_line(itp_file, bond, RNA_BOND_FUNC_TYPE, top.param_cg_RNA_k_bonds[i_bond])
-            end
-        end
-
         print(itp_file, "\n")
     end
-
 
     # ----------
     # [ angles ]
     # ----------
-
-    if ff_pro == FF_pro_AICG2p
-        # AICG2+ 1-3
-        if length(top.top_cg_pro_aicg13) > 0
-            wr_itp_13_head(itp_file)
-            wr_itp_13_comm(itp_file)
-            for ( i_13, a13 ) in enumerate( top.top_cg_pro_aicg13 )
-                if has_toml_mod
-                    if  in(a13.i, AICG2p_flexible_local) ||
-                        in(a13.j, AICG2p_flexible_local) ||
-                        in(a13.k, AICG2p_flexible_local)
-                        continue
-                    elseif in(a13.i, HPS_IDR_region) ||
-                        in(a13.j, HPS_IDR_region) ||
-                        in(a13.k, HPS_IDR_region)
-                        continue
-                    end
-                end
-                wr_itp_13_line(itp_file, a13, AICG_ANG_G_FUNC_TYPE, top.param_cg_pro_e_13[i_13], AICG_13_SIGMA)
-            end
-            print(itp_file, "\n")
+    if length(top.top_angles) > 0
+        wr_itp_ang_head(itp_file)
+        wr_itp_ang_comm(itp_file)
+        for angle in top.top_angles
+            wr_itp_ang_line(itp_file, angle)
         end
-        # AICG2+ flexible
-        if length(top.top_cg_pro_angles) > 0
-            wr_itp_ang_f_head(itp_file)
-            wr_itp_ang_f_comm(itp_file)
-            for ang in top.top_cg_pro_angles
-                if has_toml_mod
-                    if  in(ang.i, HPS_IDR_region) ||
-                        in(ang.j, HPS_IDR_region) ||
-                        in(ang.k, HPS_IDR_region)
-                        continue
-                    end
-                end
-                wr_itp_ang_f_line(itp_file, ang, AICG_ANG_F_FUNC_TYPE)
-            end
-            print(itp_file, "\n")
-        end
-    # Clementi Go angle
-    elseif ff_pro == FF_pro_Clementi_Go
-        if length(top.top_cg_pro_angles) > 0
-            wr_itp_ang_head(itp_file)
-            wr_itp_ang_comm(itp_file)
-            for ang in top.top_cg_pro_angles
-                wr_itp_ang_line(itp_file, ang, CCGO_ANG_FUNC_TYPE, CCGO_ANGL_K)
-            end
-            print(itp_file, "\n")
-        end
+        print(itp_file, "\n")
     end
-
-    # 3SPN.2C angles
-    if ff_dna == FF_DNA_3SPN2C
-        if length(top.top_cg_DNA_angles) > 0 && gen_3spn_itp
-            wr_itp_ang_head(itp_file)
-            wr_itp_ang_comm(itp_file)
-            for ( i_ang, ang ) in enumerate( top.top_cg_DNA_angles )
-                wr_itp_ang_line(itp_file, ang, DNA3SPN_ANG_FUNC_TYPE, top.param_cg_DNA_k_angles[i_ang])
-            end
-            print(itp_file, "\n")
-        end
-    end
-
-    # RNA structure-based angles
-    if ff_rna == FF_RNA_HT
-        if length(top.top_cg_RNA_angles) > 0
-            wr_itp_ang_head(itp_file)
-            wr_itp_ang_comm(itp_file)
-            for ( i_ang, ang ) in enumerate( top.top_cg_RNA_angles )
-                wr_itp_ang_line(itp_file, ang, RNA_ANG_FUNC_TYPE, top.param_cg_RNA_k_angles[i_ang])
-            end
-            print(itp_file, "\n")
-        end
-    end
-
 
     # -------------
     # [ dihedrals ]
     # -------------
-
-    if ff_pro == FF_pro_AICG2p
-        # AICG2+ Gaussian dihedrals
-        if length(top.top_cg_pro_aicg14) > 0
-            wr_itp_dih_G_head(itp_file)
-            wr_itp_dih_G_comm(itp_file)
-            for ( i_dih, dih ) in enumerate( top.top_cg_pro_aicg14 )
-                if has_toml_mod
-                    if  in(dih.i, AICG2p_flexible_local) ||
-                        in(dih.j, AICG2p_flexible_local) ||
-                        in(dih.k, AICG2p_flexible_local) || 
-                        in(dih.l, AICG2p_flexible_local)
-                        continue
-                    elseif  in(dih.i, HPS_IDR_region) ||
-                        in(dih.j, HPS_IDR_region) ||
-                        in(dih.k, HPS_IDR_region) ||
-                        in(dih.l, HPS_IDR_region)
-                        continue
-                    end
-                end
-                wr_itp_dih_G_line(itp_file, dih, AICG_DIH_G_FUNC_TYPE, top.param_cg_pro_e_14[i_dih], AICG_14_SIGMA)
-            end
-            print(itp_file, "\n")
+    if length(top.top_dihedrals) > 0
+        wr_itp_dih_head(itp_file)
+        wr_itp_dih_comm(itp_file)
+        for dih in top.top_dihedrals
+            wr_itp_dih_line(itp_file, dih)
         end
-        # AICG2+ flexible dihedrals
-        if length(top.top_cg_pro_dihedrals) > 0
-            wr_itp_dih_F_head(itp_file)
-            wr_itp_dih_F_comm(itp_file)
-            for dih in top.top_cg_pro_dihedrals
-                if has_toml_mod
-                    if  in(dih.i, HPS_IDR_region) ||
-                        in(dih.j, HPS_IDR_region) ||
-                        in(dih.k, HPS_IDR_region) ||
-                        in(dih.l, HPS_IDR_region)
-                        continue
-                    end
-                end
-                wr_itp_dih_F_line(itp_file, dih, AICG_DIH_F_FUNC_TYPE)
-            end
-            print(itp_file, "\n")
-        end
-    # Clementi Go dihedral
-    elseif ff_pro == FF_pro_Clementi_Go
-        if length(top.top_cg_pro_dihedrals) > 0
-            wr_itp_dih_P_head(itp_file)
-            wr_itp_dih_P_comm(itp_file)
-            for dih in top.top_cg_pro_dihedrals
-                wr_itp_dih_P_line(itp_file, dih, CCGO_DIH_P_FUNC_TYPE, CCGO_DIHE_K_1, 1)
-            end
-            for dih in top.top_cg_pro_dihedrals
-                wr_itp_dih_P_line(itp_file, dih, CCGO_DIH_P_FUNC_TYPE, CCGO_DIHE_K_3, 3)
-            end
-            print(itp_file, "\n")
-        end
-    end
-
-    if ff_dna == FF_DNA_3SPN2C
-        # 3SPN.2C Gaussian dihedrals
-        if length(top.top_cg_DNA_dih_Gaussian) > 0 && gen_3spn_itp
-            wr_itp_dih_G_head(itp_file)
-            wr_itp_dih_G_comm(itp_file)
-            for dih in top.top_cg_DNA_dih_Gaussian
-                wr_itp_dih_G_line(itp_file, dih, DNA3SPN_DIH_G_FUNC_TYPE, DNA3SPN_DIH_G_K, DNA3SPN_DIH_G_SIGMA)
-            end
-            print(itp_file, "\n")
-        end
-
-        # 3SPN.2C Periodic dihedrals
-        if length(top.top_cg_DNA_dih_periodic) > 0 && gen_3spn_itp
-            wr_itp_dih_P_head(itp_file)
-            wr_itp_dih_P_comm(itp_file)
-            for dih in top.top_cg_DNA_dih_periodic
-                wr_itp_dih_P_line(itp_file, dih, DNA3SPN_DIH_P_FUNC_TYPE, DNA3SPN_DIH_P_K, DNA3SPN_DIH_P_FUNC_PERI)
-            end
-            print(itp_file, "\n")
-        end
-    end
-
-    # RNA structure-based Periodic dihedrals
-    if ff_rna == FF_RNA_HT
-        if length(top.top_cg_RNA_dihedrals) > 0
-            wr_itp_dih_P_head(itp_file)
-            wr_itp_dih_P_comm(itp_file)
-            for ( i_dih, dih ) in enumerate( top.top_cg_RNA_dihedrals )
-                wr_itp_dih_P_line(itp_file, dih, RNA_DIH_FUNC_TYPE, top.param_cg_RNA_k_dihedrals[i_dih], 1)
-            end
-            for ( i_dih, dih ) in enumerate( top.top_cg_RNA_dihedrals )
-                wr_itp_dih_P_line(itp_file, dih, RNA_DIH_FUNC_TYPE, top.param_cg_RNA_k_dihedrals[i_dih] / 2, 3)
-            end
-            print(itp_file, "\n")
-        end
+        print(itp_file, "\n")
     end
 
     # ---------
     # [ pairs ]
     # ---------
-
-    # print protein Go-type native contacts
-    if ff_pro == FF_pro_AICG2p
-        if length(top.top_cg_pro_go_contact) > 0
-            wr_itp_contact_head(itp_file, "AICG2+")
-            wr_itp_contact_comm(itp_file)
-            for (i_c, c) in enumerate(top.top_cg_pro_go_contact)
-                if has_toml_mod
-                    if  in(c.i, AICG2p_flexible_nonlocal) ||
-                        in(c.j, AICG2p_flexible_nonlocal)
-                        continue
-                    elseif in(c.i, HPS_IDR_region) ||
-                        in(c.j, HPS_IDR_region)
-                        continue
-                    end
-                end
-                wr_itp_contact_line(itp_file, c, AICG_CONTACT_FUNC_TYPE, top.param_cg_pro_e_contact[i_c])
-            end
-            print(itp_file, "\n")
+    if length(top.top_pairs) > 0
+        wr_itp_pair_head(itp_file)
+        wr_itp_pair_comm(itp_file)
+        for pair in top.top_pairs
+            wr_itp_pair_line(itp_file, pair)
         end
-    # Clementi Go native contacts
-    elseif ff_pro == FF_pro_Clementi_Go
-        if length(top.top_cg_pro_go_contact) > 0
-            wr_itp_contact_head(itp_file, "Clementi-Go")
-            wr_itp_contact_comm(itp_file)
-            for c in top.top_cg_pro_go_contact
-                wr_itp_contact_line(itp_file, c, CCGO_CONTACT_FUNC_TYPE, CCGO_NATIVE_EPSILON * ccgo_contact_scale)
-            end
-            print(itp_file, "\n")
-        end
+        print(itp_file, "\n")
     end
-
-    # print RNA HT-type native contacts
-    if ff_rna == FF_RNA_HT
-        if length(top.top_cg_RNA_base_stack) + length(top.top_cg_RNA_base_pair) + length(top.top_cg_RNA_other_contact) > 0
-            wr_itp_contact_head(itp_file, "RNA-RNA")
-            wr_itp_contact_comm(itp_file)
-            for (i_c, c) in enumerate(top.top_cg_RNA_base_stack)
-                wr_itp_contact_line(itp_file, c, RNA_CONTACT_FUNC_TYPE, top.param_cg_RNA_e_base_stack[i_c])
-            end
-            for (i_c, c) in enumerate(top.top_cg_RNA_base_pair)
-                wr_itp_contact_line(itp_file, c, RNA_CONTACT_FUNC_TYPE, top.param_cg_RNA_e_base_pair[i_c])
-            end
-            for (i_c, c) in enumerate(top.top_cg_RNA_other_contact)
-                wr_itp_contact_line(itp_file, c, RNA_CONTACT_FUNC_TYPE, top.param_cg_RNA_e_other_contact[i_c])
-            end
-            print(itp_file, "\n")
-        end
-    end
-
-
-    # print protein-RNA native contacts
-    if ( ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go ) && ff_rna == FF_RNA_HT
-        if length(top.top_cg_pro_RNA_contact) > 0
-            wr_itp_contact_head(itp_file, "Protein-RNA")
-            wr_itp_contact_comm(itp_file)
-            for (i_c, c) in enumerate(top.top_cg_pro_RNA_contact)
-                wr_itp_contact_line(itp_file, c, RNP_CONTACT_FUNC_TYPE, top.param_cg_pro_RNA_e_contact[i_c])
-            end
-            print(itp_file, "\n")
-        end
-    end
-
-
-    # print protein-RNA native contacts
-    if ff_pro_dna == FF_pro_DNA_Go
-        if length(top.top_cg_pro_DNA_contact) > 0
-            wr_itp_contact_head(itp_file, "Protein-DNA (experimental)")
-            wr_itp_contact_comm(itp_file)
-            for c in top.top_cg_pro_DNA_contact
-                wr_itp_contact_line(itp_file, c, CCGO_CONTACT_FUNC_TYPE, CCGO_NATIVE_EPSILON * ccgo_contact_scale)
-            end
-            print(itp_file, "\n")
-        end
-    end
-
-
 
     # ---------------------
     #        [ exclusions ]
     # ---------------------
-
-    # print Protein exclusion list
-    if ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go
-        if length(top.top_cg_pro_go_contact) > 0
-            wr_itp_exc_head(itp_file)
-            wr_itp_exc_comm(itp_file)
-            for c in top.top_cg_pro_go_contact
-                if has_toml_mod
-                    if  in(c.i, AICG2p_flexible_nonlocal) ||
-                        in(c.j, AICG2p_flexible_nonlocal)
-                        continue
-                    elseif in(c.i, HPS_IDR_region) ||
-                        in(c.j, HPS_IDR_region)
-                        continue
-                    end
-                end
-                wr_itp_exc_line(itp_file, c)
-            end
-            print(itp_file, "\n")
+    if length(top.top_exclusions) > 0
+        wr_itp_exc_head(itp_file)
+        wr_itp_exc_comm(itp_file)
+        for exclusion in top.top_exclusions
+            wr_itp_exc_line(itp_file, exclusion)
         end
-    end
-
-    # print RNA exclusion list
-    if ff_rna == FF_RNA_HT
-        if length(top.top_cg_RNA_base_stack) + length(top.top_cg_RNA_base_pair) + length(top.top_cg_RNA_other_contact) > 0
-            wr_itp_exc_head(itp_file)
-            wr_itp_exc_comm(itp_file)
-            for c in top.top_cg_RNA_base_stack
-                wr_itp_exc_line(itp_file, c)
-            end
-            for c in top.top_cg_RNA_base_pair
-                wr_itp_exc_line(itp_file, c)
-            end
-            for c in top.top_cg_RNA_other_contact
-                wr_itp_exc_line(itp_file, c)
-            end
-            print(itp_file, "\n")
-        end
-    end
-
-    # print protein-RNA exclusion contacts
-    if ( ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go ) && ff_rna == FF_RNA_HT
-        if length(top.top_cg_pro_RNA_contact) > 0
-            wr_itp_exc_head(itp_file)
-            wr_itp_exc_comm(itp_file)
-            for c in top.top_cg_pro_RNA_contact
-                wr_itp_exc_line(itp_file, c)
-            end
-            print(itp_file, "\n")
-        end
-    end
-
-    # print protein-DNA exclusion contacts
-    if ff_pro_dna == FF_pro_DNA_Go
-        if length(top.top_cg_pro_DNA_contact) > 0
-            wr_itp_exc_head(itp_file)
-            wr_itp_exc_comm(itp_file)
-            for c in top.top_cg_pro_DNA_contact
-                wr_itp_exc_line(itp_file, c)
-            end
-            print(itp_file, "\n")
-        end
+        print(itp_file, "\n")
     end
 
     # ---------------------
     # [ cg_IDR_HPS_region ]
     # ---------------------
-
-    if has_toml_mod
-        if haskey(ff_detail_config["IDR"], "HPS_region")
-            index_string = ff_detail_config["IDR"]["HPS_region"]
-
-            print(itp_file, "[ cg_IDR_HPS_region ] \n")
-            hps_words = split(index_string, r"\s*,\s*", keepempty=false)
-            for w in hps_words
-                println(itp_file, w)
-            end
+    if length(top.top_idr_hps) > 0
+        wr_itp_idr_hps_head(itp_file)
+        wr_itp_idr_hps_comm(itp_file)
+        for idr in top.top_idr_hps
+            wr_itp_idr_hps_line(itp_file, idr)
         end
+        print(itp_file, "\n")
     end
 
     close(itp_file)
 
-    # println(">           ... .top: DONE!")
+    if verbose
+        println(">           ... .top: DONE!")
+    end
 end
 
 
-function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, system_name::AbstractString, args::Dict{String, Any})
+function write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args::Dict{String, Any}=Dict{String, Any}())
 
+    verbose = get(args, "verbose", false)
     appendto_filename = get(args, "patch", "")
-    pwmcos_gamma      = get(args, "pwmcos-scale", 1.0)
-    pwmcos_epsil      = get(args, "pwmcos-shift", 0.0)
 
     if length( appendto_filename ) == 0
-        itp_pwmcos_name = system_name * "_cg_pwmcos.itp_patch"
+        itp_pwmcos_name = system_name * "_pwmcos.itp_patch"
         itp_pwmcos_file = open(itp_pwmcos_name, "w")
     else
         itp_pwmcos_name = appendto_filename
@@ -590,17 +290,18 @@ function write_cg_grotop_pwmcos(top::CGTopology, force_field::ForceFieldCG, syst
 
     print(itp_pwmcos_file, itp_pwmcos_head)
     print(itp_pwmcos_file, itp_pwmcos_comm)
-    for p in top.top_cg_pro_DNA_pwmcos
+    for p in top.top_pwmcos
         @printf(itp_pwmcos_file,
                 "%6d %3d %8.5f %8.3f %8.3f %8.3f%12.6f%12.6f%12.6f%12.6f%8.3f%8.3f \n",
-                p.i, PWMCOS_FUNC_TYPE, p.r0 * 0.1, p.t1, p.t2, p.t3,
-                p.eA, p.eC, p.eG, p.eT, pwmcos_gamma, pwmcos_epsil)
+                p.i, p.function_type, p.r0, p.theta1, p.theta2, p.theta3,
+                p.ene_A, p.ene_C, p.ene_G, p.ene_T, p.gamma, p.eps)
     end
     print(itp_pwmcos_file, "\n")
 
     close(itp_pwmcos_file)
-    # println(">           ... ", itp_pwmcos_name, " pwmcos.itp: DONE!")
-
+    if verbose
+        println(">           ... ", itp_pwmcos_name, " pwmcos.itp: DONE!")
+    end
 end
 
 # ==================================
@@ -609,19 +310,20 @@ end
 
 function read_groitp(itp_filename::AbstractString)
 
-    mol_name = ""
+    mol_name          = ""
     nonlocal_interval = 0
-    num_atom = 0
+    num_atom          = 0
 
-    top_atoms = Vector{GenTopAtom}(undef, 0)
-    top_bonds = Vector{GenTopBond}(undef, 0)
-    top_angles = Vector{GenTopAngle}(undef, 0)
-    top_dihedrals = Vector{GenTopDihedral}(undef, 0)
-    top_pairs = Vector{GenTopPair}(undef, 0)
-    top_exclusions = Vector{GenTopExclusion}(undef, 0)
-    top_pwmcos = Vector{GenTopPWMcos}(undef, 0)
+    top_atoms         = Vector{GenTopAtom}(undef, 0)
+    top_bonds         = Vector{GenTopBond}(undef, 0)
+    top_angles        = Vector{GenTopAngle}(undef, 0)
+    top_dihedrals     = Vector{GenTopDihedral}(undef, 0)
+    top_pairs         = Vector{GenTopPair}(undef, 0)
+    top_exclusions    = Vector{GenTopExclusion}(undef, 0)
+    top_pwmcos        = Vector{GenTopPWMcos}(undef, 0)
+    top_idr_hps       = Vector{GenTopIDRHPS}(undef, 0)
 
-    function read_top_atoms(line::AbstractString)
+    function read_top_atoms(line::AbstractString, c_id::Int, s_name::AbstractString)
         words = split(line)
         a_indx = parse(Int, words[1])
         a_type = words[2]
@@ -632,7 +334,7 @@ function read_groitp(itp_filename::AbstractString)
         charge = parse(Float64, words[7])
         mass   = parse(Float64, words[8])
         new_atom = GenTopAtom(a_indx, a_type, r_indx, r_name,
-                              a_name, f_type, charge, mass)
+                              a_name, f_type, charge, mass, c_id, s_name)
         push!(top_atoms, new_atom)
     end
 
@@ -735,12 +437,33 @@ function read_groitp(itp_filename::AbstractString)
         push!(top_pwmcos, new_pwmcos)
     end
 
+    function read_top_idr_hps(line::AbstractString)
+        words   = split(line)
+        words   = split(line, r"\s*to\s*", keepempty =false)
+        i       = parse(Int, words[1])
+        j       = parse(Int, words[2])
+        new_idr = GenTopIDRHPS(i, j)
+        push!(top_idr_hps, new_idr)
+    end
+
 
     # ---------
     # main part
     # ---------
     section_name = ""
+    c_id_tmp = 0
+    s_name_tmp = ""
     for line in eachline(itp_filename)
+        if section_name == "atoms" && startswith(line, "; +INFO+")
+            words = split( line[10:end] )
+            if words[1] == "CHAIN:"
+                c_id_tmp = parse(Int, words[2])
+            end
+            if words[3] == "SEGNAME:" && length(words) > 3
+                s_name_tmp = words[4]
+            end
+        end
+
         sep  = findfirst(";", line)
         if sep != nothing
             line = strip(line[1 : sep[1] - 1])
@@ -766,7 +489,7 @@ function read_groitp(itp_filename::AbstractString)
             # read_expression = Meta.parse(read_function_name)
             # eval(read_expression)
             if section_name == "atoms"
-                read_top_atoms(line)
+                read_top_atoms(line, c_id_tmp, s_name_tmp)
             elseif section_name == "bonds"
                 read_top_bonds(line)
             elseif section_name == "angles"
@@ -779,6 +502,8 @@ function read_groitp(itp_filename::AbstractString)
                 read_top_exclusions(line)
             elseif section_name == "pwmcos"
                 read_top_pwmcos(line)
+            elseif section_name == "cg_IDR_HPS_region"
+                read_top_idr_hps(line)
             end
         end
     end
@@ -792,7 +517,8 @@ function read_groitp(itp_filename::AbstractString)
                                  top_dihedrals,
                                  top_pairs,
                                  top_exclusions,
-                                 top_pwmcos)
+                                 top_pwmcos,
+                                 top_idr_hps)
 
     return new_top_mol
 end
@@ -803,25 +529,26 @@ function read_grotop(top_filename::AbstractString)
     num_atom = 0
     mol_id   = 0
 
-    top_default_params = GenTopDefault(0, 0, false, 0.0, 0.0) 
-    top_default_atomtype = Vector{GenTopAtomType}(undef, 0)
-    top_default_CGDNA_bp = Vector{GenTopCGDNABasepairType}(undef, 0)
-    top_default_CGDNA_bs = Vector{GenTopCGDNABasestackType}(undef, 0)
-    top_default_CGDNA_cs = Vector{GenTopCGDNABasecrossType}(undef, 0)
-    top_default_CGDNA_exv = Vector{GenTopCGDNAExvType}(undef, 0)
-    top_default_CGPro_flx_angle = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
+    top_default_params             = GenTopDefault(0, 0, false, 0.0, 0.0) 
+    top_default_atomtype           = Vector{GenTopAtomType}(undef, 0)
+    top_default_CGDNA_bp           = Vector{GenTopCGDNABasepairType}(undef, 0)
+    top_default_CGDNA_bs           = Vector{GenTopCGDNABasestackType}(undef, 0)
+    top_default_CGDNA_cs           = Vector{GenTopCGDNABasecrossType}(undef, 0)
+    top_default_CGDNA_exv          = Vector{GenTopCGDNAExvType}(undef, 0)
+    top_default_CGPro_flx_angle    = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
     top_default_CGPro_flx_dihedral = Vector{GenTopCGProAICGFlexDihedralType}(undef, 0)
 
     global_index_2_local_index = Vector{Int}(undef, 0)
     global_index_2_local_molid = Vector{Int}(undef, 0)
-    top_atoms = Vector{GenTopAtom}(undef, 0)
-    top_bonds = Vector{GenTopBond}(undef, 0)
-    top_angles = Vector{GenTopAngle}(undef, 0)
-    top_dihedrals = Vector{GenTopDihedral}(undef, 0)
-    top_pairs = Vector{GenTopPair}(undef, 0)
-    top_exclusions = Vector{GenTopExclusion}(undef, 0)
-    top_pwmcos = Vector{GenTopPWMcos}(undef, 0)
-    top_mol_list = Vector{GenTopMolList}(undef, 0)
+    top_atoms                  = Vector{GenTopAtom}(undef, 0)
+    top_bonds                  = Vector{GenTopBond}(undef, 0)
+    top_angles                 = Vector{GenTopAngle}(undef, 0)
+    top_dihedrals              = Vector{GenTopDihedral}(undef, 0)
+    top_pairs                  = Vector{GenTopPair}(undef, 0)
+    top_exclusions             = Vector{GenTopExclusion}(undef, 0)
+    top_pwmcos                 = Vector{GenTopPWMcos}(undef, 0)
+    top_idr_hps                = Vector{GenTopIDRHPS}(undef, 0)
+    top_mol_list               = Vector{GenTopMolList}(undef, 0)
 
     section_name = ""
     mol_topologies = Dict()
@@ -938,6 +665,11 @@ function read_grotop(top_filename::AbstractString)
                                      t.gamma, t.eps)
                     push!(top_pwmcos, s)
                 end
+                for t in tmp_mol.top_idr_hps
+                    s = GenTopIDRHPS(t.istart + num_atom,
+                                     t.iend + num_atom)
+                    push!(top_idr_hps, s)
+                end
 
                 num_atom += tmp_mol.num_atom
             end
@@ -962,6 +694,7 @@ function read_grotop(top_filename::AbstractString)
                           top_pairs,
                           top_exclusions,
                           top_pwmcos,
+                          top_idr_hps,
                           top_mol_list)
 
     return new_top
@@ -978,43 +711,9 @@ end
 #                                                                             #
 ###############################################################################
 
-function write_cg_psf(top::CGTopology, system_name::AbstractString, args::Dict{String, Any}=Dict{String, Any}())
-
-    psf_name = system_name * "_cg.psf"
-    psf_file = open(psf_name, "w")
-
-    cg_num_particles = length(top.cg_resid_name)
-
-    @printf(psf_file, "PSF CMAP \n\n")
-    @printf(psf_file, "      3 !NTITLE \n")
-    @printf(psf_file, "REMARKS PSF file created with Julia. \n")
-    @printf(psf_file, "REMARKS System: %s  \n", system_name)
-    @printf(psf_file, "REMARKS ======================================== \n")
-    @printf(psf_file, "       \n")
-
-    psf_atom_line = " %6d %3s %5d %3s %3s %5s  %10.6f  %10.6f          0 \n"
-    chain_id_set = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
-
-    @printf(psf_file, " %6d !NATOM \n", cg_num_particles)
-    for i_bead in 1 : cg_num_particles
-        @printf(psf_file, " %6d %3s %5d %3s %3s %5s  %10.6f  %10.6f          0 \n",
-                i_bead,
-                chain_id_set[mod(top.cg_chain_id[i_bead], 63) + 1],
-                top.cg_resid_index[i_bead],
-                top.cg_resid_name[i_bead],
-                top.cg_bead_name[i_bead],
-                top.cg_bead_type[i_bead],
-                top.cg_bead_charge[i_bead],
-                top.cg_bead_mass[i_bead])
-    end
-    print(psf_file,"\n")
-
-    close(psf_file)
-    # println(">           ... .psf: DONE!")
-
-end
-
 function write_psf(top::GenTopology, sys_name::AbstractString="", args::Dict{String, Any}=Dict{String, Any}())
+
+    verbose = get(args, "verbose", false)
 
     if length(sys_name) > 0
         system_name = sys_name
@@ -1051,7 +750,9 @@ function write_psf(top::GenTopology, sys_name::AbstractString="", args::Dict{Str
     print(psf_file,"\n")
 
     close(psf_file)
-    # println(">           ... .psf: DONE!")
 
+    if verbose
+        println(">           ... .psf: DONE!")
+    end
 end
 
