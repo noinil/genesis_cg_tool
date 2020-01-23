@@ -131,6 +131,12 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
             @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef, d.w)
         elseif f == 22
             @printf(io, "%10d%10d%10d%10d%5d\n", d.i, d.j, d.k, d.l, f)
+        elseif f == 31
+            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, 0.0, d.n)
+        elseif f == 32
+            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef, d.n)
+        elseif f == 33
+            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef, d.n)
         end
     end
 

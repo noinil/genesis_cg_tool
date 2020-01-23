@@ -226,6 +226,11 @@ function parse_commandline()
         arg_type = Int
         default = 1
 
+        "--use-safe-dihedral"
+        help = "Safe dih potential: 0) do nothing (default); 1) remove dih w/ large angles; 2) sin(kθ) type; 3) sin^3(θ) type."
+        arg_type = Int
+        default = 0
+
         "--3spn-param"
         help = "Generate 3SPN.2C parameters from x3DNA generated PDB structure."
         action = :store_true

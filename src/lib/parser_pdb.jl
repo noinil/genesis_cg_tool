@@ -31,7 +31,7 @@ function parse_PDB_line(pdb_line::AbstractString)
         atom_serial = parse(Int, pdb_line[7:11])
     catch
         atom_serial = 0
-        println("WARNING! Error in reading atom serial in PDB!")
+        # println("WARNING! Error in reading atom serial in PDB!")
     end
     atom_name       = strip(pdb_line[13:16])
     residue_name    = strip(pdb_line[18:21])

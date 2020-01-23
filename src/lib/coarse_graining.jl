@@ -55,6 +55,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     do_debug                = get(args, "debug", false)
     do_output_log           = get(args, "log", false)
     do_test_local_only      = get(args, "test-local-only", false)
+
+    use_safe_dihedral       = get(args, "use-safe-dihedral", 0)
+
     gen_3spn_itp            = get(args, "3spn-param", false)
 
     ccgo_contact_scale      = get(args, "CCGO-contact-scale", 1.0)
@@ -713,7 +716,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     radius_of_circ2 = geo_radius_of_circumsphere[j_chain]
 
                     cent_cent_dist = compute_distance(centroid_chain1, centroid_chain2)
-                    if cent_cent_dist > radius_of_circ1 + radius_of_circ2 + CG_CONTACT_CUTOFF
+                    if cent_cent_dist > radius_of_circ1 + radius_of_circ2 + CG_MOL_CONTACT_CUTOFF
                         continue
                     end
 
@@ -721,7 +724,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_cai = cg_bead_coor[:, i_res]
 
                         cai_centj_dist = compute_distance(coor_cai, centroid_chain2)
-                        if cai_centj_dist > radius_of_circ2 + CG_CONTACT_CUTOFF
+                        if cai_centj_dist > radius_of_circ2 + CG_MOL_CONTACT_CUTOFF
                             continue
                         end
 
@@ -1450,7 +1453,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     radius_of_circ2 = geo_radius_of_circumsphere[j_chain]
 
                     cent_cent_dist = compute_distance(centroid_chain1, centroid_chain2)
-                    if cent_cent_dist > radius_of_circ1 + radius_of_circ2 + CG_CONTACT_CUTOFF
+                    if cent_cent_dist > radius_of_circ1 + radius_of_circ2 + CG_MOL_CONTACT_CUTOFF
                         continue
                     end
 
@@ -1461,7 +1464,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_i = cg_bead_coor[:, i_res]
 
                         coori_centj_dist = compute_distance(coor_i, centroid_chain2)
-                        if coori_centj_dist > radius_of_circ2 + CG_CONTACT_CUTOFF
+                        if coori_centj_dist > radius_of_circ2 + CG_MOL_CONTACT_CUTOFF
                             continue
                         end
 
@@ -1567,7 +1570,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 radius_of_circ_rna = geo_radius_of_circumsphere[j_chain]
 
                 cent_cent_dist = compute_distance(centroid_chain_pro, centroid_chain_rna)
-                if cent_cent_dist > radius_of_circ_pro + radius_of_circ_rna + CG_CONTACT_CUTOFF
+                if cent_cent_dist > radius_of_circ_pro + radius_of_circ_rna + CG_MOL_CONTACT_CUTOFF
                     continue
                 end
 
@@ -1575,7 +1578,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     coor_i = cg_bead_coor[:, i_res]
 
                     cai_centj_dist = compute_distance(coor_i, centroid_chain_rna)
-                    if cai_centj_dist > radius_of_circ_rna + CG_CONTACT_CUTOFF
+                    if cai_centj_dist > radius_of_circ_rna + CG_MOL_CONTACT_CUTOFF
                         continue
                     end
 
@@ -1825,7 +1828,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 radius_of_circ_dna = geo_radius_of_circumsphere[j_chain]
 
                 cent_cent_dist = compute_distance(centroid_chain_pro, centroid_chain_dna)
-                if cent_cent_dist > radius_of_circ_pro + radius_of_circ_dna + CG_CONTACT_CUTOFF
+                if cent_cent_dist > radius_of_circ_pro + radius_of_circ_dna + CG_MOL_CONTACT_CUTOFF
                     continue
                 end
 
@@ -1833,7 +1836,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     coor_i = cg_bead_coor[:, i_res]
 
                     cai_centj_dist = compute_distance(coor_i, centroid_chain_dna)
-                    if cai_centj_dist > radius_of_circ_dna + CG_CONTACT_CUTOFF
+                    if cai_centj_dist > radius_of_circ_dna + CG_MOL_CONTACT_CUTOFF
                         continue
                     end
 
@@ -1994,6 +1997,18 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # -------------
     # [ dihedrals ]
     # -------------
+    function is_dihedral_dangerous(dih::CGTopDihedral)
+        coor1 = cg_bead_coor[:, dih.i]
+        coor2 = cg_bead_coor[:, dih.j]
+        coor3 = cg_bead_coor[:, dih.k]
+        coor4 = cg_bead_coor[:, dih.l]
+        ang1 = compute_angle(coor1, coor2, coor3)
+        ang2 = compute_angle(coor2, coor3, coor4)
+        if ang1 > DIHEDRAL_SAFE_CUTOFF || ang2 > DIHEDRAL_SAFE_CUTOFF
+            return true
+        end
+        return false
+    end
     # AICG2+ dihedrals
     if ff_pro == FF_pro_AICG2p
         # AICG2+ Gaussian dihedrals
@@ -2021,12 +2036,22 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # Clementi Go dihedral
     elseif ff_pro == FF_pro_Clementi_Go
         for dih in top_cg_pro_dihedrals
-            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, CCGO_DIH_P_FUNC_TYPE,
+            if is_dihedral_dangerous(dih)
+                dih_func_type = DIHEDRAL_MOD_TYPE[use_safe_dihedral]
+            else
+                dih_func_type = CCGO_DIH_P_FUNC_TYPE
+            end
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type,
                                           dih.t0 - 180.0, CCGO_DIHE_K_1 * CAL2JOU, 0.0, 1)
             push!(top_dihedrals, new_dihedral)
         end
         for dih in top_cg_pro_dihedrals
-            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, CCGO_DIH_P_FUNC_TYPE,
+            if is_dihedral_dangerous(dih)
+                dih_func_type = DIHEDRAL_MOD_TYPE[use_safe_dihedral]
+            else
+                dih_func_type = CCGO_DIH_P_FUNC_TYPE
+            end
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type,
                                           3 * dih.t0 - 180.0, CCGO_DIHE_K_3 * CAL2JOU, 0.0, 3)
             push!(top_dihedrals, new_dihedral)
         end
@@ -2043,8 +2068,13 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
         # 3SPN.2C Periodic dihedrals
         for dih in top_cg_DNA_dih_periodic
+            if is_dihedral_dangerous(dih)
+                dih_func_type = DIHEDRAL_MOD_TYPE[use_safe_dihedral]
+            else
+                dih_func_type = DNA3SPN_DIH_P_FUNC_TYPE
+            end
             n_dih_tmp = DNA3SPN_DIH_P_FUNC_PERI
-            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, DNA3SPN_DIH_P_FUNC_TYPE,
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type,
                                           n_dih_tmp * dih.t0 - 180.0, DNA3SPN_DIH_P_K * CAL2JOU, 0.0, n_dih_tmp)
             push!(top_dihedrals, new_dihedral)
         end
@@ -2053,12 +2083,22 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # RNA structure-based Periodic dihedrals
     if ff_rna == FF_RNA_HT
         for ( i_dih, dih ) in enumerate( top_cg_RNA_dihedrals )
-            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, RNA_DIH_FUNC_TYPE,
+            if is_dihedral_dangerous(dih)
+                dih_func_type = DIHEDRAL_MOD_TYPE[use_safe_dihedral]
+            else
+                dih_func_type = RNA_DIH_FUNC_TYPE
+            end
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type,
                                           dih.t0 - 180.0, param_cg_RNA_k_dihedrals[i_dih] * CAL2JOU, 0.0, 1)
             push!(top_dihedrals, new_dihedral)
         end
         for ( i_dih, dih ) in enumerate( top_cg_RNA_dihedrals )
-            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, RNA_DIH_FUNC_TYPE,
+            if is_dihedral_dangerous(dih)
+                dih_func_type = DIHEDRAL_MOD_TYPE[use_safe_dihedral]
+            else
+                dih_func_type = RNA_DIH_FUNC_TYPE
+            end
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type,
                                           3 * dih.t0 - 180.0, param_cg_RNA_k_dihedrals[i_dih] / 2 * CAL2JOU, 0.0, 3)
             push!(top_dihedrals, new_dihedral)
         end

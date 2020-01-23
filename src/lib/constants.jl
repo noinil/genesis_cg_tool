@@ -299,7 +299,19 @@ MOL_TYPE_LIST = ("DNA", "RNA", "protein", "other", "unknown")
 # General thresholds, cutoffs
 # ===========================
 
-const CG_CONTACT_CUTOFF = 20.0
+const CG_MOL_CONTACT_CUTOFF = 20.0
+
+const DIHEDRAL_SAFE_CUTOFF = 150.0
+const DIHEDRAL_MOD_TYPE = Dict(
+    0 => 1,                     # use-dafe-dihedral = 0
+    1 => 31,                    # use-safe-dihedral = 1; remove dangerous dih
+    2 => 32,                    # use-safe-dihedral = 2; sin(kθ) type
+    3 => 33                     # use-safe-dihedral = 3; sin^3(θ) type
+)
+
+###############################################################################
+#                         Molecule specific parameters                        #
+###############################################################################
 
 # ====================================
 # Protein Clementi Go Model Parameters
