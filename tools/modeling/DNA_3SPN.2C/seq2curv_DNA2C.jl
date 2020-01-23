@@ -2,7 +2,6 @@
 
 using Printf
 using ArgParse
-using Formatting
 
 base_pair_parms = Dict(
     #         a-b,  shear, stretch, stagger, buckle, propeller, opening,  
@@ -85,9 +84,9 @@ function main()
 
     # prepare the output file:
     out_file = open("dna2c.curv", "w")
-    printfmt(out_file, "{:>4d} # bps \n", len_DNA)
-    printfmt(out_file, "   0 # local base-pairing and base-step parameters \n")
-    printfmt(out_file, "#        Shear    Stretch   Stagger   Buckle   Prop-Tw   Opening     Shift     Slide     Rise      Tilt      Roll      Twist\n")
+    @printf(out_file, "%4d # bps \n", len_DNA)
+    @printf(out_file, "   0 # local base-pairing and base-step parameters \n")
+    @printf(out_file, "#        Shear    Stretch   Stagger   Buckle   Prop-Tw   Opening     Shift     Slide     Rise      Tilt      Roll      Twist\n")
     parm_line = "{1}  {2:>9.3f} {3:>9.3f} {4:>9.3f} {5:>9.3f} {6:>9.3f} {7:>9.3f} {8:>9.3f} {9:>9.3f} {10:>9.3f} {11:>9.3f} {12:>9.3f} {13:>9.3f}\n"
 
     # parameter output loop
@@ -95,7 +94,7 @@ function main()
         bp_parm = base_pair_parms[b]
         base_step = i == 1 ? "00" : seq_DNA[i-1:i]
         bs_parm = base_step_parms[base_step]
-        printfmt(out_file, parm_line,
+        @printf(out_file, "%3s  %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f \n",
                  bp_parm[1],
                  bp_parm[2],
                  bp_parm[3],
