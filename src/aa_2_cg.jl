@@ -33,15 +33,15 @@ function aa_2_cg(args)
     # -----------------
     # Parsing arguments
     # -----------------
-    verbose            = args["verbose"]
-    pdb_name           = args["pdb"]
-    gen_pwmcos_itp     = args["pwmcos"]
-    do_output_psf      = args["psf"]
-    do_output_cgpdb    = args["cgpdb"]
-    do_output_sequence = args["show-sequence"]
-    ff_protein_name    = args["force-field-protein"]
-    ff_DNA_name        = args["force-field-DNA"]
-    ff_RNA_name        = args["force-field-RNA"]
+    verbose            = get(args, "verbose", false)
+    pdb_name           = get(args, "pdb", "")
+    gen_pwmcos_itp     = get(args, "pwmcos", false)
+    do_output_psf      = get(args, "psf", false)
+    do_output_cgpdb    = get(args, "cgpdb", false)
+    do_output_sequence = get(args, "show-sequence", false)
+    ff_protein_name    = get(args, "force-field-protein", "AICG2+")
+    ff_DNA_name        = get(args, "force-field-DNA", "3SPN.2C")
+    ff_RNA_name        = get(args, "force-field-RNA", "HT")
 
     # ---------------
     # Set force field
@@ -64,7 +64,7 @@ function aa_2_cg(args)
 
     if gen_pwmcos_itp
         ff_pro_dna = FF_PWMcos
-    elseif args["protein-DNA-Go"]
+    elseif get(args, "protein-DNA-Go", false)
         ff_pro_dna = FF_pro_DNA_Go
     else
         ff_pro_dna = FF_UNKNOWN
