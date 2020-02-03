@@ -43,22 +43,22 @@ end
 # Coarse-grained
 # ==============
 
-struct CGResidue
-    name::String
-    particles::Vector{Int64}
-end
+# struct CGResidue
+#     name::String
+#     particles::Vector{Int64}
+# end
 
-struct CGChain
-    id::Char
-    segname::String
-    moltype::Int
-    residues::Vector{Int64}
-end
+# struct CGChain
+#     id::Char
+#     segname::String
+#     moltype::Int
+#     residues::Vector{Int64}
+# end
 
-struct CGMolecule
-    particle_names::Vector{String}
-    particle_coors::Array{Float64, 2}
-    residues::Vector{CGResidue}
-    chains::Vector{CGChain}
-end
+# struct CGMolecule
+#     particle_names::Vector{String}
+#     particle_coors::Array{Float64, 2}
+#     residues::Vector{CGResidue}
+#     chains::Vector{CGChain}
+# end
 

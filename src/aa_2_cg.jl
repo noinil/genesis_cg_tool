@@ -98,7 +98,7 @@ function aa_2_cg(args)
         println("> Open PDB file:")
     end
 
-    aa_molecule = read_aaPDB(pdb_name)
+    aa_molecule = read_PDB(pdb_name)
 
     aa_num_atom    = length(aa_molecule.atom_names)
     aa_num_residue = length(aa_molecule.residues)

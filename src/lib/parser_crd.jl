@@ -10,44 +10,6 @@
 
 using Printf
 
-function write_cg_grocrd(cgmol::CGMolecule, system_name::AbstractString, args::Dict{String, Any}=Dict{String, Any}())
-
-    verbose  = get(args, "verbose", false)
-
-    gro_name = system_name * ".gro"
-    gro_file = open(gro_name, "w")
-
-    cg_num_particles = length( cgmol.particle_names )
-
-    @printf(gro_file, "CG model %s, t = %16.3f \n", system_name, 0)
-    @printf(gro_file, "%12d \n", cg_num_particles)
-
-    i_count = 0
-    for c in cgmol.chains
-        for ( i, r ) in enumerate( c.residues )
-            res = cgmol.residues[r]
-            for p in res.particles
-                @printf(gro_file, "%5d%5s%5s%5d %8.4f %8.4f %8.4f %8.4f %8.4f %8.4f \n",
-                        i + i_count, res.name, cgmol.particle_names[p], p,
-                        cgmol.particle_coors[1, p] * 0.1,
-                        cgmol.particle_coors[2, p] * 0.1,
-                        cgmol.particle_coors[3, p] * 0.1,
-                        0.0, 0.0, 0.0)
-            end
-        end
-        i_count += length(c.residues)
-    end
-
-    @printf(gro_file, "%15.4f%15.4f%15.4f \n\n", 0.0, 0.0, 0.0)
-
-    close(gro_file)
-
-    if verbose
-        println(">           ... .gro: DONE!")
-    end
-
-end
-
 function write_grocrd(top::GenTopology, conf::Conformation, sys_name::AbstractString="", args::Dict{String, Any}=Dict{String, Any}())
 
     verbose  = get(args, "verbose", false)
@@ -57,6 +19,7 @@ function write_grocrd(top::GenTopology, conf::Conformation, sys_name::AbstractSt
     else
         system_name = top.system_name
     end
+
     gro_name = system_name * ".gro"
     gro_file = open(gro_name, "w")
 

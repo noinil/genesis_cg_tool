@@ -91,7 +91,7 @@ end
 # Read PDB!!!
 # ===========
 
-function read_aaPDB(pdb_name::AbstractString)
+function read_PDB(pdb_name::AbstractString)
     aa_pdb_lines = []
 
     # =================================
@@ -219,129 +219,6 @@ function read_aaPDB(pdb_name::AbstractString)
     end
 
     new_molecule = AAMolecule(aa_atom_name, aa_coor, aa_residues, aa_chains)
-
-    return new_molecule
-
-end
-
-function read_cgPDB(pdb_name::AbstractString)
-    cg_pdb_lines = []
-
-    # =====================
-    # Read in all PDB lines
-    # =====================
-    cg_num_particle = 0
-    for line in eachline(pdb_name)
-        if startswith(line, "ATOM")
-            push!(cg_pdb_lines, rpad(line, 80))
-            cg_num_particle += 1
-        elseif startswith(line, "TER") || startswith(line, "END")
-            push!(cg_pdb_lines, line)
-        end
-    end
-
-    # ==========================
-    # Data structures for output
-    # ==========================
-
-    cg_particle_names = fill("    ",       cg_num_particle)
-    cg_coors          = zeros(Float64, (3, cg_num_particle))
-    cg_residues       = []
-    cg_chains         = []
-
-    # ---------------
-    # Local variables
-    # ---------------
-
-    i_particle        = 0
-    i_resid           = 0
-    curr_resid        = NaN
-    curr_chain        = NaN
-    curr_rname        = "    "
-    residue_name      = "    "
-    chain_id          = '?'
-    tmp_res_particles = []
-    tmp_chain_res     = []
-    segment_id        = " "
- 
-    # ============================================
-    # Step 2: Add particles to residues and chains
-    # ============================================
-
-    for line in cg_pdb_lines
-        if startswith(line, "TER") || startswith(line, "END")
-            if length(tmp_res_particles) > 0
-                push!(cg_residues, CGResidue(residue_name, tmp_res_particles))
-                tmp_res_particles = []
-            end
-            if length(tmp_chain_res) > 0
-
-                # -------------------------------
-                # Determine chain molecule type  
-                # -------------------------------
-                mol_type = -1
-                for i_res in tmp_chain_res
-                    res_name = cg_residues[i_res].name
-                    tmp_mol_type = MOL_OTHER
-                    if in(res_name, RES_NAME_LIST_PROTEIN)
-                        tmp_mol_type = MOL_PROTEIN
-                    elseif in(res_name, RES_NAME_LIST_DNA)
-                        tmp_mol_type = MOL_DNA
-                    elseif in(res_name, RES_NAME_LIST_RNA)
-                        tmp_mol_type = MOL_RNA
-                    end
-                    if mol_type == -1
-                        mol_type = tmp_mol_type
-                    elseif tmp_mol_type != mol_type
-                        errmsg = @sprintf("BUG: Inconsistent residue types in chain ID - %s residue - %d : %s ",
-                                          chain_id,
-                                          i_res,
-                                          res_name)
-                        error(errmsg)
-                    end
-                end
-                # --------------------------------------
-                # chain mol type determination ends here
-                # --------------------------------------
-
-                push!(cg_chains, CGChain(chain_id, segment_id, mol_type, tmp_chain_res))
-                tmp_chain_res = []
-            end
-            continue
-        end
-
-        new_pdb_data = parse_PDB_line(line)
-
-        i_particle    += 1
-        particle_name  = new_pdb_data.atom_name
-        residue_name   = new_pdb_data.residue_name
-        chain_id       = new_pdb_data.chain_id
-        residue_serial = new_pdb_data.residue_serial
-        coor_x         = new_pdb_data.coor_x
-        coor_y         = new_pdb_data.coor_y
-        coor_z         = new_pdb_data.coor_z
-        segment_id     = new_pdb_data.segment_id
-
-        cg_particle_names[i_particle] = particle_name
-        cg_coors[1, i_particle]       = coor_x
-        cg_coors[2, i_particle]       = coor_y
-        cg_coors[3, i_particle]       = coor_z
-
-        if residue_serial != curr_resid
-            i_resid += 1
-            push!(tmp_chain_res, i_resid)
-            if length(tmp_res_particles) > 0
-                push!(cg_residues, CGResidue(curr_rname, tmp_res_particles))
-                tmp_res_particles = []
-            end
-            curr_resid = residue_serial
-            curr_rname = residue_name
-        end
-
-        push!(tmp_res_particles, i_particle)
-    end
-
-    new_molecule = CGMolecule(cg_particle_names, cg_coors, cg_residues, cg_chains)
 
     return new_molecule
 
