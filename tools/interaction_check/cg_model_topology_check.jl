@@ -28,44 +28,54 @@ function main(args)
     # -----------
     # bond length
     # -----------
-    println("======================================================================")
+    println("====================================================================================================")
     for bond in mytop.top_bonds
         if bond.r0 < 0.3
-            @printf("Dangerous bond length < 3.0 Å: %10d %3s %10d %3s > %6.3f \n",
+            @printf("Short bond length (< 3.0Å): %10d %3s %10d %3s - %6.3fÅ \n",
                     bond.i, mytop.top_atoms[bond.i].atom_type,
                     bond.j, mytop.top_atoms[bond.j].atom_type,
-                    bond.r0)
+                    bond.r0 * 10)
         end
     end
 
     # -----
     # angle
     # -----
-    println("======================================================================")
+    println("====================================================================================================")
     for angle in mytop.top_angles
-        if angle.function_type != 22 && angle.a0 > 165.0
-            @printf("Dangerous angle close to π: %10d %3s %10d %3s %10d %3s > %6.3f \n",
+        if angle.function_type < 20 && angle.a0 > 165.0
+            @printf("Large angle (close to π): %10d %3s %10d %3s %10d %3s - %6.3f° \n",
                     angle.i, mytop.top_atoms[angle.i].atom_type,
                     angle.j, mytop.top_atoms[angle.j].atom_type,
                     angle.k, mytop.top_atoms[angle.k].atom_type,
                     angle.a0)
+        elseif angle.function_type == 21 && angle.a0 > 0.75
+            coor_i = mycrd.coors[:, angle.i]
+            coor_j = mycrd.coors[:, angle.j]
+            coor_k = mycrd.coors[:, angle.k]
+            ang = compute_angle(coor_i, coor_j, coor_k)
+            @printf("Large angle (close to π): %10d %3s %10d %3s %10d %3s - %6.3f° \n",
+                    angle.i, mytop.top_atoms[angle.i].atom_type,
+                    angle.j, mytop.top_atoms[angle.j].atom_type,
+                    angle.k, mytop.top_atoms[angle.k].atom_type,
+                    ang)
         end
     end
 
     # ---------------
     # native contacts
     # ---------------
-    println("======================================================================")
+    println("====================================================================================================")
     for contact in mytop.top_pairs
         if contact.r0 < 0.4
-            @printf("Dangerous contact r0 < 4.0 Å: %10d %3s %10d %3s > %6.3f \n",
+            @printf("Short contact (< 4.0Å): %10d %3s %10d %3s - %6.3fÅ \n",
                     contact.i, mytop.top_atoms[contact.i].atom_type,
                     contact.j, mytop.top_atoms[contact.j].atom_type,
-                    contact.r0)
+                    contact.r0 * 10)
         end
     end
 
-    println("======================================================================")
+    println("====================================================================================================")
 end
 
 # =============================
