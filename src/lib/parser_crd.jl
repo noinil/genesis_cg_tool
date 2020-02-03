@@ -49,3 +49,28 @@ function write_grocrd(top::GenTopology, conf::Conformation, sys_name::AbstractSt
 
 end
 
+
+function read_grocrd(grocrd_name::AbstractString)
+
+    grocrd_lines = []
+    for line in eachline(grocrd_name)
+        push!(grocrd_lines, line)
+    end
+
+    num_particle = parse(Int, grocrd_lines[2])
+    coors = zeros(Float64, (3, num_particle))
+    for i in 1:num_particle
+        words = split(grocrd_lines[i + 2][21:end])
+        x = parse(Float64, words[1])
+        y = parse(Float64, words[2])
+        z = parse(Float64, words[3])
+        coors[1, i] = x
+        coors[2, i] = y
+        coors[3, i] = z
+    end
+    conf = Conformation(num_particle, coors)
+
+    return conf
+
+end
+

@@ -166,7 +166,7 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
 
 
     ###########################################################################
-    #                        Beging writing to file...                        #
+    #                        Begin  writing to file...                        #
     ###########################################################################
 
     # ----------------
@@ -361,6 +361,9 @@ function read_groitp(itp_filename::AbstractString)
         j      = parse(Int, words[2])
         k      = parse(Int, words[3])
         f_type = parse(Int, words[4])
+        eq     = 0.0
+        coef   = 0.0
+        w      = 0.0
         if f_type == 1
             eq   = parse(Float64, words[5])
             coef = parse(Float64, words[6])
@@ -385,6 +388,10 @@ function read_groitp(itp_filename::AbstractString)
         k      = parse(Int, words[3])
         l      = parse(Int, words[4])
         f_type = parse(Int, words[5])
+        eq     = 0.0
+        coef   = 0.0
+        w      = 0.0
+        n      = 0
         if f_type == 1
             eq   = parse(Float64, words[6])
             coef = parse(Float64, words[7])
