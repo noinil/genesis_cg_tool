@@ -235,7 +235,7 @@ function write_pdb(top::GenTopology, conf::Conformation, system_name::AbstractSt
     pdb_name        = system_name * ".pdb"
     pdb_file        = open(pdb_name, "w")
 
-    do_output_cgconect = get(args, "cgconect", false)
+    do_output_cgconnect = get(args, "cgconnect", false)
 
     num_particles   = conf.num_particle
     is_huge_system  = num_particles > 9999
@@ -279,7 +279,7 @@ function write_pdb(top::GenTopology, conf::Conformation, system_name::AbstractSt
     print(pdb_file,"TER\n")
 
     cg_pdb_cnct_line = "CONECT%5d%5d \n"
-    if do_output_cgconect
+    if do_output_cgconnect
         for bond in top.top_bonds
             @printf(pdb_file, "CONECT%5d%5d \n", bond.i, bond.j)
         end

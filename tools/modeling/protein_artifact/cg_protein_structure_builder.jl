@@ -212,7 +212,7 @@ function make_cg_protein_structure(args)
     # ===============================
     force_field = ForceFieldCG(ff_pro, 1, 1, 0, 0, 0)
     args["modeling-options"] = Dict("IDR" => Dict("HPS_region" => "1 to $protein_length"))
-    args["cgconect"] = true
+    args["cgconnect"] = true
 
     cg_top0, cg_conf0 = coarse_graining(new_mol0, force_field, args)
     cg_tops, cg_confs = coarse_graining(new_mols, force_field, args)

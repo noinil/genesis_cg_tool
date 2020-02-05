@@ -261,7 +261,7 @@ function parse_commandline()
         help = "Prepare CG PDB file."
         action = :store_true
 
-        "--cgconect"
+        "--cgconnect"
         help = "Prepare CG PDB file with CONECTed bonds."
         action = :store_true
 
