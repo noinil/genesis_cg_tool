@@ -407,6 +407,11 @@ function read_groitp(itp_filename::AbstractString)
             coef = 0.0
             w    = 0.0
             n    = 0
+        elseif f_type == 31 || f_type == 32 || f_type == 33
+            eq   = parse(Float64, words[6])
+            coef = parse(Float64, words[7]) * JOU2CAL
+            w    = 0.0
+            n    = parse(Int, words[8])
         end
         new_dihedral = GenTopDihedral(i, j, k, l, f_type, eq, coef, w, n)
         push!(top_dihedrals, new_dihedral)
