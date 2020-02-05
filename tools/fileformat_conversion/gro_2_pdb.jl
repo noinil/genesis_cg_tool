@@ -3,6 +3,7 @@
 using Printf
 using ArgParse
 
+include("../../src/lib/constants.jl")
 include("../../src/lib/topology.jl")
 include("../../src/lib/conformation.jl")
 include("../../src/lib/parser_top.jl")
