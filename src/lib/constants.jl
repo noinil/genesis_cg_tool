@@ -401,7 +401,7 @@ AICG_PAIRWISE_ENERGY[AICG_ITYPE_OFFST] = - 0.1051   # offset
 # ============================
 
 # 3SPN.2C bond force constant
-const DNA3SPN_BOND_K_2    = 60.0 * JOU2CAL
+const DNA3SPN_BOND_K_2    = 0.6 * JOU2CAL
 # 3SPN.2C force constant for Gaussian dihedral
 const DNA3SPN_DIH_G_K     = 7.0 * JOU2CAL
 # 3SPN.2C sigma for Gaussian dihedral

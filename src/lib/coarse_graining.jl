@@ -1917,13 +1917,13 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # AICG2+ bonds
     if ff_pro == FF_pro_AICG2p
         for bond in top_cg_pro_bonds
-            new_bond = GenTopBond(bond.i, bond.j, AICG_BOND_FUNC_TYPE, bond.r0 * 0.1, AICG_BOND_K * 100.0 * 2.0 * CAL2JOU)
+            new_bond = GenTopBond(bond.i, bond.j, AICG_BOND_FUNC_TYPE, bond.r0, AICG_BOND_K)
             push!(top_bonds, new_bond)
         end
     # Clementi Go bonds
     elseif ff_pro == FF_pro_Clementi_Go
         for bond in top_cg_pro_bonds
-            new_bond = GenTopBond(bond.i, bond.j, CCGO_BOND_FUNC_TYPE, bond.r0 * 0.1, CCGO_BOND_K * 100.0 * 2.0 * CAL2JOU)
+            new_bond = GenTopBond(bond.i, bond.j, CCGO_BOND_FUNC_TYPE, bond.r0, CCGO_BOND_K)
             push!(top_bonds, new_bond)
         end
     end
@@ -1931,7 +1931,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # 3SPN.2C bonds
     if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp
         for bond in top_cg_DNA_bonds
-            new_bond = GenTopBond(bond.i, bond.j, DNA3SPN_BOND_FUNC4_TYPE, bond.r0 * 0.1, DNA3SPN_BOND_K_2 * 2.0 * CAL2JOU)
+            new_bond = GenTopBond(bond.i, bond.j, DNA3SPN_BOND_FUNC4_TYPE, bond.r0, DNA3SPN_BOND_K_2)
             push!(top_bonds, new_bond)
         end
     end
@@ -1939,7 +1939,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # Structure-based RNA bonds
     if ff_rna == FF_RNA_HT
         for ( i_bond, bond ) in enumerate( top_cg_RNA_bonds )
-            new_bond = GenTopBond(bond.i, bond.j, RNA_BOND_FUNC_TYPE, bond.r0 * 0.1, param_cg_RNA_k_bonds[i_bond] * 100.0 * 2.0 * CAL2JOU)
+            new_bond = GenTopBond(bond.i, bond.j, RNA_BOND_FUNC_TYPE, bond.r0, param_cg_RNA_k_bonds[i_bond])
             push!(top_bonds, new_bond)
         end
     end
@@ -1956,7 +1956,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     in(a13.i, HPS_IDR_region) || in(a13.j, HPS_IDR_region) || in(a13.k, HPS_IDR_region)
                     continue
                 end
-                new_angle = GenTopAngle(a13.i, a13.j, a13.k, AICG_ANG_G_FUNC_TYPE, a13.a0 * 0.1, param_cg_pro_e_13[i_13] * CAL2JOU, AICG_13_SIGMA * 0.1)
+                new_angle = GenTopAngle(a13.i, a13.j, a13.k, AICG_ANG_G_FUNC_TYPE, a13.a0, param_cg_pro_e_13[i_13], AICG_13_SIGMA)
                 push!(top_angles, new_angle)
             end
         end
@@ -1973,7 +1973,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # Clementi Go angles
     elseif ff_pro == FF_pro_Clementi_Go
         for ang in top_cg_pro_angles
-            new_angle = GenTopAngle(ang.i, ang.j, ang.k, CCGO_ANG_FUNC_TYPE, ang.a0, CCGO_ANGL_K * 2.0 * CAL2JOU, 0.0)
+            new_angle = GenTopAngle(ang.i, ang.j, ang.k, CCGO_ANG_FUNC_TYPE, ang.a0, CCGO_ANGL_K, 0.0)
             push!(top_angles, new_angle)
         end
     end
@@ -1981,7 +1981,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # 3SPN.2C angles
     if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp
         for ( i_ang, ang ) in enumerate( top_cg_DNA_angles )
-            new_angle = GenTopAngle(ang.i, ang.j, ang.k, DNA3SPN_ANG_FUNC_TYPE, ang.a0, param_cg_DNA_k_angles[i_ang] * 2.0 * CAL2JOU, 0.0)
+            new_angle = GenTopAngle(ang.i, ang.j, ang.k, DNA3SPN_ANG_FUNC_TYPE, ang.a0, param_cg_DNA_k_angles[i_ang], 0.0)
             push!(top_angles, new_angle)
         end
     end
@@ -1989,7 +1989,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # RNA structure-based angles
     if ff_rna == FF_RNA_HT
         for ( i_ang, ang ) in enumerate( top_cg_RNA_angles )
-            new_angle = GenTopAngle(ang.i, ang.j, ang.k, RNA_ANG_FUNC_TYPE, ang.a0, param_cg_RNA_k_angles[i_ang] * 2.0 * CAL2JOU, 0.0)
+            new_angle = GenTopAngle(ang.i, ang.j, ang.k, RNA_ANG_FUNC_TYPE, ang.a0, param_cg_RNA_k_angles[i_ang], 0.0)
             push!(top_angles, new_angle)
         end
     end
@@ -2021,7 +2021,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 continue
             end
             new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, AICG_DIH_G_FUNC_TYPE,
-                                          dih.t0, param_cg_pro_e_14[i_dih] * CAL2JOU, AICG_14_SIGMA, 0)
+                                          dih.t0, param_cg_pro_e_14[i_dih], AICG_14_SIGMA, 0)
             push!(top_dihedrals, new_dihedral)
         end
         # AICG2+ flexible dihedrals
@@ -2042,7 +2042,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 dih_func_type = CCGO_DIH_P_FUNC_TYPE
             end
             new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type,
-                                          dih.t0 - 180.0, CCGO_DIHE_K_1 * CAL2JOU, 0.0, 1)
+                                          dih.t0 - 180.0, CCGO_DIHE_K_1, 0.0, 1)
             push!(top_dihedrals, new_dihedral)
         end
         for dih in top_cg_pro_dihedrals
@@ -2052,7 +2052,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 dih_func_type = CCGO_DIH_P_FUNC_TYPE
             end
             new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type,
-                                          3 * dih.t0 - 180.0, CCGO_DIHE_K_3 * CAL2JOU, 0.0, 3)
+                                          3 * dih.t0 - 180.0, CCGO_DIHE_K_3, 0.0, 3)
             push!(top_dihedrals, new_dihedral)
         end
     end
@@ -2062,7 +2062,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         # 3SPN.2C Gaussian dihedrals
         for dih in top_cg_DNA_dih_Gaussian
             new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, DNA3SPN_DIH_G_FUNC_TYPE,
-                                          dih.t0, DNA3SPN_DIH_G_K * CAL2JOU, DNA3SPN_DIH_G_SIGMA, 0)
+                                          dih.t0, DNA3SPN_DIH_G_K, DNA3SPN_DIH_G_SIGMA, 0)
             push!(top_dihedrals, new_dihedral)
         end
 
@@ -2075,7 +2075,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             end
             n_dih_tmp = DNA3SPN_DIH_P_FUNC_PERI
             new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type,
-                                          n_dih_tmp * dih.t0 - 180.0, DNA3SPN_DIH_P_K * CAL2JOU, 0.0, n_dih_tmp)
+                                          n_dih_tmp * dih.t0 - 180.0, DNA3SPN_DIH_P_K, 0.0, n_dih_tmp)
             push!(top_dihedrals, new_dihedral)
         end
     end
@@ -2089,7 +2089,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 dih_func_type = RNA_DIH_FUNC_TYPE
             end
             new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type,
-                                          dih.t0 - 180.0, param_cg_RNA_k_dihedrals[i_dih] * CAL2JOU, 0.0, 1)
+                                          dih.t0 - 180.0, param_cg_RNA_k_dihedrals[i_dih], 0.0, 1)
             push!(top_dihedrals, new_dihedral)
         end
         for ( i_dih, dih ) in enumerate( top_cg_RNA_dihedrals )
@@ -2099,7 +2099,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 dih_func_type = RNA_DIH_FUNC_TYPE
             end
             new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type,
-                                          3 * dih.t0 - 180.0, param_cg_RNA_k_dihedrals[i_dih] / 2 * CAL2JOU, 0.0, 3)
+                                          3 * dih.t0 - 180.0, param_cg_RNA_k_dihedrals[i_dih] / 2, 0.0, 3)
             push!(top_dihedrals, new_dihedral)
         end
     end
@@ -2115,13 +2115,13 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 in(c.i, HPS_IDR_region) || in(c.j, HPS_IDR_region)
                 continue
             end
-            new_pair = GenTopPair(c.i, c.j, AICG_CONTACT_FUNC_TYPE, c.r0 * 0.1, param_cg_pro_e_contact[i_c] * CAL2JOU)
+            new_pair = GenTopPair(c.i, c.j, AICG_CONTACT_FUNC_TYPE, c.r0, param_cg_pro_e_contact[i_c])
             push!(top_pairs, new_pair)
         end
     # Clementi Go native contacts
     elseif ff_pro == FF_pro_Clementi_Go
         for c in top_cg_pro_go_contact
-            new_pair = GenTopPair(c.i, c.j, CCGO_CONTACT_FUNC_TYPE, c.r0 * 0.1, CCGO_NATIVE_EPSILON * ccgo_contact_scale * CAL2JOU)
+            new_pair = GenTopPair(c.i, c.j, CCGO_CONTACT_FUNC_TYPE, c.r0, CCGO_NATIVE_EPSILON * ccgo_contact_scale)
             push!(top_pairs, new_pair)
         end
     end
@@ -2129,15 +2129,15 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # RNA HT-type native contacts
     if ff_rna == FF_RNA_HT
         for (i_c, c) in enumerate(top_cg_RNA_base_stack)
-            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0 * 0.1, param_cg_RNA_e_base_stack[i_c] * CAL2JOU)
+            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0, param_cg_RNA_e_base_stack[i_c])
             push!(top_pairs, new_pair)
         end
         for (i_c, c) in enumerate(top_cg_RNA_base_pair)
-            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0 * 0.1, param_cg_RNA_e_base_pair[i_c] * CAL2JOU)
+            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0, param_cg_RNA_e_base_pair[i_c])
             push!(top_pairs, new_pair)
         end
         for (i_c, c) in enumerate(top_cg_RNA_other_contact)
-            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0 * 0.1, param_cg_RNA_e_other_contact[i_c] * CAL2JOU)
+            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0, param_cg_RNA_e_other_contact[i_c])
             push!(top_pairs, new_pair)
         end
     end
@@ -2145,7 +2145,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # protein-RNA native contacts
     if ff_pro_rna == FF_pro_RNA_Go
         for (i_c, c) in enumerate(top_cg_pro_RNA_contact)
-            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0 * 0.1, param_cg_pro_RNA_e_contact[i_c] * CAL2JOU)
+            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0, param_cg_pro_RNA_e_contact[i_c])
             push!(top_pairs, new_pair)
         end
     end
@@ -2154,7 +2154,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # protein-DNA native contacts
     if ff_pro_dna == FF_pro_DNA_Go
         for c in top_cg_pro_DNA_contact
-            new_pair = GenTopPair(c.i, c.j, CCGO_CONTACT_FUNC_TYPE, c.r0 * 0.1, CCGO_NATIVE_EPSILON * ccgo_contact_scale * CAL2JOU)
+            new_pair = GenTopPair(c.i, c.j, CCGO_CONTACT_FUNC_TYPE, c.r0, CCGO_NATIVE_EPSILON * ccgo_contact_scale)
             push!(top_pairs, new_pair)
         end
     end
@@ -2212,7 +2212,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # [ pwmcos ]
     # ----------
     for p in top_cg_pro_DNA_pwmcos
-        new_pwmcos = GenTopPWMcos(p.i, PWMCOS_FUNC_TYPE, p.r0 * 0.1, p.t1, p.t2, p.t3,
+        new_pwmcos = GenTopPWMcos(p.i, PWMCOS_FUNC_TYPE, p.r0, p.t1, p.t2, p.t3,
                                   p.eA, p.eC, p.eG, p.eT, pwmcos_gamma, pwmcos_epsil)
         push!(top_pwmcos, new_pwmcos)
     end

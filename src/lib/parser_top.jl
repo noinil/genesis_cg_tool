@@ -99,7 +99,7 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     wr_itp_bnd_head(io::IO) = print(io, "[ bonds ]\n")
     wr_itp_bnd_comm(io::IO) = @printf(io, ";%9s%10s%5s%18s%18s\n", "i", "j", "f", "eq", "coef")
     function wr_itp_bnd_line(io::IO, b::GenTopBond)
-        @printf(io, "%10d%10d%5d%18.4E%18.4E\n", b.i, b.j, b.function_type, b.r0, b.coef)
+        @printf(io, "%10d%10d%5d%18.4E%18.4E\n", b.i, b.j, b.function_type, b.r0 * 0.1, b.coef * CAL2JOU * 100.0 * 2.0)
     end
 
     # ----------
@@ -110,9 +110,9 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     function wr_itp_ang_line(io::IO, a::GenTopAngle)
         f = a.function_type
         if f == 1
-            @printf(io, "%10d%10d%10d%5d%15.4E%15.4E\n", a.i, a.j, a.k, f, a.a0, a.coef)
+            @printf(io, "%10d%10d%10d%5d%15.4E%15.4E\n", a.i, a.j, a.k, f, a.a0, a.coef * 2.0 * CAL2JOU)
         elseif f == 21
-            @printf(io, "%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", a.i, a.j, a.k, f, a.a0, a.coef, a.w)
+            @printf(io, "%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", a.i, a.j, a.k, f, a.a0 * 0.1, a.coef * CAL2JOU, a.w * 0.1)
         elseif f == 22
             @printf(io, "%10d%10d%10d%5d\n", a.i, a.j, a.k, f)
         end
@@ -126,17 +126,17 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     function wr_itp_dih_line(io::IO, d::GenTopDihedral)
         f = d.function_type
         if f == 1
-            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef, d.n)
+            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef * CAL2JOU, d.n)
         elseif f == 21
-            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef, d.w)
+            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef * CAL2JOU, d.w)
         elseif f == 22
             @printf(io, "%10d%10d%10d%10d%5d\n", d.i, d.j, d.k, d.l, f)
         elseif f == 31
             @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, 0.0, d.n)
         elseif f == 32
-            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef, d.n)
+            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef * CAL2JOU, d.n)
         elseif f == 33
-            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef, d.n)
+            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef * CAL2JOU, d.n)
         end
     end
 
@@ -146,7 +146,7 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     wr_itp_pair_head(io::IO) = @printf(io, "[ pairs ]\n")
     wr_itp_pair_comm(io::IO) = @printf(io, ";%9s%10s%10s%15s%15s\n", "i", "j", "f", "eq", "coef")
     function wr_itp_pair_line(io::IO, c::GenTopPair)
-        @printf(io, "%10d%10d%10d%15.4E%15.4E\n", c.i, c.j, c.function_type, c.r0, c.coef)
+        @printf(io, "%10d%10d%10d%15.4E%15.4E\n", c.i, c.j, c.function_type, c.r0 * 0.1, c.coef * CAL2JOU)
     end
 
     # -------------
@@ -299,7 +299,7 @@ function write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args
     for p in top.top_pwmcos
         @printf(itp_pwmcos_file,
                 "%6d %3d %8.5f %8.3f %8.3f %8.3f%12.6f%12.6f%12.6f%12.6f%8.3f%8.3f \n",
-                p.i, p.function_type, p.r0, p.theta1, p.theta2, p.theta3,
+                p.i, p.function_type, p.r0 * 0.1, p.theta1, p.theta2, p.theta3,
                 p.ene_A, p.ene_C, p.ene_G, p.ene_T, p.gamma, p.eps)
     end
     print(itp_pwmcos_file, "\n")
@@ -349,8 +349,8 @@ function read_groitp(itp_filename::AbstractString)
         i      = parse(Int, words[1])
         j      = parse(Int, words[2])
         f_type = parse(Int, words[3])
-        r0     = parse(Float64, words[4])
-        coef   = parse(Float64, words[5])
+        r0     = parse(Float64, words[4]) * 10.0
+        coef   = parse(Float64, words[5]) * 0.005 * JOU2CAL
         new_bond = GenTopBond(i, j, f_type, r0, coef)
         push!(top_bonds, new_bond)
     end
@@ -366,12 +366,12 @@ function read_groitp(itp_filename::AbstractString)
         w      = 0.0
         if f_type == 1
             eq   = parse(Float64, words[5])
-            coef = parse(Float64, words[6])
+            coef = parse(Float64, words[6]) * 0.5 * JOU2CAL
             w    = 0.0
         elseif f_type == 21
-            eq   = parse(Float64, words[5])
-            coef = parse(Float64, words[6])
-            w    = parse(Float64, words[7])
+            eq   = parse(Float64, words[5]) * 10.0
+            coef = parse(Float64, words[6]) * JOU2CAL
+            w    = parse(Float64, words[7]) * 10.0
         elseif f_type == 22
             eq   = 0.0
             coef = 0.0
@@ -394,12 +394,12 @@ function read_groitp(itp_filename::AbstractString)
         n      = 0
         if f_type == 1
             eq   = parse(Float64, words[6])
-            coef = parse(Float64, words[7])
+            coef = parse(Float64, words[7]) * JOU2CAL
             w    = 0.0
             n    = parse(Int, words[8])
         elseif f_type == 21
             eq   = parse(Float64, words[6])
-            coef = parse(Float64, words[7])
+            coef = parse(Float64, words[7]) * JOU2CAL
             w    = parse(Float64, words[8])
             n    = 0
         elseif f_type == 22
@@ -417,8 +417,8 @@ function read_groitp(itp_filename::AbstractString)
         i      = parse(Int, words[1])
         j      = parse(Int, words[2])
         f_type = parse(Int, words[3])
-        r0     = parse(Float64, words[4])
-        coef   = parse(Float64, words[5])
+        r0     = parse(Float64, words[4]) * 10.0
+        coef   = parse(Float64, words[5]) * JOU2CAL
         new_pair = GenTopPair(i, j, f_type, r0, coef)
         push!(top_pairs, new_pair)
     end
@@ -435,7 +435,7 @@ function read_groitp(itp_filename::AbstractString)
         words  = split(line)
         i      = parse(Int, words[1])
         f_type = parse(Int, words[2])
-        r0 = parse(Float64, words[3])
+        r0 = parse(Float64, words[3]) * 10.0
         t1 = parse(Float64, words[4])
         t2 = parse(Float64, words[5])
         t3 = parse(Float64, words[6])

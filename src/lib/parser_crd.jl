@@ -61,9 +61,9 @@ function read_grocrd(grocrd_name::AbstractString)
     coors = zeros(Float64, (3, num_particle))
     for i in 1:num_particle
         words = split(grocrd_lines[i + 2][21:end])
-        x = parse(Float64, words[1])
-        y = parse(Float64, words[2])
-        z = parse(Float64, words[3])
+        x = parse(Float64, words[1]) * 10.0
+        y = parse(Float64, words[2]) * 10.0
+        z = parse(Float64, words[3]) * 10.0
         coors[1, i] = x
         coors[2, i] = y
         coors[3, i] = z
