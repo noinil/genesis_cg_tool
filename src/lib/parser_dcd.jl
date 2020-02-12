@@ -9,7 +9,7 @@
 
 using Printf
                    
-function read_dcd(dcd_filename::String, args::Dict{String, Any}=Dict{String, Any}())
+function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, <:Any}())
 
     verbose  = get(args, "verbose", false)
 

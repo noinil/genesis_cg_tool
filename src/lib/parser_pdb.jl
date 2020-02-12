@@ -228,7 +228,7 @@ end
 # =============
 # Output CG PDB
 # =============
-function write_pdb(top::GenTopology, conf::Conformation, system_name::AbstractString, args::Dict{String, Any})
+function write_pdb(top::GenTopology, conf::Conformation, system_name::AbstractString, args::Dict{String, <:Any})
 
     verbose = get(args, "verbose", false)
 

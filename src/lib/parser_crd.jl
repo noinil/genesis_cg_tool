@@ -10,7 +10,7 @@
 
 using Printf
 
-function write_grocrd(top::GenTopology, conf::Conformation, sys_name::AbstractString="", args::Dict{String, Any}=Dict{String, Any}())
+function write_grocrd(top::GenTopology, conf::Conformation, sys_name::AbstractString="", args::Dict{String, <:Any}=Dict{String, <:Any}())
 
     verbose  = get(args, "verbose", false)
 

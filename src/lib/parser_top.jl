@@ -20,7 +20,7 @@
 
 using Printf
 
-function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{String, Any}=Dict{String, Any}())
+function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{String, <:Any}=Dict{String, <:Any}())
 
     verbose  = get(args, "verbose", false)
 
@@ -274,7 +274,7 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
 end
 
 
-function write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args::Dict{String, Any}=Dict{String, Any}())
+function write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args::Dict{String, <:Any}=Dict{String, <:Any}())
 
     verbose = get(args, "verbose", false)
     appendto_filename = get(args, "patch", "")
@@ -731,7 +731,7 @@ end
 #                                                                             #
 ###############################################################################
 
-function write_psf(top::GenTopology, sys_name::AbstractString="", args::Dict{String, Any}=Dict{String, Any}())
+function write_psf(top::GenTopology, sys_name::AbstractString="", args::Dict{String, <:Any}=Dict{String, <:Any}())
 
     verbose = get(args, "verbose", false)
 
