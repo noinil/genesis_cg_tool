@@ -9,12 +9,16 @@
 
 using Printf
                    
-function read_dcd(dcd_filename::String)
+function read_dcd(dcd_filename::String, args::Dict{String, Any}=Dict{String, Any}())
+
+    verbose  = get(args, "verbose", false)
 
     dcd_file = open(dcd_filename, "r")
 
-    println("============================================================")
-    println("> Open DCD file: ", dcd_filename)
+    if verbose
+        println("============================================================")
+        println("> Open DCD file: ", dcd_filename)
+    end
 
     # ========================
     # Read in head information
@@ -89,22 +93,26 @@ function read_dcd(dcd_filename::String)
     # Brief output of DCD info
     # ========================
 
-    println("> DCD information:")
-    println("  > File type           : $(file_type)")
-    println("  --------------------------------------------------")
-    println("  > Number of particles : $(n_particles)")
-    println("  > Boundary codition   : $(bc_type)")
-    println("  --------------------------------------------------")
-    println("  > Number of frames    : $(n_frames)")
-    println("    > First MD step       : $(n_ts_first)")
-    println("    > Total MD steps      : $(n_ts_all)")
-    println("    > Output interval     : $(n_ts_interval)")
+    if verbose
+        println("> DCD information:")
+        println("  > File type           : $(file_type)")
+        println("  --------------------------------------------------")
+        println("  > Number of particles : $(n_particles)")
+        println("  > Boundary codition   : $(bc_type)")
+        println("  --------------------------------------------------")
+        println("  > Number of frames    : $(n_frames)")
+        println("    > First MD step       : $(n_ts_first)")
+        println("    > Total MD steps      : $(n_ts_all)")
+        println("    > Output interval     : $(n_ts_interval)")
 
-    println("============================================================")
-    println("> DCD information:")
+        println("============================================================")
+        println("> DCD information:")
+    end
 
-    for line in dcd_doc_lines
-        println("  > ", replace(line, "REMARKS " => ""))
+    if verbose
+        for line in dcd_doc_lines
+            println("  > ", replace(line, "REMARKS " => ""))
+        end
     end
 
     # ======================
@@ -150,10 +158,12 @@ function read_dcd(dcd_filename::String)
         end
     end
 
-    println("------------------------------------------------------------")
-    println(">[1;32m FINISH[0m reading the DCD file. Have fun!")
-    println("============================================================")
-    println("         ")
+    if verbose
+        println("------------------------------------------------------------")
+        println(">[1;32m FINISH[0m reading the DCD file. Have fun!")
+        println("============================================================")
+        println("         ")
+    end
 
     close(dcd_file)
 

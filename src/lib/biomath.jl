@@ -4,6 +4,23 @@
 
 using LinearAlgebra
 
+# ======================
+# Mathematical Structure
+# ======================
+
+struct Quaternion
+    w::Float64
+    x::Float64
+    y::Float64
+    z::Float64
+end
+
+struct GeoTransformation
+    rotation::Array{<:Real, 2}
+    translation::Array{<:Real, 2}
+end
+
+
 # ===================
 # Geometric Functions
 # ===================
@@ -54,6 +71,134 @@ function compute_dihedral(coor1::Vector{<:Real}, coor2::Vector{<:Real}, coor3::V
     return dih
 end
 
+# ---------
+# Centeroid
+# ---------
+
+function centeroid(coors::Array{<:Real, 2})
+    num_coor = size(coors, 2)
+    coor_centroid = zeros(Float64, 3)
+    for i_bead in 1 : num_coor
+        coor_centroid .+= coors[:, i_bead]
+    end
+    coor_centroid ./= num_coor
+    return coor_centroid
+end
+
+# ------------------
+# Radius of gyration
+# ------------------
+
+function radius_of_gyration(coors::Array{<:Real, 2})
+    num_coor = size(coors, 2)
+    coor_centroid = zeros(Float64, 3)
+    for i_bead in 1 : num_coor
+        coor_centroid .+= coors[:, i_bead]
+    end
+    coor_centroid ./= num_coor
+
+    dist_sq_sum = 0
+    for i_bead in 1 : num_coor
+        v = coors[:, i_bead] - coor_centroid
+        dist_sq_sum += v' * v
+    end
+    rg = sqrt(dist_sq_sum / num_coor)
+end
+
+# ---------------
+# Superimposition
+# ---------------
+
+"""
+    compute_superimposition_transformation(coors_group_1, coors_group_2)
+
+Find out the transformation (rotation + translation) to superimpose Group 1 onto Group 2.
+
+# Arguments
+- `coors_group_1`: Group of particles to be moved;
+- `coors_group_2`: Group of particles used as target.
+"""
+function compute_superimposition_transformation(coors_group_1::Array{<:Real, 2}, coors_group_2::Array{<:Real, 2})
+    coor_size = size(coors_group_1)[2]
+
+    if coor_size != size(coors_group_2)[2]
+        error("Can not perform superimposition for conformations with different size.")
+    end
+
+    # Step 1: scaling group 2 to group 3 to math group 1
+    measure_group_1 = 0
+    measure_group_2 = 0
+    for i in 1:coor_size - 1
+        measure_group_1 += norm(coors_group_1[:, i] - coors_group_1[:, i + 1])
+        measure_group_2 += norm(coors_group_2[:, i] - coors_group_2[:, i + 1])
+    end
+    measure_scale = measure_group_1 / measure_group_2
+    coors_group_3 = coors_group_2 .* measure_scale
+
+    # println(" Debuging... measure_scale=", measure_scale)
+
+    # Step 2: compute centeroids
+    # 
+    coor_centroid_1 = sum(coors_group_1, dims=2) .* (1 / coor_size)
+    coor_centroid_3 = sum(coors_group_3, dims=2) .* (1 / coor_size)
+    # println(" Debuging... centroid shift=", coor_centroid_3 - coor_centroid_1)
+
+    # Step 3: shift coordinates to centeroid
+    # 
+    coors_shift_1 = coors_group_1 .- coor_centroid_1
+    coors_shift_3 = coors_group_3 .- coor_centroid_3
+
+    # SVD
+    #
+    s = svd(coors_shift_1 * coors_shift_3')
+
+    # rotation
+    # 
+    d = det(s.V * s.U') < 0.0 ? -1.0 : 1.0
+    m = diagm([1, 1, d])
+    rotation_matrix = s.V * m * s.U'
+    # println(" Debuging... rotation=", rotation_matrix)
+
+    # translation
+    #
+    translation_matrix = ( coor_centroid_3 ./ measure_scale ) - ( rotation_matrix * coor_centroid_1 )
+    # println(" Debuging... translation=", translation_matrix)
+
+    # final RMSD fit
+    # 
+    fit = GeoTransformation(rotation_matrix, translation_matrix)
+
+    return fit
+end
+
+function apply_transformation(t::GeoTransformation, coors_group_old::Array{<:Real, 2})
+    coors_group_new = t.rotation * coors_group_old .+ t.translation
+
+    return coors_group_new
+end
+
+# ------------
+# Compute RMSD
+# ------------
+
+function compute_rmsd(coors_group_1::Array{<:Real, 2}, coors_group_2::Array{<:Real, 2})
+    coor_size = size(coors_group_1)[2]
+
+    if coor_size != size(coors_group_2)[2]
+        error("Can not perform superimposition for conformations with different size.")
+    end
+
+    # -----------------------
+    # perform superimposition
+    # -----------------------
+    fit = compute_superimposition_transformation(coors_group_1, coors_group_2)
+    coors_group_3 = apply_transformation(fit, coors_group_1)
+
+    d = sum((coors_group_2 - coors_group_3).^2)
+    rmsd = sqrt(d / coor_size)
+
+    return rmsd
+end
 
 
 # ===================
@@ -74,32 +219,7 @@ function compute_center_of_mass(atom_indices::Vector{Int}, atom_names::Vector{St
         tmp_coor   += a_coor * a_mass
     end
     com = tmp_coor / total_mass
+
     return com
-end
-
-function centeroid(coors::Array{<:Real, 2})
-    num_coor = size(coors, 2)
-    coor_centroid = zeros(Float64, 3)
-    for i_bead in 1 : num_coor
-        coor_centroid .+= coors[:, i_bead]
-    end
-    coor_centroid ./= num_coor
-    return coor_centroid
-end
-
-function radius_of_gyration(coors::Array{<:Real, 2})
-    num_coor = size(coors, 2)
-    coor_centroid = zeros(Float64, 3)
-    for i_bead in 1 : num_coor
-        coor_centroid .+= coors[:, i_bead]
-    end
-    coor_centroid ./= num_coor
-
-    dist_sq_sum = 0
-    for i_bead in 1 : num_coor
-        v = coors[:, i_bead] - coor_centroid
-        dist_sq_sum += v' * v
-    end
-    rg = sqrt(dist_sq_sum / num_coor)
 end
 
