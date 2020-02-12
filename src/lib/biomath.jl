@@ -135,13 +135,10 @@ function compute_superimposition_transformation(coors_group_1::Array{<:Real, 2},
     measure_scale = measure_group_1 / measure_group_2
     coors_group_3 = coors_group_2 .* measure_scale
 
-    # println(" Debuging... measure_scale=", measure_scale)
-
     # Step 2: compute centeroids
     # 
     coor_centroid_1 = sum(coors_group_1, dims=2) .* (1 / coor_size)
     coor_centroid_3 = sum(coors_group_3, dims=2) .* (1 / coor_size)
-    # println(" Debuging... centroid shift=", coor_centroid_3 - coor_centroid_1)
 
     # Step 3: shift coordinates to centeroid
     # 
@@ -157,12 +154,10 @@ function compute_superimposition_transformation(coors_group_1::Array{<:Real, 2},
     d = det(s.V * s.U') < 0.0 ? -1.0 : 1.0
     m = diagm([1, 1, d])
     rotation_matrix = s.V * m * s.U'
-    # println(" Debuging... rotation=", rotation_matrix)
 
     # translation
     #
     translation_matrix = ( coor_centroid_3 ./ measure_scale ) - ( rotation_matrix * coor_centroid_1 )
-    # println(" Debuging... translation=", translation_matrix)
 
     # final RMSD fit
     # 
