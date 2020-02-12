@@ -6,6 +6,19 @@
 # CG nativeness
 # =============
 
+"""
+    compute_nativeness(t, c, args)
+
+# Arguments
+- t: GenTopology
+- c: Conformation
+- args: other arguments
+
+## Contact type
+- 1: cannonical contact type: when r < r0 * cutoff contact is formed
+- 2: (1/N) * \sum (1 / (1 + exp(\beta * (r - r0 * cutoff))))
+    (Robert B. Best et al. PNAS 2013)
+"""
 function compute_nativeness(t::GenTopology, c::Conformation, args::Dict{String, <:Any}=Dict{String, Any}())
     verbose = get(args, "verbose", false)
     q_type  = get(args, "type", 1)
