@@ -6,7 +6,7 @@
 # CG nativeness
 # =============
 
-function compute_nativeness(t::GenTopology, c::Conformation, args::Dict{String, <:Any}=Dict{String, <:Any}())
+function compute_nativeness(t::GenTopology, c::Conformation, args::Dict{String, <:Any}=Dict{String, Any}())
     verbose = get(args, "verbose", false)
     q_type  = get(args, "type", 1)
     cutoff  = get(args, "cutoff", 1.2)
