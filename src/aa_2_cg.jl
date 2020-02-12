@@ -23,7 +23,7 @@ include("./lib/molecule.jl")
 include("./lib/topology.jl")
 include("./lib/selection.jl")
 include("./lib/conformation.jl")
-include("./lib/interactions.jl")
+include("./lib/coarse_graining_subroutines.jl")
 include("./lib/parsers.jl")
 include("./lib/coarse_graining.jl")
 
