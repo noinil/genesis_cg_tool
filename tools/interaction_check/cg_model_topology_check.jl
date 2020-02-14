@@ -3,6 +3,7 @@
 using Printf
 using ArgParse
 
+include("../../src/lib/constants.jl")
 include("../../src/lib/biomath.jl")
 include("../../src/lib/topology.jl")
 include("../../src/lib/conformation.jl")
@@ -43,13 +44,13 @@ function main(args)
     # -----
     println("====================================================================================================")
     for angle in mytop.top_angles
-        if angle.function_type < 20 && angle.a0 > 165.0
-            @printf("Large angle (close to π): %10d %3s %10d %3s %10d %3s - %6.3f° \n",
+        if angle.function_type < 20 && ! ( 15.0 < angle.a0 < 165.0 )
+            @printf("Large angle (close to 0 or π): %10d %3s %10d %3s %10d %3s - %6.3f° \n",
                     angle.i, mytop.top_atoms[angle.i].atom_type,
                     angle.j, mytop.top_atoms[angle.j].atom_type,
                     angle.k, mytop.top_atoms[angle.k].atom_type,
                     angle.a0)
-        elseif angle.function_type == 21 && angle.a0 > 0.75
+        elseif angle.function_type == 21 && ! (0.0129 < angle.a0 > 0.7471)
             coor_i = mycrd.coors[:, angle.i]
             coor_j = mycrd.coors[:, angle.j]
             coor_k = mycrd.coors[:, angle.k]
