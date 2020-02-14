@@ -88,7 +88,10 @@ function aa_2_cg(args)
     #                              Core Functions                             #
     ###########################################################################
 
-    mol_name = pdb_name[1:end-4] * "_cg"
+    mol_name = get(args, "output-name", "")
+    if length(mol_name) == 0
+        mol_name = pdb_name[1:end-4] * "_cg"
+    end
 
     # --------
     # Read PDB
@@ -286,6 +289,11 @@ function parse_commandline()
         "--show-sequence"
         help = "Show sequence of molecules in PDB."
         action = :store_true
+
+        "--output-name"
+        help = "Specify the system name for output."
+        arg_type = String
+        default = ""
 
         "--verbose", "-v"
         help = "Output more information."
