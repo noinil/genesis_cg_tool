@@ -1973,6 +1973,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # Clementi Go angles
     elseif ff_pro == FF_pro_Clementi_Go
         for ang in top_cg_pro_angles
+            if  in(ang.i, HPS_IDR_region) || in(ang.j, HPS_IDR_region) || in(ang.k, HPS_IDR_region)
+                continue
+            end
             new_angle = GenTopAngle(ang.i, ang.j, ang.k, CCGO_ANG_FUNC_TYPE, ang.a0, CCGO_ANGL_K, 0.0)
             push!(top_angles, new_angle)
         end
@@ -2036,6 +2039,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # Clementi Go dihedral
     elseif ff_pro == FF_pro_Clementi_Go
         for dih in top_cg_pro_dihedrals
+            if  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
+                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region)
+                continue
+            end
             if is_dihedral_dangerous(dih)
                 dih_func_type = DIHEDRAL_MOD_TYPE[use_safe_dihedral]
             else
@@ -2046,6 +2053,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             push!(top_dihedrals, new_dihedral)
         end
         for dih in top_cg_pro_dihedrals
+            if  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
+                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region)
+                continue
+            end
             if is_dihedral_dangerous(dih)
                 dih_func_type = DIHEDRAL_MOD_TYPE[use_safe_dihedral]
             else
