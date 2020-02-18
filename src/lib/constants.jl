@@ -32,6 +32,7 @@ const FF_RNA_HT          = 1
 # protein-DNA
 const FF_PWMcos          = 1
 const FF_pro_DNA_Go      = 2
+const FF_PWMcos_ns       = 3
 # protein-RNA
 const FF_pro_RNA_Go      = 1
 # unknown
@@ -521,5 +522,6 @@ const RNA_CONTACT_FUNC_TYPE   = 2
 const RNP_CONTACT_FUNC_TYPE   = 2
 # "f" in protein-DNA PWMcos "[pwmcos]"
 const PWMCOS_FUNC_TYPE        = 1
+const PWMCOS_NS_FUNC_TYPE     = 2
 
 

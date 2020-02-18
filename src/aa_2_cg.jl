@@ -36,6 +36,7 @@ function aa_2_cg(args)
     verbose            = get(args, "verbose", false)
     pdb_name           = get(args, "pdb", "")
     gen_pwmcos_itp     = get(args, "pwmcos", false)
+    gen_pwmcos_ns_itp  = get(args, "pwmcos-ns", false)
     do_output_psf      = get(args, "psf", false)
     do_output_cgpdb    = get(args, "cgpdb", false)
     do_output_sequence = get(args, "show-sequence", false)
@@ -64,6 +65,8 @@ function aa_2_cg(args)
 
     if gen_pwmcos_itp
         ff_pro_dna = FF_PWMcos
+    elseif gen_pwmcos_ns_itp
+        ff_pro_dna = FF_PWMcos_ns
     elseif get(args, "protein-DNA-Go", false)
         ff_pro_dna = FF_pro_DNA_Go
     else
@@ -255,6 +258,10 @@ function parse_commandline()
         help = "Energy shifting factor for PWMcos."
         arg_type = Float64
         default = 0.0
+
+        "--pwmcos-ns"
+        help = "Generate parameters for protein-DNA sequence-NON-specific interactions."
+        action = :store_true
 
         "--psf"
         help = "Prepare PSF file."

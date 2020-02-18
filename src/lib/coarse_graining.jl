@@ -320,6 +320,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # protein-DNA
     top_cg_pro_DNA_pwmcos    = Vector{CGTopPWMcos}(undef, 0)
     top_cg_pro_DNA_contact   = Vector{CGTopContact}(undef, 0)
+    top_pwmcos_ns_native_contacts = []
 
     # protein-RNA
     top_cg_pro_RNA_contact   = Vector{CGTopContact}(undef, 0)
@@ -1781,6 +1782,100 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         end
     end
 
+
+    # ============================================================
+    # PWMcos parameters: protein-DNA sequence-specific interaction
+    # ============================================================
+    #    ______        ____  __
+    #   |  _ \ \      / /  \/  | ___ ___  ___       _ __  ___
+    #   | |_) \ \ /\ / /| |\/| |/ __/ _ \/ __|_____| '_ \/ __|
+    #   |  __/ \ V  V / | |  | | (_| (_) \__ \_____| | | \__ \
+    #   |_|     \_/\_/  |_|  |_|\___\___/|___/     |_| |_|___/
+    # 
+    # ============================================================
+    if ff_pro_dna == FF_PWMcos_ns
+
+        if num_chain_pro == 0
+            error("Cannot generate PWMcos parameters without protein...")
+        end
+
+        i_step += 1
+        if verbose
+            println("============================================================")
+            println("> Step $(i_step): Generating PWMcos-ns parameters.")
+        end
+
+        # ------------------------------------------------
+        #        Step 7.1: determine protein-DNA contacts
+        # ------------------------------------------------
+        if verbose
+            println("------------------------------------------------------------")
+            println(">      $(i_step).1: determine contacts between CA and DP.")
+        end
+
+        for i_chain in 1:aa_num_chain
+            chain_pro = cg_chains[i_chain]
+
+            if chain_pro.moltype != MOL_PROTEIN
+                continue
+            end
+
+            for i_res in chain_pro.first : chain_pro.last
+                i_res_N = i_res == chain_pro.first ? i_res : i_res - 1
+                i_res_C = i_res == chain_pro.last  ? i_res : i_res + 1
+
+                coor_pro_i = cg_bead_coor[:, i_res]
+                coor_pro_N = cg_bead_coor[:, i_res_N]
+                coor_pro_C = cg_bead_coor[:, i_res_C]
+
+                for j_chain in 1:aa_num_chain
+                    chain_DNA = cg_chains[j_chain]
+
+                    if chain_DNA.moltype != MOL_DNA
+                        continue
+                    end
+
+                    for j_res in chain_DNA.first + 2 : chain_DNA.last - 2
+                        if cg_bead_name[j_res] != "DP"
+                            continue
+                        end
+                        if !is_PWMcos_contact(cg_residues[i_res].atoms, cg_residues[j_res].atoms, aa_atom_name, aa_coor)
+                            continue
+                        end
+
+                        coor_dna_j       = cg_bead_coor[:, j_res]
+                        coor_dna_S       = cg_bead_coor[:, j_res + 1]
+
+                        vec0   = coor_pro_i - coor_dna_j
+                        vec1   = coor_dna_S - coor_dna_j
+                        vec3   = coor_pro_N - coor_pro_C
+                        r0     = norm(vec0)
+                        theta1 = compute_vec_angle(vec0, vec1)
+                        theta3 = compute_vec_angle(vec0, vec3)
+
+                        push!(top_pwmcos_ns_native_contacts, (i_res - chain_pro.first + 1,
+                                                              r0,
+                                                              theta1,
+                                                              theta3))
+
+                        if do_debug
+                            println("PWMcos | pro ===> ", i_res - chain_pro.first + 1,
+                                    " DNA ===> ", j_res, " : ", cg_resid_index[j_res],
+                                    " r0 = ", r0,
+                                    " theta1 = ", theta1,
+                                    " theta3 = ", theta3)
+                        end
+                    end
+                end
+            end
+        end
+
+        if verbose
+            println(">           ... DONE!")
+        end
+    end
+
+
     # ============================================================
     # Protein-DNA structure-based Go-like interaction
     # ============================================================
@@ -2225,6 +2320,12 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     for p in top_cg_pro_DNA_pwmcos
         new_pwmcos = GenTopPWMcos(p.i, PWMCOS_FUNC_TYPE, p.r0, p.t1, p.t2, p.t3,
                                   p.eA, p.eC, p.eG, p.eT, pwmcos_gamma, pwmcos_epsil)
+        push!(top_pwmcos, new_pwmcos)
+    end
+
+    for p in top_pwmcos_ns_native_contacts
+        new_pwmcos = GenTopPWMcos(p[1], PWMCOS_NS_FUNC_TYPE, p[2], p[3], 0.0, p[4],
+                                  0.0, 0.0, 0.0, 0.0, -1.0, 0.0)
         push!(top_pwmcos, new_pwmcos)
     end
 

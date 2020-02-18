@@ -297,10 +297,17 @@ function write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args
     print(itp_pwmcos_file, itp_pwmcos_head)
     print(itp_pwmcos_file, itp_pwmcos_comm)
     for p in top.top_pwmcos
-        @printf(itp_pwmcos_file,
-                "%6d %3d %8.5f %8.3f %8.3f %8.3f%12.6f%12.6f%12.6f%12.6f%8.3f%8.3f \n",
-                p.i, p.function_type, p.r0 * 0.1, p.theta1, p.theta2, p.theta3,
-                p.ene_A, p.ene_C, p.ene_G, p.ene_T, p.gamma, p.eps)
+        if p.function_type == 1
+            @printf(itp_pwmcos_file,
+                    "%6d %3d %8.5f %8.3f %8.3f %8.3f%12.6f%12.6f%12.6f%12.6f%8.3f%8.3f \n",
+                    p.i, p.function_type, p.r0 * 0.1, p.theta1, p.theta2, p.theta3,
+                    p.ene_A, p.ene_C, p.ene_G, p.ene_T, p.gamma, p.eps)
+        elseif p.function_type == 2
+            @printf(itp_pwmcos_file,
+                    "%6d %3d %8.5f %8.3f %8.3f %8.3f \n",
+                    p.i, p.function_type, p.r0 * 0.1, p.theta1, p.theta3,
+                    p.gamma)
+        end
     end
     print(itp_pwmcos_file, "\n")
 
