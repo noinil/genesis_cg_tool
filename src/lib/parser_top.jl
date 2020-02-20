@@ -125,18 +125,14 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     wr_itp_dih_comm(io::IO) = @printf(io, ";%9s%10s%10s%10s%5s%15s%15s%15s\n", "i", "j", "k", "l", "f", "eq", "coef", "w/n")
     function wr_itp_dih_line(io::IO, d::GenTopDihedral)
         f = d.function_type
-        if f == 1
+        if f == 1 || f == 32 || f == 33
             @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef * CAL2JOU, d.n)
-        elseif f == 21
+        elseif f == 21 || f == 41 || f == 43
             @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef * CAL2JOU, d.w)
         elseif f == 22
             @printf(io, "%10d%10d%10d%10d%5d\n", d.i, d.j, d.k, d.l, f)
         elseif f == 31
             @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, 0.0, d.n)
-        elseif f == 32
-            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef * CAL2JOU, d.n)
-        elseif f == 33
-            @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef * CAL2JOU, d.n)
         end
     end
 
