@@ -71,11 +71,11 @@ function compute_dihedral(coor1::Vector{<:Real}, coor2::Vector{<:Real}, coor3::V
     return dih
 end
 
-# ---------
-# Centeroid
-# ---------
+# --------
+# Centroid
+# --------
 
-function centeroid(coors::Array{<:Real, 2})
+function centroid(coors::Array{<:Real, 2})
     num_coor = size(coors, 2)
     coor_centroid = zeros(Float64, 3)
     for i_bead in 1 : num_coor
@@ -135,12 +135,12 @@ function compute_superimposition_transformation(coors_group_1::Array{<:Real, 2},
     measure_scale = measure_group_1 / measure_group_2
     coors_group_3 = coors_group_2 .* measure_scale
 
-    # Step 2: compute centeroids
+    # Step 2: compute centroids
     # 
     coor_centroid_1 = sum(coors_group_1, dims=2) .* (1 / coor_size)
     coor_centroid_3 = sum(coors_group_3, dims=2) .* (1 / coor_size)
 
-    # Step 3: shift coordinates to centeroid
+    # Step 3: shift coordinates to centroid
     # 
     coors_shift_1 = coors_group_1 .- coor_centroid_1
     coors_shift_3 = coors_group_3 .- coor_centroid_3

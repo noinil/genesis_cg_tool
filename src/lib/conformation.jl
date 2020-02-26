@@ -7,7 +7,7 @@ struct Conformation
     coors::Array{Float64, 2}
 end
 
-function centeroid(c::Conformation)
+function centroid(c::Conformation)
     coor_centroid = zeros(Float64, 3)
     for i_bead in 1 : c.num_particle
         coor_centroid .+= c.coor[:, i_bead]
