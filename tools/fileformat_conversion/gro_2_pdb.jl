@@ -34,7 +34,7 @@ function main(args)
     else
         system_name = pdb_filename[1:end-4]
     end
-    args["cgconnect"] = true
+    args["cgconnect"] = false
     write_pdb(mytop, mycrd, system_name, args)
 
     if verbose
