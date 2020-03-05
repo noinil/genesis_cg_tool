@@ -245,27 +245,23 @@ function write_pdb(top::GenTopology, conf::Conformation, system_name::AbstractSt
     tmp_chain_head     = 0
     for i_bead in 1 : num_particles
         i_chain = top.top_atoms[i_bead].chain_id
-        if i_chain > tmp_chain_id
+        if i_chain != tmp_chain_id
             if tmp_chain_id > 0
                 print(pdb_file, "TER\n")
             end
             tmp_chain_id = i_chain
             tmp_chain_head = top.top_atoms[i_bead].residue_index
         end
-        if is_huge_system
-            resid_index_tmp = top.top_atoms[i_bead].residue_index - tmp_chain_head + 1
-        else
-            resid_index_tmp = top.top_atoms[i_bead].residue_index
-        end
+        resid_index_tmp = top.top_atoms[i_bead].residue_index
 
         @printf(pdb_file,
                 "ATOM  %5d %4s%1s%4s%1s%4d%1s   %8.3f%8.3f%8.3f%6.2f%6.2f%10s%2s%2s \n",
-                i_bead,
+                i_bead % 100000,
                 top.top_atoms[i_bead].atom_name,
                 ' ',
                 rpad( top.top_atoms[i_bead].residue_name, 4 ),
                 chain_id_set[mod(i_chain, 63) + 1],
-                resid_index_tmp,
+                resid_index_tmp % 10000,
                 ' ',
                 conf.coors[1 , i_bead],
                 conf.coors[2 , i_bead],
