@@ -584,7 +584,11 @@ function read_grotop(top_filename::AbstractString)
             continue
         end
 
-        top_dirname = dirname(top_filename) * "/"
+        if dirname(top_filename) == ""
+            top_dirname = "./"
+        else
+            top_dirname = dirname(top_filename) * "/"
+        end
         if startswith(line, "#include")
             mol_file_name = strip(line[9:end], ['\"', '\'', ' '])
             mol_file_basename = basename(mol_file_name)
