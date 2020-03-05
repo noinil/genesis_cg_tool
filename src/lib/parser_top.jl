@@ -638,7 +638,7 @@ function read_grotop(top_filename::AbstractString)
                                    t.charge,
                                    t.mass,
                                    t.chain_id,
-                                   t.seg_name)
+                                   t.seg_name * "M$i")
                     push!(top_atoms, s)
                     push!(global_index_2_local_index, t.atom_index)
                     push!(global_index_2_local_molid, mol_id)
