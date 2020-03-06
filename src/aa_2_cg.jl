@@ -239,7 +239,8 @@ function parse_commandline()
 
         "--3spn-param"
         help = "Generate 3SPN.2C parameters from x3DNA generated PDB structure."
-        action = :store_true
+        arg_type = Int
+        default = 0
 
         "--protein-DNA-Go"
         help = "Generate parameters for protein-DNA Go-like contact interactions."

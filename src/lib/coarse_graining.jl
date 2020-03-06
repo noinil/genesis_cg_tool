@@ -58,7 +58,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
     use_safe_dihedral       = get(args, "use-safe-dihedral", 0)
 
-    gen_3spn_itp            = get(args, "3spn-param", false)
+    gen_3spn_itp            = get(args, "3spn-param", 0)
 
     ccgo_contact_scale      = get(args, "CCGO-contact-scale", 1.0)
     aicg_scale_scheme       = get(args, "aicg-scale", 1)
@@ -2024,7 +2024,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     end
 
     # 3SPN.2C bonds
-    if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp
+    if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp > 0
         for bond in top_cg_DNA_bonds
             new_bond = GenTopBond(bond.i, bond.j, DNA3SPN_BOND_FUNC4_TYPE, bond.r0, DNA3SPN_BOND_K_2)
             push!(top_bonds, new_bond)
@@ -2077,7 +2077,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     end
 
     # 3SPN.2C angles
-    if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp
+    if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp > 0
         for ( i_ang, ang ) in enumerate( top_cg_DNA_angles )
             new_angle = GenTopAngle(ang.i, ang.j, ang.k, DNA3SPN_ANG_FUNC_TYPE, ang.a0, param_cg_DNA_k_angles[i_ang], 0.0)
             push!(top_angles, new_angle)
@@ -2169,7 +2169,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     end
 
     # 3SPN.2C dihedrals
-    if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp
+    if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp > 0
         # 3SPN.2C Gaussian dihedrals
         for dih in top_cg_DNA_dih_Gaussian
             if is_dihedral_dangerous(dih)
