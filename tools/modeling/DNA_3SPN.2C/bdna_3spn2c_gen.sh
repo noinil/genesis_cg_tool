@@ -27,6 +27,6 @@ rm -f dna2c.curv
 echo "--------------------------------------------------------------------------------"
 echo "Making GROMACS itp files for GENESIS..."
 $DNA3SPNGRO_BIN_PATH/tools/modeling/DNA_3SPN.2C/x3dna_pdb_prune.jl ${1%.*}_x3dna.pdb
-$DNA3SPNGRO_BIN_PATH/src/aa_2_cg.jl ${1%.*}_x3dna_new.pdb --3spn-param --cgpdb --cgconnect --psf
+$DNA3SPNGRO_BIN_PATH/src/aa_2_cg.jl ${1%.*}_x3dna_new.pdb --3spn-param 1 --cgpdb --cgconnect --psf
 echo " DONE!"
 echo "================================================================================"
