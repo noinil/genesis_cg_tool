@@ -295,6 +295,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     AICG2p_flexible_local    = []
     AICG2p_flexible_nonlocal = []
     HPS_IDR_region           = []
+    KH_IDR_region            = []
 
     # DNA
     top_cg_DNA_bonds         = Vector{CGTopBond}(undef, 0)
@@ -816,6 +817,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             if haskey(ff_detail_config["IDR"], "HPS_region")
                 index_string = ff_detail_config["IDR"]["HPS_region"]
                 HPS_IDR_region = parse_selection(index_string)
+            end
+            if haskey(ff_detail_config["IDR"], "KH_region")
+                index_string = ff_detail_config["IDR"]["KH_region"]
+                KH_IDR_region = parse_selection(index_string)
             end
         end
     end
@@ -1984,7 +1989,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     top_pairs                      = Vector{GenTopPair}(undef, 0)
     top_exclusions                 = Vector{GenTopExclusion}(undef, 0)
     top_pwmcos                     = Vector{GenTopPWMcos}(undef, 0)
-    top_idr_hps                    = Vector{GenTopIDRHPS}(undef, 0)
+    top_idr_hps                    = Vector{GenTopRegion}(undef, 0)
+    top_idr_kh                     = Vector{GenTopRegion}(undef, 0)
     top_mol_list                   = Vector{GenTopMolList}(undef, 0)
 
     # ---------
@@ -2048,7 +2054,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         if length(top_cg_pro_aicg13) > 0
             for ( i_13, a13 ) in enumerate( top_cg_pro_aicg13 )
                 if  in(a13.i, AICG2p_flexible_local) || in(a13.j, AICG2p_flexible_local) || in(a13.k, AICG2p_flexible_local) ||
-                    in(a13.i, HPS_IDR_region) || in(a13.j, HPS_IDR_region) || in(a13.k, HPS_IDR_region)
+                    in(a13.i, HPS_IDR_region) || in(a13.j, HPS_IDR_region) || in(a13.k, HPS_IDR_region) ||
+                    in(a13.i, KH_IDR_region) || in(a13.j, KH_IDR_region) || in(a13.k, KH_IDR_region)
                     continue
                 end
                 new_angle = GenTopAngle(a13.i, a13.j, a13.k, AICG_ANG_G_FUNC_TYPE, a13.a0, param_cg_pro_e_13[i_13], AICG_13_SIGMA)
@@ -2058,7 +2065,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         # AICG2+ flexible
         if length(top_cg_pro_angles) > 0
             for ang in top_cg_pro_angles
-                if  in(ang.i, HPS_IDR_region) || in(ang.j, HPS_IDR_region) || in(ang.k, HPS_IDR_region)
+                if  in(ang.i, HPS_IDR_region) || in(ang.j, HPS_IDR_region) || in(ang.k, HPS_IDR_region) || 
+                    in(ang.i, KH_IDR_region) || in(ang.j, KH_IDR_region) || in(ang.k, KH_IDR_region)
                     continue
                 end
                 new_angle = GenTopAngle(ang.i, ang.j, ang.k, AICG_ANG_F_FUNC_TYPE, 0.0, 0.0, 0.0)
@@ -2068,7 +2076,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # Clementi Go angles
     elseif ff_pro == FF_pro_Clementi_Go
         for ang in top_cg_pro_angles
-            if  in(ang.i, HPS_IDR_region) || in(ang.j, HPS_IDR_region) || in(ang.k, HPS_IDR_region)
+            if  in(ang.i, HPS_IDR_region) || in(ang.j, HPS_IDR_region) || in(ang.k, HPS_IDR_region) || 
+                in(ang.i, KH_IDR_region) || in(ang.j, KH_IDR_region) || in(ang.k, KH_IDR_region)
                 continue
             end
             new_angle = GenTopAngle(ang.i, ang.j, ang.k, CCGO_ANG_FUNC_TYPE, ang.a0, CCGO_ANGL_K, 0.0)
@@ -2115,7 +2124,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 in(dih.k, AICG2p_flexible_local) || in(dih.l, AICG2p_flexible_local)
                 continue
             elseif  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
-                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region)
+                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region) || 
+                in(dih.i, KH_IDR_region) || in(dih.j, KH_IDR_region) ||
+                in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region) 
                 continue
             end
             if is_dihedral_dangerous(dih)
@@ -2130,7 +2141,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         # AICG2+ flexible dihedrals
         for dih in top_cg_pro_dihedrals
             if  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
-                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region)
+                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region) ||
+                in(dih.i, KH_IDR_region) || in(dih.j, KH_IDR_region) ||
+                in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region)
                 continue
             end
             new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, AICG_DIH_F_FUNC_TYPE, 0.0, 0.0, 0.0, 0)
@@ -2140,7 +2153,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     elseif ff_pro == FF_pro_Clementi_Go
         for dih in top_cg_pro_dihedrals
             if  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
-                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region)
+                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region) ||
+                in(dih.i, KH_IDR_region) || in(dih.j, KH_IDR_region) ||
+                in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region)
                 continue
             end
             if is_dihedral_dangerous(dih)
@@ -2154,7 +2169,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         end
         for dih in top_cg_pro_dihedrals
             if  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
-                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region)
+                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region) ||
+                in(dih.i, KH_IDR_region) || in(dih.j, KH_IDR_region) ||
+                in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region)
                 continue
             end
             if is_dihedral_dangerous(dih)
@@ -2228,7 +2245,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     if ff_pro == FF_pro_AICG2p
         for (i_c, c) in enumerate(top_cg_pro_go_contact)
             if  in(c.i, AICG2p_flexible_nonlocal) || in(c.j, AICG2p_flexible_nonlocal) ||
-                in(c.i, HPS_IDR_region) || in(c.j, HPS_IDR_region)
+                in(c.i, HPS_IDR_region) || in(c.j, HPS_IDR_region) ||
+                in(c.i, KH_IDR_region) || in(c.j, KH_IDR_region)
                 continue
             end
             new_pair = GenTopPair(c.i, c.j, AICG_CONTACT_FUNC_TYPE, c.r0, param_cg_pro_e_contact[i_c])
@@ -2283,7 +2301,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     if ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go
         for c in top_cg_pro_go_contact
             if  in(c.i, AICG2p_flexible_nonlocal) || in(c.j, AICG2p_flexible_nonlocal) ||
-                in(c.i, HPS_IDR_region) || in(c.j, HPS_IDR_region)
+                in(c.i, HPS_IDR_region) || in(c.j, HPS_IDR_region) ||
+                in(c.i, KH_IDR_region) || in(c.j, KH_IDR_region)
                 continue
             end
             new_ex = GenTopExclusion(c.i, c.j)
@@ -2356,12 +2375,36 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     else
                         j = i
                     end
-                    new_idr = GenTopIDRHPS(i, j)
+                    new_idr = GenTopRegion(i, j)
                     push!(top_idr_hps, new_idr)
                 end
             end
         end
     end
+
+    # ---------------------
+    # [ cg_IDR_KH_region ]
+    # ---------------------
+    if has_toml_mod
+        if haskey(ff_detail_config, "IDR")
+            if haskey(ff_detail_config["IDR"], "KH_region")
+                index_string = ff_detail_config["IDR"]["KH_region"]
+                kh_words = split(index_string, r"\s*,\s*", keepempty=false)
+                for w in kh_words
+                    idxwords = split(index_string, r"\s*to\s*", keepempty=false)
+                    i = parse(Int, idxwords[1])
+                    if length(idxwords) > 1
+                        j = parse(Int, idxwords[2])
+                    else
+                        j = i
+                    end
+                    new_idr = GenTopRegion(i, j)
+                    push!(top_idr_kh, new_idr)
+                end
+            end
+        end
+    end
+
 
     mol_name = pdb_name[1:end-4]
     mytop = GenTopology(mol_name, cg_num_particles,
@@ -2383,6 +2426,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         top_exclusions,
                         top_pwmcos,
                         top_idr_hps,
+                        top_idr_kh,
                         top_mol_list)
     myconf = Conformation(cg_num_particles, cg_bead_coor)
 

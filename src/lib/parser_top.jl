@@ -38,6 +38,8 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     print(top_file, "#include \"./param/flexible_local_angle.itp\" \n")
     print(top_file, "; AICG2+ flexible local dihedral parameters \n")
     print(top_file, "#include \"./param/flexible_local_dihedral.itp\" \n")
+    print(top_file, "; residue-residue potential parameters (Miyazawa-Jernigan-1996-JMB) \n")
+    print(top_file, "#include \"./param/pair_energy_MJ_96.itp\" \n")
     print(top_file, "\n")
 
     print(top_file, "; Molecule topology \n")
@@ -56,6 +58,11 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
 
     print(top_file, "; [ pwmcos_mol_pairs ] \n")
     print(top_file, "; ON 1 - 2 : 3 - 4 \n")
+    print(top_file, "; OFF 1 - 1 : 3 - 3 \n")
+    print(top_file, "; OFF 2 - 3 \n\n")
+
+    print(top_file, "; [ cg_KH_mol_pairs ] \n")
+    print(top_file, "; A 1 - 2 : 3 - 4 \n")
     print(top_file, "; OFF 1 - 1 : 3 - 3 \n")
     print(top_file, "; OFF 2 - 3 \n\n")
 
@@ -157,8 +164,14 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     # ---------------------
     wr_itp_idr_hps_head(io::IO) = print(io, "[ cg_IDR_HPS_region ] ; IDR HPS model \n")
     wr_itp_idr_hps_comm(io::IO) = @printf(io, ";%9s to %10s\n", "i", "j")
-    wr_itp_idr_hps_line(io::IO, e::GenTopIDRHPS) = @printf(io, "%10d to %10d\n", e.istart, e.iend)
+    wr_itp_idr_hps_line(io::IO, e::GenTopRegion) = @printf(io, "%10d to %10d\n", e.istart, e.iend)
 
+    # --------------------
+    # [ cg_IDR_KH_region ]
+    # --------------------
+    wr_itp_idr_kh_head(io::IO) = print(io, "[ cg_IDR_KH_region ] ; IDR KH model \n")
+    wr_itp_idr_kh_comm(io::IO) = @printf(io, ";%9s to %10s\n", "i", "j")
+    wr_itp_idr_kh_line(io::IO, e::GenTopRegion) = @printf(io, "%10d to %10d\n", e.istart, e.iend)
 
 
     ###########################################################################
@@ -262,6 +275,18 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
         print(itp_file, "\n")
     end
 
+    # --------------------
+    # [ cg_IDR_KH_region ]
+    # --------------------
+    if length(top.top_idr_kh) > 0
+        wr_itp_idr_kh_head(itp_file)
+        wr_itp_idr_kh_comm(itp_file)
+        for idr in top.top_idr_kh
+            wr_itp_idr_kh_line(itp_file, idr)
+        end
+        print(itp_file, "\n")
+    end
+
     close(itp_file)
 
     if verbose
@@ -330,7 +355,8 @@ function read_groitp(itp_filename::AbstractString)
     top_pairs         = Vector{GenTopPair}(undef, 0)
     top_exclusions    = Vector{GenTopExclusion}(undef, 0)
     top_pwmcos        = Vector{GenTopPWMcos}(undef, 0)
-    top_idr_hps       = Vector{GenTopIDRHPS}(undef, 0)
+    top_idr_hps       = Vector{GenTopRegion}(undef, 0)
+    top_idr_kh        = Vector{GenTopRegion}(undef, 0)
 
     function read_top_atoms(line::AbstractString, c_id::Int, s_name::AbstractString)
         words = split(line)
@@ -463,10 +489,18 @@ function read_groitp(itp_filename::AbstractString)
         words   = split(line, r"\s*to\s*", keepempty =false)
         i       = parse(Int, words[1])
         j       = parse(Int, words[2])
-        new_idr = GenTopIDRHPS(i, j)
+        new_idr = GenTopRegion(i, j)
         push!(top_idr_hps, new_idr)
     end
 
+    function read_top_idr_kh(line::AbstractString)
+        words   = split(line)
+        words   = split(line, r"\s*to\s*", keepempty =false)
+        i       = parse(Int, words[1])
+        j       = parse(Int, words[2])
+        new_idr = GenTopRegion(i, j)
+        push!(top_idr_kh, new_idr)
+    end
 
     # ---------
     # main part
@@ -525,6 +559,8 @@ function read_groitp(itp_filename::AbstractString)
                 read_top_pwmcos(line)
             elseif section_name == "cg_IDR_HPS_region"
                 read_top_idr_hps(line)
+            elseif section_name == "cg_IDR_KH_region"
+                read_top_idr_kh(line)
             end
         end
     end
@@ -539,7 +575,8 @@ function read_groitp(itp_filename::AbstractString)
                                  top_pairs,
                                  top_exclusions,
                                  top_pwmcos,
-                                 top_idr_hps)
+                                 top_idr_hps,
+                                 top_idr_kh)
 
     return new_top_mol
 end
@@ -568,7 +605,8 @@ function read_grotop(top_filename::AbstractString)
     top_pairs                  = Vector{GenTopPair}(undef, 0)
     top_exclusions             = Vector{GenTopExclusion}(undef, 0)
     top_pwmcos                 = Vector{GenTopPWMcos}(undef, 0)
-    top_idr_hps                = Vector{GenTopIDRHPS}(undef, 0)
+    top_idr_hps                = Vector{GenTopRegion}(undef, 0)
+    top_idr_kh                 = Vector{GenTopRegion}(undef, 0)
     top_mol_list               = Vector{GenTopMolList}(undef, 0)
 
     section_name = ""
@@ -693,9 +731,14 @@ function read_grotop(top_filename::AbstractString)
                     push!(top_pwmcos, s)
                 end
                 for t in tmp_mol.top_idr_hps
-                    s = GenTopIDRHPS(t.istart + num_atom,
+                    s = GenTopRegion(t.istart + num_atom,
                                      t.iend + num_atom)
                     push!(top_idr_hps, s)
+                end
+                for t in tmp_mol.top_idr_kh
+                    s = GenTopRegion(t.istart + num_atom,
+                                     t.iend + num_atom)
+                    push!(top_idr_kh, s)
                 end
 
                 num_atom += tmp_mol.num_atom
@@ -722,6 +765,7 @@ function read_grotop(top_filename::AbstractString)
                           top_exclusions,
                           top_pwmcos,
                           top_idr_hps,
+                          top_idr_kh,
                           top_mol_list)
 
     return new_top
