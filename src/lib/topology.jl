@@ -147,7 +147,7 @@ struct GenTopPWMcos
     eps::Float64
 end
 
-struct GenTopIDRHPS
+struct GenTopRegion
     istart::Int
     iend::Int
 end
@@ -164,7 +164,8 @@ struct GenTopMolecule
     top_pairs::Vector{GenTopPair}
     top_exclusions::Vector{GenTopExclusion}
     top_pwmcos::Vector{GenTopPWMcos}
-    top_idr_hps::Vector{GenTopIDRHPS}
+    top_idr_hps::Vector{GenTopRegion}
+    top_idr_kh::Vector{GenTopRegion}
 end
 
 struct GenTopMolList
@@ -194,7 +195,8 @@ struct GenTopology
     top_pairs::Vector{GenTopPair}
     top_exclusions::Vector{GenTopExclusion}
     top_pwmcos::Vector{GenTopPWMcos}
-    top_idr_hps::Vector{GenTopIDRHPS}
+    top_idr_hps::Vector{GenTopRegion}
+    top_idr_kh::Vector{GenTopRegion}
 
     top_mol_list::Vector{GenTopMolList}
    
