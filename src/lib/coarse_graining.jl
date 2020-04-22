@@ -2372,7 +2372,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 index_string = ff_detail_config["IDR"]["HPS_region"]
                 hps_words = split(index_string, r"\s*,\s*", keepempty=false)
                 for w in hps_words
-                    idxwords = split(index_string, r"\s*to\s*", keepempty=false)
+                    idxwords = split(w, r"\s*to\s*", keepempty=false)
                     i = parse(Int, idxwords[1])
                     if length(idxwords) > 1
                         j = parse(Int, idxwords[2])
@@ -2395,7 +2395,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 index_string = ff_detail_config["IDR"]["KH_region"]
                 kh_words = split(index_string, r"\s*,\s*", keepempty=false)
                 for w in kh_words
-                    idxwords = split(index_string, r"\s*to\s*", keepempty=false)
+                    idxwords = split(w, r"\s*to\s*", keepempty=false)
                     i = parse(Int, idxwords[1])
                     if length(idxwords) > 1
                         j = parse(Int, idxwords[2])
