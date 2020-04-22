@@ -164,14 +164,14 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     # ---------------------
     wr_itp_idr_hps_head(io::IO) = print(io, "[ cg_IDR_HPS_region ] ; IDR HPS model \n")
     wr_itp_idr_hps_comm(io::IO) = @printf(io, ";%9s to %10s\n", "i", "j")
-    wr_itp_idr_hps_line(io::IO, e::GenTopRegion) = @printf(io, "%10d to %10d\n", e.istart, e.iend)
+    wr_itp_idr_hps_line(io::IO, e::GenTopRegion) = @printf(io, "%10d    %10d\n", e.istart, e.iend)
 
     # --------------------
     # [ cg_IDR_KH_region ]
     # --------------------
     wr_itp_idr_kh_head(io::IO) = print(io, "[ cg_IDR_KH_region ] ; IDR KH model \n")
     wr_itp_idr_kh_comm(io::IO) = @printf(io, ";%9s to %10s\n", "i", "j")
-    wr_itp_idr_kh_line(io::IO, e::GenTopRegion) = @printf(io, "%10d to %10d\n", e.istart, e.iend)
+    wr_itp_idr_kh_line(io::IO, e::GenTopRegion) = @printf(io, "%10d    %10d\n", e.istart, e.iend)
 
 
     ###########################################################################
@@ -486,7 +486,6 @@ function read_groitp(itp_filename::AbstractString)
 
     function read_top_idr_hps(line::AbstractString)
         words   = split(line)
-        words   = split(line, r"\s*to\s*", keepempty =false)
         i       = parse(Int, words[1])
         j       = parse(Int, words[2])
         new_idr = GenTopRegion(i, j)
@@ -495,7 +494,6 @@ function read_groitp(itp_filename::AbstractString)
 
     function read_top_idr_kh(line::AbstractString)
         words   = split(line)
-        words   = split(line, r"\s*to\s*", keepempty =false)
         i       = parse(Int, words[1])
         j       = parse(Int, words[2])
         new_idr = GenTopRegion(i, j)
