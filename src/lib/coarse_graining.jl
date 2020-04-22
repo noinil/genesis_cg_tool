@@ -2255,6 +2255,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # Clementi Go native contacts
     elseif ff_pro == FF_pro_Clementi_Go
         for c in top_cg_pro_go_contact
+            if  in(c.i, HPS_IDR_region) || in(c.j, HPS_IDR_region) ||
+                in(c.i, KH_IDR_region) || in(c.j, KH_IDR_region)
+                continue
+            end
             new_pair = GenTopPair(c.i, c.j, CCGO_CONTACT_FUNC_TYPE, c.r0, CCGO_NATIVE_EPSILON * ccgo_contact_scale)
             push!(top_pairs, new_pair)
         end
