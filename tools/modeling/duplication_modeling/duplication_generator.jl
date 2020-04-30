@@ -1,26 +1,34 @@
 #!/usr/bin/env julia
 
-include("/home/ctan/Workspace/genesis_CG_julia/src/lib/biomath.jl")
-include("/home/ctan/Workspace/genesis_CG_julia/src/lib/constants.jl")
-include("/home/ctan/Workspace/genesis_CG_julia/src/lib/topology.jl")
-include("/home/ctan/Workspace/genesis_CG_julia/src/lib/conformation.jl")
-include("/home/ctan/Workspace/genesis_CG_julia/src/lib/parser_crd.jl")
-include("/home/ctan/Workspace/genesis_CG_julia/src/lib/parser_top.jl")
+using Printf
+using ArgParse
 
-function main()
+include("../../../src/lib/biomath.jl")
+include("../../../src/lib/constants.jl")
+include("../../../src/lib/topology.jl")
+include("../../../src/lib/conformation.jl")
+include("../../../src/lib/parser_crd.jl")
+include("../../../src/lib/parser_top.jl")
 
-    NUM_X = 3
-    NUM_Y = 3
-    NUM_Z = 3
+function main(args)
 
-	CELL_SIZE_X = 100
-	CELL_SIZE_Y = 100
-	CELL_SIZE_Z = 100
+    top_filename = get(args, "top", "")
+    crd_filename = get(args, "crd", "")
+    mol_name     = get(args, "output", "new_mol")
 
-    mol_name = "WHATEVER"
+    NUM_X = get(args, "nx", 1)
+    NUM_Y = get(args, "ny", 1)
+    NUM_Z = get(args, "nz", 1)
 
-    mol_top = read_grotop("./mol_cg.top")
-    mol_crd = read_grocrd("./gro/mol_cg.gro")
+    PAD_X = get(args, "xpadding", 5.0)
+    PAD_Y = get(args, "ypadding", 5.0)
+    PAD_Z = get(args, "zpadding", 5.0)
+
+    mol_top = read_grotop(top_filename)
+    mol_crd = read_grocrd(crd_filename)
+
+    num_copies = NUM_X * NUM_Y * NUM_Z
+    total_num_particles = mol_top.num_atom * num_copies
 
     println("System name:", mol_top.system_name)
     println("Number of particles in top:", mol_top.num_atom)
@@ -34,8 +42,9 @@ function main()
     # ==================
     # make copies of mol
     # ==================
-    num_copies = NUM_X * NUM_Y * NUM_Z
-    total_num_particles = mol_top.num_atom * num_copies
+    max_coors = findmax(mol_orig_coors, dims=2)[1]
+    min_coors = findmin(mol_orig_coors, dims=2)[1]
+    MOL_SIZE = max_coors - min_coors
 
     gro_name = @sprintf("%s_mul_%d_%d_%d.gro", mol_name, NUM_X, NUM_Y, NUM_Z)
     gro_file = open(gro_name, "w")
@@ -49,9 +58,9 @@ function main()
     for ix in 1:NUM_X
         for iy in 1:NUM_Y
             for iz in 1:NUM_Z
-                shift_x = (ix - 1) * CELL_SIZE_X
-                shift_y = (iy - 1) * CELL_SIZE_Y
-                shift_z = (iz - 1) * CELL_SIZE_Z
+                shift_x = (ix - 1) * (MOL_SIZE[1] + PAD_X * 2)
+                shift_y = (iy - 1) * (MOL_SIZE[2] + PAD_Y * 2)
+                shift_z = (iz - 1) * (MOL_SIZE[3] + PAD_Z * 2)
                 for i_bead in 1 : mol_top.num_atom
                     i_bead_global += 1
                     @printf(gro_file, "%5d%5s%5s%5d %8.4f %8.4f %8.4f %8.4f %8.4f %8.4f \n",
@@ -72,6 +81,72 @@ function main()
     close(gro_file)
 end
 
+# =============================
+# Parsing Commandline Arguments
+# =============================
+function parse_commandline()
+    s = ArgParseSettings()
+
+    @add_arg_table s begin
+
+        "--top", "-t"
+        help     = "Topology file name (gromacs style)."
+        required = true
+        arg_type = String
+
+        "--crd", "-c"
+        help     = "Coordinate file name (gromacs style)."
+        required = true
+        arg_type = String
+
+        "--output", "-o"
+        help     = "Output file name."
+        arg_type = String
+        default  = "BIGMOL"
+
+        "--nx"
+        help     = "Number of x copies."
+        arg_type = Int
+        default  = 1
+
+        "--ny"
+        help     = "Number of y copies."
+        arg_type = Int
+        default  = 1
+
+        "--nz"
+        help     = "Number of z copies."
+        arg_type = Int
+        default  = 1
+
+        "--xpadding"
+        help     = "Padding distance in x axis (A)."
+        arg_type = Float64
+        default  = 5.0
+
+        "--ypadding"
+        help     = "Padding distance in y axis (A)."
+        arg_type = Float64
+        default  = 5.0
+
+        "--zpadding"
+        help     = "Padding distance in z axis (A)."
+        arg_type = Float64
+        default  = 5.0
+
+        "--debug"
+        help = "DEBUG."
+        action = :store_true
+    end
+
+    return parse_args(s)
+end
+
+
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+
+    args = parse_commandline()
+
+    main(args)
+
 end
