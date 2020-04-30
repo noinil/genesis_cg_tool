@@ -30,7 +30,7 @@ function main(args)
     # =================
 
     if length(pdb_filename) == 0
-        system_name = top_filename[1:end-4]
+        system_name = crd_filename[1:end-4] * "_new"
     else
         system_name = pdb_filename[1:end-4]
     end

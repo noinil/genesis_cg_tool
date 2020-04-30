@@ -237,20 +237,23 @@ function write_pdb(top::GenTopology, conf::Conformation, system_name::AbstractSt
 
     do_output_cgconnect = get(args, "cgconnect", false)
 
-    num_particles   = conf.num_particle
-    is_huge_system  = num_particles > 9999
+    num_particles  = conf.num_particle
+    is_huge_system = num_particles > 9999
 
-    chain_id_set       = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
-    tmp_chain_id       = 0
-    tmp_chain_head     = 0
+    chain_id_set   = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+    tmp_chain_id   = 0
+    tmp_seg_name   = ""
+    real_chain_id  = 1
     for i_bead in 1 : num_particles
         i_chain = top.top_atoms[i_bead].chain_id
-        if i_chain != tmp_chain_id
+        i_sname = top.top_atoms[i_bead].seg_name
+        if i_chain != tmp_chain_id || i_sname != tmp_seg_name
             if tmp_chain_id > 0
                 print(pdb_file, "TER\n")
+                real_chain_id += 1
             end
             tmp_chain_id = i_chain
-            tmp_chain_head = top.top_atoms[i_bead].residue_index
+            tmp_seg_name = i_sname
         end
         resid_index_tmp = top.top_atoms[i_bead].residue_index
 
@@ -260,7 +263,7 @@ function write_pdb(top::GenTopology, conf::Conformation, system_name::AbstractSt
                 top.top_atoms[i_bead].atom_name,
                 ' ',
                 rpad( top.top_atoms[i_bead].residue_name, 4 ),
-                chain_id_set[mod(i_chain, 63) + 1],
+                chain_id_set[mod(real_chain_id, 63) + 1],
                 resid_index_tmp % 10000,
                 ' ',
                 conf.coors[1 , i_bead],
