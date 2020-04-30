@@ -53,6 +53,10 @@ function main(args)
     @printf(gro_file, "%12d \n", total_num_particles)
 
     @printf("Duplicated system has %d x %d x %d = %d copies, in total %d atoms \n", NUM_X, NUM_Y, NUM_Z, num_copies, total_num_particles)
+    @printf("Duplicated system size: %16.3f x %16.3f x %16.3f \n",
+            NUM_X * ( MOL_SIZE[1] + 2 * PAD_X ),
+            NUM_Y * ( MOL_SIZE[2] + 2 * PAD_Y ),
+            NUM_Z * ( MOL_SIZE[3] + 2 * PAD_Z ))
 
     i_bead_global = 0
     for ix in 1:NUM_X
