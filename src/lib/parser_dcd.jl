@@ -122,6 +122,7 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
     conformations = Vector{Conformation}(undef, 0)
 
     data_block_size = n_particles * 4 # Single precision (4-byte), Float32
+    is_broken_trajectory = false
     for t in 1 : n_frames
         # ----------------
         # Read in box info
@@ -148,11 +149,16 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
             end
             block_size_1 = read(dcd_file, Int32)
             if block_size_0 != data_block_size || block_size_1 != data_block_size
-                error("ERROR: wrong block size in coordinate reading!")
+                println("[1;31m WARNING: wrong block size in coordinate reading![0m")
+                println("         Incomplete trajectory?")
+                is_broken_trajectory = true
+                break
             end
         end
+        if is_broken_trajectory
+            break
+        end
         push!(conformations, Conformation(n_particles, coors))
-
         if eof(dcd_file)
             break
         end
