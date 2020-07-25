@@ -1,6 +1,9 @@
 ###############################################################################
 #                             Collective Variables                            #
 ###############################################################################
+# compute_nativeness(top, conformation, args)
+# compute_center_of_mass(atom_indices, top, conformation, args)
+###############################################################################
 
 # =============
 # CG nativeness
@@ -57,4 +60,37 @@ function compute_nativeness(t::GenTopology, c::Conformation, args::Dict{String, 
     elseif q_type == 2  # complex type
         return num_contact_type_2 / num_native_contacts
     end
+end
+
+
+# ==============
+# Center of mass
+# ==============
+
+"""
+    compute_center_of_mass(idx, t, c, args)
+
+# Arguments
+- `idx`: indices of particles
+- `t`: GenTopology
+- `c`: Conformation
+- `args`: other arguments
+
+"""
+function compute_center_of_mass(atom_indices::Vector{Int}, t::GenTopology, c::Conformation, args::Dict{String, <:Any}=Dict{String, Any}())
+
+    verbose = get(args, "verbose", false)
+
+    total_mass = 0
+    tmp_coor   = zeros(Float64, 3)
+
+    for i in atom_indices
+        a_mass      = RES_MASS_DICT[t.top_atoms[i].residue_name]
+        a_coor      = c.coors[:, i]
+        total_mass += a_mass
+        tmp_coor   += a_coor * a_mass
+    end
+    com = tmp_coor / total_mass
+
+    return com
 end
