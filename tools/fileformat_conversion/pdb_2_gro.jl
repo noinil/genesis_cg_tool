@@ -18,18 +18,34 @@ function main(args)
     top_filename = get(args, "top", "")
     pdb_filename = get(args, "pdb", "")
     crd_filename = get(args, "output", "")
+    pdb_no_ter   = get(args, "pdb-noTER", false)
 
-    # ================
-    # Read in topology
-    # ================
+    # =============
+    # Read topology
+    # =============
     mytop = read_grotop(top_filename)
 
-    # ============================
-    # Read in coordinates from PDB
-    # ============================
-    new_molecule = read_PDB(pdb_filename)
-    num_atoms = length(new_molecule.atom_coors[1, :])
-    new_conf = Conformation(num_atoms, new_molecule.atom_coors)
+    # =========================
+    # Read coordinates from PDB
+    # =========================
+    if pdb_no_ter
+        aa_coor = zeros(Float64, (3, mytop.num_atom))
+        i_atom  = 0
+        for line in eachline(pdb_filename)
+            if startswith(line, "ATOM")
+                i_atom += 1
+                new_atom_data      = parse_PDB_line(rpad(line, 80))
+                aa_coor[1, i_atom] = new_atom_data.coor_x
+                aa_coor[2, i_atom] = new_atom_data.coor_y
+                aa_coor[3, i_atom] = new_atom_data.coor_z
+            end
+        end
+        new_conf = Conformation(mytop.num_atom, aa_coor)
+    else
+        new_molecule = read_PDB(pdb_filename)
+        num_atoms = length(new_molecule.atom_coors[1, :])
+        new_conf = Conformation(num_atoms, new_molecule.atom_coors)
+    end
 
     if length(crd_filename) == 0
         system_name = top_filename[1:end-4]
@@ -62,6 +78,10 @@ function parse_commandline()
         required = true
         arg_type = String
 
+        "--pdb-noTER"
+        help     = "PDB file name without TER lines."
+        action   = :store_true
+
         "--output", "-o"
         help     = "Output file name."
         arg_type = String
@@ -74,7 +94,6 @@ function parse_commandline()
 
     return parse_args(s)
 end
-
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
