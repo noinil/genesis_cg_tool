@@ -33,7 +33,7 @@ function write_grocrd(top::GenTopology, conf::Conformation, sys_name::AbstractSt
                 top.top_atoms[i_bead].residue_index,
                 top.top_atoms[i_bead].residue_name,
                 top.top_atoms[i_bead].atom_name,
-                i_bead,
+                i_bead % 100000,
                 conf.coors[1 , i_bead] * 0.1,
                 conf.coors[2 , i_bead] * 0.1,
                 conf.coors[3 , i_bead] * 0.1,
