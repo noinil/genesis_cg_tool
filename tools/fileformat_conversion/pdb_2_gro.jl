@@ -79,7 +79,7 @@ function parse_commandline()
         arg_type = String
 
         "--pdb-noTER"
-        help     = "PDB file name without TER lines."
+        help     = "PDB file does not have TER lines."
         action   = :store_true
 
         "--output", "-o"
