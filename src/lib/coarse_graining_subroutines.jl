@@ -241,6 +241,81 @@ end
 # 3SPN.2C DNA model
 # -----------------
 
+function get_DNA3SPN_bond_length(bond_type::String, base_step::String)
+    # Sugar-Base
+    SB_length = Dict("A " => 4.864, "C " => 4.300, "G " => 4.973, "T " => 4.379)
+    # Sugar-Phosphate
+    SP_length = Dict(
+        "AA" => 3.688, "AC" => 3.018, "AG" => 3.836, "AT" => 3.287,
+        "CA" => 4.386, "CC" => 3.538, "CG" => 4.676, "CT" => 3.999,
+        "GA" => 3.736, "GC" => 3.256, "GG" => 3.633, "GT" => 3.285,
+        "TA" => 4.191, "TC" => 3.707, "TG" => 4.391, "TT" => 3.868
+    )
+    # Phosphate-Sugar
+    PS_length = Dict(
+        "XA" => 3.747, "XC" => 3.725, "XG" => 3.723, "XT" => 3.758,
+        "AA" => 3.745, "AC" => 3.704, "AG" => 3.725, "AT" => 3.729,
+        "CA" => 3.753, "CC" => 3.786, "CG" => 3.686, "CT" => 3.784,
+        "GA" => 3.740, "GC" => 3.700, "GG" => 3.766, "GT" => 3.760,
+        "TA" => 3.751, "TC" => 3.710, "TG" => 3.716, "TT" => 3.759
+    )
+    bond_length_data = Dict("SB"=>SB_length, "SP"=>SP_length, "PS"=>PS_length)
+
+    return bond_length_data[bond_type][base_step]
+end
+
+function get_DNA3SPN_angle_equilibrium(angle_type::String, base_step::String)
+    # Base-Sugar-Phosphate
+    BSP_params = Dict(
+        "AA" => 113.855, "AC" => 114.226, "AG" => 112.201, "AT" => 111.931,
+        "CA" => 113.822, "CC" => 112.056, "CG" => 116.081, "CT" => 111.008,
+        "GA" => 114.665, "GC" => 118.269, "GG" => 110.102, "GT" => 111.146,
+        "TA" => 113.984, "TC" => 115.457, "TG" => 113.397, "TT" => 113.606
+    )
+    # Phosphate-Sugar-Base
+    PSB_params = Dict(
+        "XA" => 108.200, "XC" => 103.850, "XG" => 111.750, "XT" => 98.523,
+        "AA" => 108.826, "AC" => 105.066, "AG" => 112.796, "AT" => 99.442,
+        "CA" => 107.531, "CC" => 103.509, "CG" => 110.594, "CT" => 97.807,
+        "GA" => 108.064, "GC" => 103.135, "GG" => 112.654, "GT" => 98.577,
+        "TA" => 108.414, "TC" => 103.853, "TG" => 111.732, "TT" => 98.271
+    )
+    # Phosphate-Sugar-Phosphate
+    PSP_params = Dict(
+        "AAA" => 120.685, "AAC" => 112.882, "AAG" => 113.827, "AAT" => 117.435,
+        "ACA" => 119.061, "ACC" => 120.353, "ACG" => 113.240, "ACT" => 121.103,
+        "AGA" => 122.182, "AGC" => 118.658, "AGG" => 120.489, "AGT" => 122.928,
+        "ATA" => 117.235, "ATC" => 112.084, "ATG" => 111.714, "ATT" => 119.324,
+        "CAA" => 122.866, "CAC" => 115.083, "CAG" => 116.036, "CAT" => 119.640,
+        "CCA" => 120.442, "CCC" => 121.712, "CCG" => 114.602, "CCT" => 122.446,
+        "CGA" => 124.721, "CGC" => 121.204, "CGG" => 122.937, "CGT" => 125.429,
+        "CTA" => 119.317, "CTC" => 114.156, "CTG" => 113.756, "CTT" => 121.413,
+        "GAA" => 120.809, "GAC" => 112.897, "GAG" => 113.816, "GAT" => 117.461,
+        "GCA" => 119.550, "GCC" => 120.788, "GCG" => 113.687, "GCT" => 121.506,
+        "GGA" => 121.512, "GGC" => 118.019, "GGG" => 119.634, "GGT" => 122.157,
+        "GTA" => 117.087, "GTC" => 111.922, "GTG" => 111.501, "GTT" => 119.185,
+        "TAA" => 122.361, "TAC" => 114.671, "TAG" => 115.653, "TAT" => 119.219,
+        "TCA" => 121.235, "TCC" => 122.532, "TCG" => 115.417, "TCT" => 123.284,
+        "TGA" => 123.936, "TGC" => 120.395, "TGG" => 122.319, "TGT" => 124.730,
+        "TTA" => 119.004, "TTC" => 113.847, "TTG" => 113.465, "TTT" => 121.093
+    )
+    # Sugar-Phosphate-Sugar
+    SPS_params = Dict(
+        "AA" => 94.805, "AC" => 94.462, "AG" => 95.308, "AT" => 95.232,
+        "CA" => 95.110, "CC" => 98.906, "CG" => 92.244, "CT" => 97.476,
+        "GA" => 94.973, "GC" => 92.666, "GG" => 97.929, "GT" => 97.640,
+        "TA" => 94.886, "TC" => 93.066, "TG" => 93.999, "TT" => 95.122
+    )
+    angle_data = Dict(
+        "BSP" => BSP_params,
+        "PSB" => PSB_params,
+        "PSP" => PSP_params,
+        "SPS" => SPS_params
+    )
+
+    return angle_data[angle_type][base_step]
+end
+
 function get_DNA3SPN_angle_param(angle_type::String, base_step::String)
     # Base-Sugar-Phosphate
     BSP_params = Dict(
@@ -275,6 +350,70 @@ function get_DNA3SPN_angle_param(angle_type::String, base_step::String)
     )
 
     return angle_params[angle_type][base_step] * JOU2CAL
+end
+
+function get_DNA3SPN_dihedral_equilibrium(angle_type::String, base_step::String)
+    # Base-Sugar-Phosphate-Sugar
+    BSPS_params = Dict(
+        "AA" => -23.347, "AC" => -27.858, "AG" => -27.117, "AT" => -29.246,
+        "CA" => -31.608, "CC" => -31.364, "CG" => -34.383, "CT" => -33.819,
+        "GA" => -16.641, "GC" => -17.077, "GG" => -20.529, "GT" => -21.472,
+        "TA" => -36.960, "TC" => -39.034, "TG" => -39.283, "TT" => -38.799
+    )
+    # Sugar-Phosphate-Sugar-Base
+    SPSB_params = Dict(
+        "AA" => 45.425, "AC" => 54.789, "AG" => 46.984, "AT" => 57.208,
+        "CA" => 45.195, "CC" => 49.771, "CG" => 44.547, "CT" => 53.367,
+        "GA" => 41.089, "GC" => 45.515, "GG" => 43.923, "GT" => 51.560,
+        "TA" => 47.078, "TC" => 52.838, "TG" => 46.053, "TT" => 54.408
+    )
+    # Sugar-Phosphate-Sugar-Phosphate
+    SPSP_params = Dict(
+        "AAA" =>  179.785, "AAC" =>  173.331, "AAG" =>  171.377, "AAT" =>  173.860,
+        "ACA" => -176.300, "ACC" => -177.745, "ACG" => -177.543, "ACT" => -178.626,
+        "AGA" => -169.949, "AGC" => -168.414, "AGG" =>  179.834, "AGT" => -175.422,
+        "ATA" => -179.491, "ATC" =>  179.733, "ATG" =>  177.177, "ATT" => -178.801,
+        "CAA" => -179.648, "CAC" =>  173.730, "CAG" =>  171.730, "CAT" =>  174.273,
+        "CCA" =>  178.306, "CCC" =>  176.814, "CCG" =>  177.164, "CCT" =>  175.901,
+        "CGA" => -172.058, "CGC" => -170.458, "CGG" =>  177.459, "CGT" => -177.699,
+        "CTA" =>  176.566, "CTC" =>  175.846, "CTG" =>  173.254, "CTT" =>  177.252,
+        "GAA" =>  174.706, "GAC" =>  168.411, "GAG" =>  166.426, "GAT" =>  168.841,
+        "GCA" =>  173.035, "GCC" =>  171.523, "GCG" =>  172.053, "GCT" =>  170.601,
+        "GGA" => -174.234, "GGC" => -172.619, "GGG" =>  175.674, "GGT" => -179.682,
+        "GTA" =>  174.167, "GTC" =>  173.514, "GTG" =>  170.969, "GTT" =>  174.788,
+        "TAA" => -177.232, "TAC" =>  176.044, "TAG" =>  174.067, "TAT" =>  176.665,
+        "TCA" => -177.663, "TCC" => -179.135, "TCG" => -178.953, "TCT" =>  179.965,
+        "TGA" => -169.881, "TGC" => -168.369, "TGG" =>  179.680, "TGT" => -175.458,
+        "TTA" =>  177.790, "TTC" =>  177.037, "TTG" =>  174.444, "TTT" =>  178.479
+    )
+    # Phosphate-Sugar-Phosphate-Sugar
+    PSPS_params = Dict(
+        "AAA" => -155.622, "AAC" => -152.885, "AAG" => -151.259, "AAT" => -156.185,
+        "ACA" => -156.388, "ACC" => -155.577, "ACG" => -156.063, "ACT" => -157.660,
+        "AGA" => -159.083, "AGC" => -159.751, "AGG" => -154.497, "AGT" => -159.668,
+        "ATA" => -152.487, "ATC" => -151.938, "ATG" => -150.672, "ATT" => -155.597,
+        "CAA" => -156.021, "CAC" => -152.981, "CAG" => -151.273, "CAT" => -156.309,
+        "CCA" => -155.364, "CCC" => -154.499, "CCG" => -155.058, "CCT" => -156.547,
+        "CGA" => -158.746, "CGC" => -159.509, "CGG" => -153.638, "CGT" => -159.033,
+        "CTA" => -151.817, "CTC" => -151.269, "CTG" => -149.902, "CTT" => -154.955,
+        "GAA" => -154.534, "GAC" => -151.854, "GAG" => -150.223, "GAT" => -155.116,
+        "GCA" => -154.009, "GCC" => -153.155, "GCG" => -153.791, "GCT" => -155.211,
+        "GGA" => -157.783, "GGC" => -158.478, "GGG" => -153.379, "GGT" => -158.439,
+        "GTA" => -151.220, "GTC" => -150.726, "GTG" => -149.471, "GTT" => -154.288,
+        "TAA" => -156.903, "TAC" => -153.864, "TAG" => -152.178, "TAT" => -157.225,
+        "TCA" => -156.627, "TCC" => -155.754, "TCG" => -156.236, "TCT" => -157.799,
+        "TGA" => -159.780, "TGC" => -160.478, "TGG" => -154.803, "TGT" => -160.164,
+        "TTA" => -152.217, "TTC" => -151.655, "TTG" => -150.303, "TTT" => -155.342
+    )
+    angle_data = Dict(
+        "BSPS" => BSPS_params,
+        "SPSB" => SPSB_params,
+        "SPSP" => SPSP_params,
+        "PSPS" => PSPS_params
+    )
+
+    return angle_data[angle_type][base_step]
+
 end
 
 

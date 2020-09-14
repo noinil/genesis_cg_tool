@@ -941,118 +941,226 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 @printf("              ... progress: %32s", " ")
             end
 
-            for i_res in chain.first : chain.last
+            if gen_3spn_itp == 1
 
-                # -----------------
-                # show progress bar
-                # -----------------
-                if verbose
-                    print("\b"^32)
-                    progress_percent = trunc(Int, ( i_res - chain.first ) / ( chain.last - chain.first ) * 20)
-                    progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
-                    @printf(" [%20s] %5.1f %% ", progress_bar, progress_percent * 5)
-                end
-                # ------------------
+                for i_res in chain.first : chain.last
 
-                if cg_bead_name[i_res] == "DS"
-                    # bond S--B
-                    coor_s = cg_bead_coor[:, i_res]
-                    coor_b = cg_bead_coor[:, i_res + 1]
-                    r_sb   = compute_distance(coor_s, coor_b)
-                    tmp_top_bond = CGTopBond(i_res, i_res + 1, r_sb)
-                    push!(top_cg_DNA_bonds, tmp_top_bond)
-                    if i_res + 3 < chain.last
-                        # bond S--P+1
-                        coor_p3 = cg_bead_coor[:, i_res + 2]
-                        r_sp3   = compute_distance(coor_s, coor_p3)
-                        tmp_top_bond = CGTopBond(i_res, i_res + 2, r_sp3)
+                    # -----------------
+                    # show progress bar
+                    # -----------------
+                    if verbose
+                        print("\b"^32)
+                        progress_percent = trunc(Int, ( i_res - chain.first ) / ( chain.last - chain.first ) * 20)
+                        progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+                        @printf(" [%20s] %5.1f %% ", progress_bar, progress_percent * 5)
+                    end
+                    # ------------------
+
+                    if cg_bead_name[i_res] == "DS"
+                        # bond S--B
+                        coor_s = cg_bead_coor[:, i_res]
+                        coor_b = cg_bead_coor[:, i_res + 1]
+                        r_sb   = compute_distance(coor_s, coor_b)
+                        tmp_top_bond = CGTopBond(i_res, i_res + 1, r_sb)
                         push!(top_cg_DNA_bonds, tmp_top_bond)
-                        # Angle S--P+1--S+1
-                        resname5  = cg_resid_name[i_res][end]
-                        resname3  = cg_resid_name[i_res + 3][end]
-                        coor_s3   = cg_bead_coor[:, i_res + 3]
-                        ang_sp3s3 = compute_angle(coor_s, coor_p3, coor_s3)
-                        k         = get_DNA3SPN_angle_param("SPS", resname5 * resname3)
-                        tmp_top_angl = CGTopAngle(i_res, i_res + 2, i_res + 3, ang_sp3s3)
+                        if i_res + 3 < chain.last
+                            # bond S--P+1
+                            coor_p3 = cg_bead_coor[:, i_res + 2]
+                            r_sp3   = compute_distance(coor_s, coor_p3)
+                            tmp_top_bond = CGTopBond(i_res, i_res + 2, r_sp3)
+                            push!(top_cg_DNA_bonds, tmp_top_bond)
+                            # Angle S--P+1--S+1
+                            resname5  = cg_resid_name[i_res][end]
+                            resname3  = cg_resid_name[i_res + 3][end]
+                            coor_s3   = cg_bead_coor[:, i_res + 3]
+                            ang_sp3s3 = compute_angle(coor_s, coor_p3, coor_s3)
+                            k         = get_DNA3SPN_angle_param("SPS", resname5 * resname3)
+                            tmp_top_angl = CGTopAngle(i_res, i_res + 2, i_res + 3, ang_sp3s3)
+                            push!(top_cg_DNA_angles, tmp_top_angl)
+                            push!(param_cg_DNA_k_angles, k)
+                            # Dihedral S--P+1--S+1--B+1
+                            coor_b3     = cg_bead_coor[:, i_res + 4]
+                            dih_sp3s3b3 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_b3)
+                            tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3)
+                            push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                            # Dihedral S--P+1--S+1--P+2
+                            if i_res + 6 < chain.last
+                                coor_p33     = cg_bead_coor[:, i_res + 5]
+                                dih_sp3s3p33 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_p33)
+                                tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
+                                push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                                tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
+                                push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
+                            end
+                        end
+                    elseif cg_bead_name[i_res] == "DP"
+                        # bond P--S
+                        coor_p = cg_bead_coor[:, i_res]
+                        coor_s = cg_bead_coor[:, i_res + 1]
+                        r_ps   = compute_distance(coor_p, coor_s)
+                        tmp_top_bond = CGTopBond(i_res, i_res + 1, r_ps)
+                        push!(top_cg_DNA_bonds, tmp_top_bond)
+                        # angle P--S--B
+                        resname5 = cg_resid_name[i_res - 1][end]
+                        resname3 = cg_resid_name[i_res + 2][end]
+                        coor_b   = cg_bead_coor[:, i_res + 2]
+                        ang_psb  = compute_angle(coor_p, coor_s, coor_b)
+                        k        = get_DNA3SPN_angle_param("PSB", resname5 * resname3)
+                        tmp_top_angl = CGTopAngle(i_res, i_res + 1, i_res + 2, ang_psb)
                         push!(top_cg_DNA_angles, tmp_top_angl)
                         push!(param_cg_DNA_k_angles, k)
-                        # Dihedral S--P+1--S+1--B+1
-                        coor_b3     = cg_bead_coor[:, i_res + 4]
-                        dih_sp3s3b3 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_b3)
-                        tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3)
-                        push!(top_cg_DNA_dih_periodic, tmp_top_dih)
-                        # Dihedral S--P+1--S+1--P+2
-                        if i_res + 6 < chain.last
-                            coor_p33     = cg_bead_coor[:, i_res + 5]
-                            dih_sp3s3p33 = compute_dihedral(coor_s, coor_p3, coor_s3, coor_p33)
-                            tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
+                        if i_res + 4 < chain.last
+                            # angle P--S--P+1
+                            coor_p3  = cg_bead_coor[:, i_res + 3]
+                            ang_psp3 = compute_angle(coor_p, coor_s, coor_p3)
+                            k        = get_DNA3SPN_angle_param("PSP", "all")
+                            tmp_top_angl = CGTopAngle(i_res, i_res + 1, i_res + 3, ang_psp3)
+                            push!(top_cg_DNA_angles, tmp_top_angl)
+                            push!(param_cg_DNA_k_angles, k)
+                            # Dihedral P--S--P+1--S+1
+                            coor_s3    = cg_bead_coor[:, i_res + 4]
+                            dih_psp3s3 = compute_dihedral(coor_p, coor_s, coor_p3, coor_s3)
+                            tmp_top_dih = CGTopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
                             push!(top_cg_DNA_dih_periodic, tmp_top_dih)
-                            tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
+                            tmp_top_dih = CGTopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
                             push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
                         end
+                    elseif cg_bead_name[i_res] == "DB"
+                        if i_res + 2 < chain.last
+                            # angle B--S--P+1
+                            resname5 = cg_resid_name[i_res][end]
+                            resname3 = cg_resid_name[i_res + 1][end]
+                            coor_b   = cg_bead_coor[:, i_res]
+                            coor_s   = cg_bead_coor[:, i_res - 1]
+                            coor_p3  = cg_bead_coor[:, i_res + 1]
+                            ang_bsp3 = compute_angle(coor_b, coor_s, coor_p3)
+                            k        = get_DNA3SPN_angle_param("BSP", resname5 * resname3)
+                            tmp_top_angl = CGTopAngle(i_res, i_res - 1, i_res + 1, ang_bsp3)
+                            push!(top_cg_DNA_angles, tmp_top_angl)
+                            push!(param_cg_DNA_k_angles, k)
+                            # Dihedral B--S--P+1--S+1
+                            coor_s3    = cg_bead_coor[:, i_res + 2]
+                            dih_bsp3s3 = compute_dihedral(coor_b, coor_s, coor_p3, coor_s3)
+                            tmp_top_dih = CGTopDihedral(i_res, i_res - 1, i_res + 1, i_res + 2, dih_bsp3s3)
+                            push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                        end
+                    else
+                        errmsg = @sprintf("BUG: Wrong DNA particle type in chain %d, residue %d : %s ",
+                                          i_chain,
+                                          i_res, cg_bead_name[i_res])
+                        error(errmsg)
                     end
-                elseif cg_bead_name[i_res] == "DP"
-                    # bond P--S
-                    coor_p = cg_bead_coor[:, i_res]
-                    coor_s = cg_bead_coor[:, i_res + 1]
-                    r_ps   = compute_distance(coor_p, coor_s)
-                    tmp_top_bond = CGTopBond(i_res, i_res + 1, r_ps)
-                    push!(top_cg_DNA_bonds, tmp_top_bond)
-                    # angle P--S--B
-                    resname5 = cg_resid_name[i_res - 1][end]
-                    resname3 = cg_resid_name[i_res + 2][end]
-                    coor_b   = cg_bead_coor[:, i_res + 2]
-                    ang_psb  = compute_angle(coor_p, coor_s, coor_b)
-                    k        = get_DNA3SPN_angle_param("PSB", resname5 * resname3)
-                    tmp_top_angl = CGTopAngle(i_res, i_res + 1, i_res + 2, ang_psb)
-                    push!(top_cg_DNA_angles, tmp_top_angl)
-                    push!(param_cg_DNA_k_angles, k)
-                    if i_res + 4 < chain.last
-                        # angle P--S--P+1
-                        coor_p3  = cg_bead_coor[:, i_res + 3]
-                        ang_psp3 = compute_angle(coor_p, coor_s, coor_p3)
-                        k        = get_DNA3SPN_angle_param("PSP", "all")
-                        tmp_top_angl = CGTopAngle(i_res, i_res + 1, i_res + 3, ang_psp3)
+                end                 # for i_res
+
+            end                 # if gen_3spn_itp == 1
+
+            if gen_3spn_itp == 2
+
+                for i_res in chain.first : chain.last
+
+                    # -----------------
+                    # show progress bar
+                    # -----------------
+                    if verbose
+                        print("\b"^32)
+                        progress_percent = trunc(Int, ( i_res - chain.first ) / ( chain.last - chain.first ) * 20)
+                        progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+                        @printf(" [%20s] %5.1f %% ", progress_bar, progress_percent * 5)
+                    end
+                    # ------------------
+
+                    if cg_bead_name[i_res] == "DS"
+                        # bond S--B
+                        resname5     = cg_resid_name[i_res][end]
+                        r_sb         = get_DNA3SPN_bond_length("SB", resname5 * " ")
+                        tmp_top_bond = CGTopBond(i_res, i_res + 1, r_sb)
+                        push!(top_cg_DNA_bonds, tmp_top_bond)
+                        if i_res + 3 < chain.last
+                            resname3  = cg_resid_name[i_res + 3][end]
+                            base_step = resname5 * resname3
+                            # bond S--P+1
+                            r_sp3        = get_DNA3SPN_bond_length("SP", base_step)
+                            tmp_top_bond = CGTopBond(i_res, i_res + 2, r_sp3)
+                            push!(top_cg_DNA_bonds, tmp_top_bond)
+                            # Angle S--P+1--S+1
+                            ang_sp3s3    = get_DNA3SPN_angle_equilibrium("SPS", base_step)
+                            k            = get_DNA3SPN_angle_param("SPS", base_step)
+                            tmp_top_angl = CGTopAngle(i_res, i_res + 2, i_res + 3, ang_sp3s3)
+                            push!(top_cg_DNA_angles, tmp_top_angl)
+                            push!(param_cg_DNA_k_angles, k)
+                            # Dihedral S--P+1--S+1--B+1
+                            dih_sp3s3b3 = get_DNA3SPN_dihedral_equilibrium("SPSB", base_step)
+                            tmp_top_dih = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 4, dih_sp3s3b3)
+                            push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                            # Dihedral S--P+1--S+1--P+2
+                            if i_res + 6 < chain.last
+                                base_two_steps = base_step * cg_resid_name[i_res + 5][end]
+                                dih_sp3s3p33   = get_DNA3SPN_dihedral_equilibrium("SPSP", base_two_steps)
+                                tmp_top_dih    = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
+                                push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                                push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
+                            end
+                        end
+                    elseif cg_bead_name[i_res] == "DP"
+                        resname5  = i_res > 1 ? cg_resid_name[i_res - 1][end] : "X"
+                        resname3  = cg_resid_name[i_res + 2][end]
+                        base_step = resname5 * resname3
+                        # bond P--S
+                        r_ps         = get_DNA3SPN_bond_length("PS", base_step)
+                        tmp_top_bond = CGTopBond(i_res, i_res + 1, r_ps)
+                        push!(top_cg_DNA_bonds, tmp_top_bond)
+                        # angle P--S--B
+                        ang_psb      = get_DNA3SPN_angle_equilibrium("PSB", base_step)
+                        k            = get_DNA3SPN_angle_param("PSB", base_step)
+                        tmp_top_angl = CGTopAngle(i_res, i_res + 1, i_res + 2, ang_psb)
                         push!(top_cg_DNA_angles, tmp_top_angl)
                         push!(param_cg_DNA_k_angles, k)
-                        # Dihedral P--S--P+1--S+1
-                        coor_s3    = cg_bead_coor[:, i_res + 4]
-                        dih_psp3s3 = compute_dihedral(coor_p, coor_s, coor_p3, coor_s3)
-                        tmp_top_dih = CGTopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
-                        push!(top_cg_DNA_dih_periodic, tmp_top_dih)
-                        tmp_top_dih = CGTopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
-                        push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
+                        if i_res + 4 < chain.last
+                            base_two_steps = base_step * cg_resid_name[i_res + 3][end]
+                            # angle P--S--P+1
+                            ang_psp3 = get_DNA3SPN_angle_equilibrium("PSP", base_two_steps)
+                            k        = get_DNA3SPN_angle_param("PSP", "all")
+                            tmp_top_angl = CGTopAngle(i_res, i_res + 1, i_res + 3, ang_psp3)
+                            push!(top_cg_DNA_angles, tmp_top_angl)
+                            push!(param_cg_DNA_k_angles, k)
+                            # Dihedral P--S--P+1--S+1
+                            dih_psp3s3 = get_DNA3SPN_dihedral_equilibrium("PSPS", base_two_steps)
+                            tmp_top_dih = CGTopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
+                            push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                            push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
+                        end
+                    elseif cg_bead_name[i_res] == "DB"
+                        if i_res + 2 < chain.last
+                            resname5  = cg_resid_name[i_res][end]
+                            resname3  = cg_resid_name[i_res + 1][end]
+                            base_step = resname5 * resname3
+                            # angle B--S--P+1
+                            ang_bsp3     = get_DNA3SPN_angle_equilibrium("BSP", base_step)
+                            k            = get_DNA3SPN_angle_param("BSP", base_step)
+                            tmp_top_angl = CGTopAngle(i_res, i_res - 1, i_res + 1, ang_bsp3)
+                            push!(top_cg_DNA_angles, tmp_top_angl)
+                            push!(param_cg_DNA_k_angles, k)
+                            # Dihedral B--S--P+1--S+1
+                            dih_bsp3s3 = get_DNA3SPN_dihedral_equilibrium("BSPS", base_step)
+                            tmp_top_dih = CGTopDihedral(i_res, i_res - 1, i_res + 1, i_res + 2, dih_bsp3s3)
+                            push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                        end
+                    else
+                        errmsg = @sprintf("BUG: Wrong DNA particle type in chain %d, residue %d : %s ",
+                                          i_chain,
+                                          i_res, cg_bead_name[i_res])
+                        error(errmsg)
                     end
-                elseif cg_bead_name[i_res] == "DB"
-                    if i_res + 2 < chain.last
-                        # angle B--S--P+1
-                        resname5 = cg_resid_name[i_res][end]
-                        resname3 = cg_resid_name[i_res + 1][end]
-                        coor_b   = cg_bead_coor[:, i_res]
-                        coor_s   = cg_bead_coor[:, i_res - 1]
-                        coor_p3  = cg_bead_coor[:, i_res + 1]
-                        ang_bsp3 = compute_angle(coor_b, coor_s, coor_p3)
-                        k        = get_DNA3SPN_angle_param("BSP", resname5 * resname3)
-                        tmp_top_angl = CGTopAngle(i_res, i_res - 1, i_res + 1, ang_bsp3)
-                        push!(top_cg_DNA_angles, tmp_top_angl)
-                        push!(param_cg_DNA_k_angles, k)
-                        # Dihedral B--S--P+1--S+1
-                        coor_s3    = cg_bead_coor[:, i_res + 2]
-                        dih_bsp3s3 = compute_dihedral(coor_b, coor_s, coor_p3, coor_s3)
-                        tmp_top_dih = CGTopDihedral(i_res, i_res - 1, i_res + 1, i_res + 2, dih_bsp3s3)
-                        push!(top_cg_DNA_dih_periodic, tmp_top_dih)
-                    end
-                else
-                    errmsg = @sprintf("BUG: Wrong DNA particle type in chain %d, residue %d : %s ",
-                                      i_chain,
-                                      i_res, cg_bead_name[i_res])
-                    error(errmsg)
-                end
-            end
+                end                 # for i_res
+
+            end                 # if gen_3spn_itp == 2
+
             if verbose
                 print(" \n")
             end
-        end
+
+        end                     # for i_chain
+
         if verbose
             println(">           ... Bond, Angle, Dihedral: DONE!")
         end
