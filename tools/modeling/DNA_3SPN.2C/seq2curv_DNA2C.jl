@@ -38,6 +38,7 @@ base_type = ['A', 'T', 'C', 'G']
 # Read in DNA sequence
 # ====================
 function read_DNA_sequence(file_name)
+    dna_seq = ""
     for line in eachline(file_name)
         if line[1] == '>'
             continue
@@ -48,8 +49,9 @@ function read_DNA_sequence(file_name)
                 error("Wrong DNA sequence!")
             end
         end
-        return seq
+        dna_seq *= seq
     end
+    return dna_seq
 end
 
 # =============================
