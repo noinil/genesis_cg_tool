@@ -8,6 +8,20 @@
 ###############################################################################
 
 using Printf
+
+struct DCD_trajectory
+    traj_type::String
+    traj_frames::Int
+    traj_first_step::Int
+    traj_output_interval::Int
+    traj_steps::Int
+    boundary_type::Int
+    md_doc::Vector{String}
+    num_atoms::Int
+    boundary_box_size::Array{Float64, 2}
+    conformations::Vector{Conformation}
+end
+
                    
 function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, Any}())
 
@@ -119,6 +133,7 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
     # Read in Coordinates!!!
     # ======================
 
+    boundary_conditions = zeros(Float64, 6, n_frames)
     conformations = Vector{Conformation}(undef, 0)
 
     data_block_size = n_particles * 4 # Single precision (4-byte), Float32
@@ -135,6 +150,8 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
                 bc_size[i] = l
             end
             block_size_1 = read(dcd_file, Int32)
+            # store box information
+            boundary_conditions[:, t] = bc_size
         end
 
         # ------------------
@@ -173,6 +190,17 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
 
     close(dcd_file)
 
-    return conformations
+    new_trajectory = DCD_trajectory(file_type,
+                                    n_frames,
+                                    n_ts_first,
+                                    n_ts_interval,
+                                    n_ts_all,
+                                    bc_flag,
+                                    dcd_doc_lines,
+                                    n_particles,
+                                    boundary_conditions,
+                                    conformations)
+
+    return new_trajectory
 
 end
