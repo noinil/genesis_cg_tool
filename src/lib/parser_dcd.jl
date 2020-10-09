@@ -80,7 +80,7 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
     n_doc_line = read(dcd_file, Int32)
     for i in 1:n_doc_line
         tmp_char_array = Array{Char}(undef, 0)
-        for i = 1:80
+        for j = 1:80
             c = read(dcd_file, Char)
             push!(tmp_char_array, c)
         end
@@ -202,5 +202,57 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
                                     conformations)
 
     return new_trajectory
+
+end
+
+
+function write_dcd(dcd_trajectory::DCD_trajectory, dcd_filename::AbstractString)
+
+    dcd_file = open(dcd_filename, "w")
+
+    # ======================
+    # Write head information
+    # ======================
+    # block size
+    write(dcd_file, Int32(84))
+
+    # "CORD" or "VELD"
+    for i = 1:4
+        write(dcd_file, dcd_trajectory.traj_type[i])
+    end
+
+    # simulation info
+    tmp_int_array = Array{Int32}(undef, 0)
+    tmp_int_array[1]  = dcd_trajectory.traj_frames
+    tmp_int_array[2]  = dcd_trajectory.traj_first_step
+    tmp_int_array[3]  = dcd_trajectory.traj_output_interval
+    tmp_int_array[4]  = dcd_trajectory.traj_steps
+    tmp_int_array[11] = dcd_trajectory.boundary_type
+    for i = 1:20
+        write(dcd_file, tmp_int_array[i])
+    end
+
+    # block size
+    write(dcd_file, Int32(84))
+
+    # ===========================
+    # Write MD information string
+    # ===========================
+
+    n_doc_line = length(dcd_trajectory.md_doc)
+    block_size = 4 + 80 * n_doc_line
+
+    # block size
+    write(dcd_file, Int32(block_size))
+
+    # write dcd documentation
+    for i in 1:n_doc_line
+        for j = 1:80
+            write(dcd_file, dcd_trajectory.md_doc[i][j])
+        end
+    end
+
+    # block size
+    write(dcd_file, Int32(block_size))
 
 end
