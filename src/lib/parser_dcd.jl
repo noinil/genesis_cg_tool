@@ -16,6 +16,7 @@ struct DCD_trajectory
     traj_output_interval::Int
     traj_steps::Int
     boundary_type::Int
+    traj_format::Int
     md_doc::Vector{String}
     num_atoms::Int
     boundary_box_size::Array{Float64, 2}
@@ -63,6 +64,8 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
     n_ts_interval = tmp_int_array[3]
     n_ts_all      = tmp_int_array[4]
     bc_flag       = tmp_int_array[11]
+    traj_format   = tmp_int_array[20]
+
     bc_type       = bc_flag == 0 ? "No boundary" : "Periodic boundary"
 
     block_size_1 = read(dcd_file, Int32)
@@ -85,9 +88,6 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
             push!(tmp_char_array, c)
         end
         doc_line = String(tmp_char_array)
-        if length(strip(doc_line)) == 0
-            continue
-        end
         push!(dcd_doc_lines, doc_line)
     end
 
@@ -118,6 +118,7 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
         println("    > First MD step       : $(n_ts_first)")
         println("    > Total MD steps      : $(n_ts_all)")
         println("    > Output interval     : $(n_ts_interval)")
+        println("  > Trajectory format     : $(traj_format)")
 
         println("============================================================")
         println("> DCD information:")
@@ -125,7 +126,7 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
 
     if verbose
         for line in dcd_doc_lines
-            println("  > ", replace(line, "REMARKS " => ""))
+            println("  > |", line, "|")
         end
     end
 
@@ -196,6 +197,7 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
                                     n_ts_interval,
                                     n_ts_all,
                                     bc_flag,
+                                    traj_format,
                                     dcd_doc_lines,
                                     n_particles,
                                     boundary_conditions,
@@ -210,9 +212,12 @@ function write_dcd(dcd_trajectory::DCD_trajectory, dcd_filename::AbstractString)
 
     dcd_file = open(dcd_filename, "w")
 
+    n_atom = dcd_trajectory.num_atoms
+
     # ======================
     # Write head information
     # ======================
+    # 
     # block size
     write(dcd_file, Int32(84))
 
@@ -222,12 +227,13 @@ function write_dcd(dcd_trajectory::DCD_trajectory, dcd_filename::AbstractString)
     end
 
     # simulation info
-    tmp_int_array = Array{Int32}(undef, 0)
+    tmp_int_array = zeros(Int32, 20)
     tmp_int_array[1]  = dcd_trajectory.traj_frames
     tmp_int_array[2]  = dcd_trajectory.traj_first_step
     tmp_int_array[3]  = dcd_trajectory.traj_output_interval
     tmp_int_array[4]  = dcd_trajectory.traj_steps
     tmp_int_array[11] = dcd_trajectory.boundary_type
+    tmp_int_array[20] = dcd_trajectory.traj_format
     for i = 1:20
         write(dcd_file, tmp_int_array[i])
     end
@@ -238,7 +244,8 @@ function write_dcd(dcd_trajectory::DCD_trajectory, dcd_filename::AbstractString)
     # ===========================
     # Write MD information string
     # ===========================
-
+    # 
+    # block size calculation
     n_doc_line = length(dcd_trajectory.md_doc)
     block_size = 4 + 80 * n_doc_line
 
@@ -246,13 +253,103 @@ function write_dcd(dcd_trajectory::DCD_trajectory, dcd_filename::AbstractString)
     write(dcd_file, Int32(block_size))
 
     # write dcd documentation
-    for i in 1:n_doc_line
+    write(dcd_file, Int32(n_doc_line))
+    for i in 1:n_doc_line - 1
         for j = 1:80
             write(dcd_file, dcd_trajectory.md_doc[i][j])
         end
     end
+    new_doc_line = rpad("REMARKS ** MODIFIED BY JULIA CG TOOL **", 80)
+    for j = 1:80
+        write(dcd_file, new_doc_line[j])
+    end
 
     # block size
     write(dcd_file, Int32(block_size))
+
+    # =====================
+    # Write number of atoms
+    # =====================
+    # 
+    # block size
+    write(dcd_file, Int32(4))
+
+    # write num_atoms
+    write(dcd_file, Int32(n_atom))
+
+    # block size
+    write(dcd_file, Int32(4))
+
+    # ===================
+    # Write trajectory!!!
+    # ===================
+    #
+    coor_block_size = 4 * n_atom
+
+    # loop over frames
+    for i_frame in 1:length( dcd_trajectory.conformations )
+        # -------------------------
+        # Write boundary conditions
+        # -------------------------
+        if dcd_trajectory.boundary_type == 1
+            # block size
+            write(dcd_file, Int32(48))
+
+            for j_dim in 1:6
+                write(dcd_file, Float64(dcd_trajectory.boundary_box_size[j_dim, i_frame]))
+            end
+
+            # block size
+            write(dcd_file, Int32(48))
+        end
+
+        # ------------
+        # coordinate x 
+        # ------------
+        # 
+        # block size
+        write(dcd_file, Int32(coor_block_size))
+
+        # write X
+        for j in 1:n_atom
+            write(dcd_file, Float32(dcd_trajectory.conformations[i_frame].coors[1, j]))
+        end
+
+        # block size
+        write(dcd_file, Int32(coor_block_size))
+
+        # ------------
+        # coordinate y 
+        # ------------
+        # 
+        # block size
+        write(dcd_file, Int32(coor_block_size))
+
+        # write Y
+        for j in 1:n_atom
+            write(dcd_file, Float32(dcd_trajectory.conformations[i_frame].coors[2, j]))
+        end
+
+        # block size
+        write(dcd_file, Int32(coor_block_size))
+
+        # ------------
+        # coordinate z 
+        # ------------
+        # 
+        # block size
+        write(dcd_file, Int32(coor_block_size))
+
+        # write Z
+        for j in 1:n_atom
+            write(dcd_file, Float32(dcd_trajectory.conformations[i_frame].coors[3, j]))
+        end
+
+        # block size
+        write(dcd_file, Int32(coor_block_size))
+
+    end
+
+    close(dcd_file)
 
 end
