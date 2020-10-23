@@ -2,6 +2,7 @@
 
 using Printf
 using ArgParse
+using Random
 
 include("../../../src/lib/biomath.jl")
 include("../../../src/lib/constants.jl")
@@ -24,11 +25,15 @@ function main(args)
     PAD_Y = get(args, "ypadding", 5.0)
     PAD_Z = get(args, "zpadding", 5.0)
 
+    DENSE = get(args, "density", 1.0)
+
     mol_top = read_grotop(top_filename)
     mol_crd = read_grocrd(crd_filename)
 
-    num_copies = NUM_X * NUM_Y * NUM_Z
+    num_copies = Int( floor( NUM_X * NUM_Y * NUM_Z * DENSE ) )
     total_num_particles = mol_top.num_atom * num_copies
+
+    REAL_INDICES = randperm(NUM_X * NUM_Y * NUM_Z)[1:num_copies]
 
     println("System name:", mol_top.system_name)
     println("Number of particles in top:", mol_top.num_atom)
@@ -46,22 +51,28 @@ function main(args)
     min_coors = findmin(mol_orig_coors, dims=2)[1]
     MOL_SIZE = max_coors - min_coors
 
-    gro_name = @sprintf("%s_mul_%d_%d_%d.gro", mol_name, NUM_X, NUM_Y, NUM_Z)
+    gro_name = @sprintf("%s_mul_%d_%d_%d_n_%d.gro", mol_name, NUM_X, NUM_Y, NUM_Z, num_copies)
     gro_file = open(gro_name, "w")
 
     @printf(gro_file, "CG model %s, nx: %d, ny: %d, nz: %d, t = %16.3f \n", mol_top.system_name, NUM_X, NUM_Y, NUM_Z, 0)
     @printf(gro_file, "%12d \n", total_num_particles)
 
-    @printf("Duplicated system has %d x %d x %d = %d copies, in total %d atoms \n", NUM_X, NUM_Y, NUM_Z, num_copies, total_num_particles)
+    @printf("Duplicated system has %d x %d x %d x %d%% = %d copies, in total %d atoms \n",
+            NUM_X, NUM_Y, NUM_Z, Int(floor(DENSE*100)), num_copies, total_num_particles)
     @printf("Duplicated system size: %16.3f x %16.3f x %16.3f \n",
             NUM_X * ( MOL_SIZE[1] + 2 * PAD_X ),
             NUM_Y * ( MOL_SIZE[2] + 2 * PAD_Y ),
             NUM_Z * ( MOL_SIZE[3] + 2 * PAD_Z ))
 
     i_bead_global = 0
+    i_mol_global  = 0
     for ix in 1:NUM_X
         for iy in 1:NUM_Y
             for iz in 1:NUM_Z
+                i_mol_global += 1
+                if !( i_mol_global in REAL_INDICES )
+                    continue
+                end
                 shift_x = (ix - 1) * (MOL_SIZE[1] + PAD_X * 2)
                 shift_y = (iy - 1) * (MOL_SIZE[2] + PAD_Y * 2)
                 shift_z = (iz - 1) * (MOL_SIZE[3] + PAD_Z * 2)
@@ -137,6 +148,11 @@ function parse_commandline()
         help     = "Padding distance in z axis (A)."
         arg_type = Float64
         default  = 5.0
+
+        "--density"
+        help     = "Density (probability) of molecules."
+        arg_type = Float64
+        default  = 1.0
 
         "--debug"
         help = "DEBUG."
