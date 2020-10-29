@@ -336,5 +336,5 @@ FUS_cg                3
 
 [ cg_IDR_HPS_region ] ; IDR HPS model 
 ;        i to          j
-         1 to        163
+         1           163
 

@@ -193,11 +193,14 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     wr_itp_atm_head(itp_file)
     wr_itp_atm_comm(itp_file)
     tmp_chain_id       = 0
+    tmp_seg_name       = ""
     for atom in top.top_atoms
         i_chain = atom.chain_id
-        if i_chain > tmp_chain_id
+        i_segnm = atom.seg_name
+        if i_chain != tmp_chain_id || i_segnm != tmp_seg_name
             wr_itp_atm_chain_info(itp_file, atom)
             tmp_chain_id = i_chain
+            tmp_seg_name = i_segnm
         end
         wr_itp_atm_line(itp_file, atom)
     end
