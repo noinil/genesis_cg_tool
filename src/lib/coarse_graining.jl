@@ -2409,49 +2409,12 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # ---------------------
     #        [ exclusions ]
     # ---------------------
-    # Protein exclusion list
-    if ff_pro == FF_pro_AICG2p || ff_pro == FF_pro_Clementi_Go
-        for c in top_cg_pro_go_contact
-            if  in(c.i, AICG2p_flexible_nonlocal) || in(c.j, AICG2p_flexible_nonlocal) ||
-                in(c.i, HPS_IDR_region) || in(c.j, HPS_IDR_region) ||
-                in(c.i, KH_IDR_region) || in(c.j, KH_IDR_region)
-                continue
-            end
-            new_ex = GenTopExclusion(c.i, c.j)
-            push!(top_exclusions, new_ex)
-        end
-    end
-
-    # RNA exclusion list
-    if ff_rna == FF_RNA_HT
-        for c in top_cg_RNA_base_stack
-            new_ex = GenTopExclusion(c.i, c.j)
-            push!(top_exclusions, new_ex)
-        end
-        for c in top_cg_RNA_base_pair
-            new_ex = GenTopExclusion(c.i, c.j)
-            push!(top_exclusions, new_ex)
-        end
-        for c in top_cg_RNA_other_contact
-            new_ex = GenTopExclusion(c.i, c.j)
-            push!(top_exclusions, new_ex)
-        end
-    end
-
-    # protein-RNA exclusion contacts
-    if ff_pro_rna == FF_pro_RNA_Go
-        for c in top_cg_pro_RNA_contact
-            new_ex = GenTopExclusion(c.i, c.j)
-            push!(top_exclusions, new_ex)
-        end
-    end
-
-    # protein-DNA exclusion contacts
-    if ff_pro_dna == FF_pro_DNA_Go
-        for c in top_cg_pro_DNA_contact
-            new_ex = GenTopExclusion(c.i, c.j)
-            push!(top_exclusions, new_ex)
-        end
+    # contact pairs
+    for c in top_pairs
+        i_exc = c.i
+        j_exc = c.j
+        new_exc = GenTopExclusion(i_exc, j_exc)
+        push!(top_exclusions, new_exc)
     end
 
 
