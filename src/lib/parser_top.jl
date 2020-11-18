@@ -16,6 +16,7 @@
 # read_groitp(itp_filename::AbstractString)
 # read_grotop(top_filename::AbstractString)
 # write_psf(top::GenTopology, sys_name::AbstractString, args::Dict{String, Any})
+# read_psf(psf_filename::AbstractString)
 ###############################################################################
 
 using Printf
@@ -612,6 +613,12 @@ function read_grotop(top_filename::AbstractString)
 
     section_name = ""
     mol_topologies = Dict()
+
+    if dirname(top_filename) == ""
+        top_dirname = "./"
+    else
+        top_dirname = dirname(top_filename) * "/"
+    end
     for line in eachline(top_filename)
         sep  = findfirst(";", line)
         if sep != nothing
@@ -623,11 +630,6 @@ function read_grotop(top_filename::AbstractString)
             continue
         end
 
-        if dirname(top_filename) == ""
-            top_dirname = "./"
-        else
-            top_dirname = dirname(top_filename) * "/"
-        end
         if startswith(line, "#include")
             mol_file_name = strip(line[9:end], ['\"', '\'', ' '])
             mol_file_basename = basename(mol_file_name)
@@ -826,5 +828,102 @@ function write_psf(top::GenTopology, sys_name::AbstractString="", args::Dict{Str
     if verbose
         println(">           ... .psf: DONE!")
     end
+end
+
+function read_psf(psf_filename::AbstractString)
+
+    sys_name = ""
+    num_atom = 0
+    mol_id   = 0
+
+    top_default_params             = GenTopDefault(0, 0, false, 0.0, 0.0) 
+    top_default_atomtype           = Vector{GenTopAtomType}(undef, 0)
+    top_default_CGDNA_bp           = Vector{GenTopCGDNABasepairType}(undef, 0)
+    top_default_CGDNA_bs           = Vector{GenTopCGDNABasestackType}(undef, 0)
+    top_default_CGDNA_cs           = Vector{GenTopCGDNABasecrossType}(undef, 0)
+    top_default_CGDNA_exv          = Vector{GenTopCGDNAExvType}(undef, 0)
+    top_default_CGPro_flx_angle    = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
+    top_default_CGPro_flx_dihedral = Vector{GenTopCGProAICGFlexDihedralType}(undef, 0)
+
+    global_index_2_local_index = Vector{Int}(undef, 0)
+    global_index_2_local_molid = Vector{Int}(undef, 0)
+    top_atoms                  = Vector{GenTopAtom}(undef, 0)
+    top_bonds                  = Vector{GenTopBond}(undef, 0)
+    top_angles                 = Vector{GenTopAngle}(undef, 0)
+    top_dihedrals              = Vector{GenTopDihedral}(undef, 0)
+    top_pairs                  = Vector{GenTopPair}(undef, 0)
+    top_exclusions             = Vector{GenTopExclusion}(undef, 0)
+    top_pwmcos                 = Vector{GenTopPWMcos}(undef, 0)
+    top_idr_hps                = Vector{GenTopRegion}(undef, 0)
+    top_idr_kh                 = Vector{GenTopRegion}(undef, 0)
+    top_mol_list               = Vector{GenTopMolList}(undef, 0)
+
+    function read_top_atoms(line::AbstractString, c_id::Int, s_name::AbstractString)
+        words = split(line)
+        a_indx = parse(Int, words[1])
+        seg_id = words[2]
+        r_indx = parse(Int, words[3])
+        r_name = words[4]
+        a_name = words[5]
+        a_type = words[6]
+        charge = parse(Float64, words[7])
+        mass   = parse(Float64, words[8])
+        f_type = parse(Int, words[9])
+        new_atom = GenTopAtom(a_indx, a_type, r_indx, r_name,
+                              a_name, f_type, charge, mass, c_id, seg_id)
+        push!(top_atoms, new_atom)
+    end
+
+    section_name = ""
+    for line in eachline(psf_filename)
+        words = split(line)
+
+        if length(words) == 0
+            continue
+        end
+
+        if words[1] == "REMARKS" || words[1] == "PSF"
+            continue
+        end
+
+        sep  = findfirst("!", line)
+        if sep != nothing
+            num_tmp = parse(Int, words[1])
+            section_name = strip(line[sep[1] + 1:end])
+            if section_name == "NATOM"
+                num_atom = num_tmp
+            end
+            continue
+        end
+
+        if section_name == "NATOM"
+            read_top_atoms(line, 0, "")
+        end
+    end
+
+    new_top = GenTopology(sys_name, num_atom,
+                          top_default_params,
+                          top_default_atomtype,
+                          top_default_CGDNA_bp,
+                          top_default_CGDNA_bs,
+                          top_default_CGDNA_cs,
+                          top_default_CGDNA_exv,
+                          top_default_CGPro_flx_angle,
+                          top_default_CGPro_flx_dihedral,
+                          global_index_2_local_index,
+                          global_index_2_local_molid,
+                          top_atoms,
+                          top_bonds,
+                          top_angles,
+                          top_dihedrals,
+                          top_pairs,
+                          top_exclusions,
+                          top_pwmcos,
+                          top_idr_hps,
+                          top_idr_kh,
+                          top_mol_list)
+
+    return new_top
+
 end
 
