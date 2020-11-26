@@ -242,6 +242,10 @@ function parse_commandline()
         arg_type = Int
         default = 0
 
+        "--3spn-use-5-phos"
+        help = "Generate 3SPN.2C parameters with 5-phosphate."
+        action = :store_true
+
         "--protein-DNA-Go"
         help = "Generate parameters for protein-DNA Go-like contact interactions."
         action = :store_true

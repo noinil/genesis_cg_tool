@@ -72,6 +72,10 @@ function parse_commandline()
         help = "Starting from Phosphate at the 5-end."
         action = :store_true
 
+        "--circular"
+        help = "Build a circular or infinite DNA."
+        action = :store_true
+
         "--output-name", "-o"
         help = "Specify the system name for output."
         arg_type = String
@@ -98,6 +102,7 @@ function gen_3spn_itp_from_DNA_seq()
     verbose     = get(args, "verbose", false)
     comp_strand = get(args, "complementary", false)
     phos_5p     = get(args, "5P", false)
+    circ_dna    = get(args, "circular", false)
     mol_name    = get(args, "output-name", "bdna")
 
     # ===============================
@@ -170,6 +175,8 @@ function gen_3spn_itp_from_DNA_seq()
     dna_molecule = AAMolecule(aa_atom_name, aa_coor, aa_residues, aa_chains)
 
     args["3spn-param"] = 2
+    args["3spn-use-5-phos"] = phos_5p
+    args["3spn-circular"] = circ_dna
     force_field = ForceFieldCG(1, 1, 1, 0, 0, 0)
     cg_top, cg_conf = coarse_graining(dna_molecule, force_field, args)
 

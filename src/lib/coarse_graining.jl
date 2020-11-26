@@ -59,12 +59,32 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     use_safe_dihedral       = get(args, "use-safe-dihedral", 0)
 
     gen_3spn_itp            = get(args, "3spn-param", 0)
+    DNA_use_5_phos          = get(args, "3spn-use-5-phos", false)
+    DNA_circular            = get(args, "3spn-circular", false)
 
     ccgo_contact_scale      = get(args, "CCGO-contact-scale", 1.0)
     aicg_scale_scheme       = get(args, "aicg-scale", 1)
     cgRNA_use_phosphate_go  = get(args, "cgRNA-phosphate-Go", false)
     pwmcos_gamma            = get(args, "pwmcos-scale", 1.0)
     pwmcos_epsil            = get(args, "pwmcos-shift", 0.0)
+
+    # ----------------------
+    # More details from TOML
+    # ----------------------
+    has_toml_mod   = false
+    if haskey(args, "modeling-options")
+        has_toml_mod    = true
+        ff_detail_config = args["modeling-options"]
+
+        if haskey(ff_detail_config, "3SPN.2C")
+            if haskey(ff_detail_config["3SPN.2C"], "USE_5_PHOSPHATE")
+                index_string = ff_detail_config["IDR"]["AICG2p_IDR_local"]
+                if index_string == "YES"
+                    DNA_use_5_phos = true
+                end
+            end
+        end
+    end
 
     # ===============
     # Step 0: numbers
@@ -112,7 +132,11 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         # ----------------------
         n_res = length(chain.residues)
         if mol_type == MOL_DNA
-            n_particles = 3 * n_res - 1
+            if DNA_use_5_phos
+                n_particles = 3 * n_res
+            else
+                n_particles = 3 * n_res - 1
+            end
             num_chain_DNA += 1
         elseif mol_type == MOL_RNA
             n_particles = 3 * n_res - 1
@@ -181,7 +205,11 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             for (i_local_index, i_res) in enumerate( chain.residues )
                 aa_res_name = aa_residues[i_res].name
                 res_name = RES_NAME_DNA_DICT[aa_res_name]
-                cg_DP_idx = [tmp_atom_index_O3p]
+                if i_local_index > 1
+                    cg_DP_idx = [tmp_atom_index_O3p]
+                else
+                    cg_DP_idx = []
+                end
                 cg_DS_idx = []
                 cg_DB_idx = []
                 for i_atom in aa_residues[i_res].atoms
@@ -199,7 +227,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     end
                 end
                 i_resi += 1
-                if i_local_index > 1
+                if i_local_index > 1 || DNA_use_5_phos
                     i_bead += 1
                     push!(cg_residues, AACGResidue(i_resi, res_name, "DP", cg_DP_idx))
                 end
@@ -800,7 +828,6 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # ===============================
     # Intrinsically disordered region
     # ===============================
-    has_toml_mod  = false
     if haskey(args, "modeling-options")
         has_toml_mod    = true
         ff_detail_config = args["modeling-options"]
@@ -941,6 +968,12 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 @printf("              ... progress: %32s", " ")
             end
 
+            if DNA_circular
+                DNA_basetype_pre  = cg_resid_name[chain.last][end]
+                DNA_basetype_post = cg_resid_name[chain.first][end]
+            else
+                DNA_basetype_pre = "X"
+            end
             if gen_3spn_itp == 1
 
                 for i_res in chain.first : chain.last
@@ -1001,7 +1034,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         tmp_top_bond = CGTopBond(i_res, i_res + 1, r_ps)
                         push!(top_cg_DNA_bonds, tmp_top_bond)
                         # angle P--S--B
-                        resname5 = cg_resid_name[i_res - 1][end]
+                        resname5  = i_res > 1 ? cg_resid_name[i_res - 1][end] : DNA_basetype_pre
+                        # resname5 = cg_resid_name[i_res - 1][end]
                         resname3 = cg_resid_name[i_res + 2][end]
                         coor_b   = cg_bead_coor[:, i_res + 2]
                         ang_psb  = compute_angle(coor_p, coor_s, coor_b)
@@ -1102,7 +1136,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                             end
                         end
                     elseif cg_bead_name[i_res] == "DP"
-                        resname5  = i_res > 1 ? cg_resid_name[i_res - 1][end] : "X"
+                        resname5  = i_res > 1 ? cg_resid_name[i_res - 1][end] : DNA_basetype_pre
                         resname3  = cg_resid_name[i_res + 2][end]
                         base_step = resname5 * resname3
                         # bond P--S

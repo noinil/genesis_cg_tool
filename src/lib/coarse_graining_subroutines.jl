@@ -282,6 +282,11 @@ function get_DNA3SPN_angle_equilibrium(angle_type::String, base_step::String)
     )
     # Phosphate-Sugar-Phosphate
     PSP_params = Dict(
+        # TODO: currently using "X" as "A", should be changed to average???
+        "XAA" => 120.685, "XAC" => 112.882, "XAG" => 113.827, "XAT" => 117.435,
+        "XCA" => 119.061, "XCC" => 120.353, "XCG" => 113.240, "XCT" => 121.103,
+        "XGA" => 122.182, "XGC" => 118.658, "XGG" => 120.489, "XGT" => 122.928,
+        "XTA" => 117.235, "XTC" => 112.084, "XTG" => 111.714, "XTT" => 119.324,
         "AAA" => 120.685, "AAC" => 112.882, "AAG" => 113.827, "AAT" => 117.435,
         "ACA" => 119.061, "ACC" => 120.353, "ACG" => 113.240, "ACT" => 121.103,
         "AGA" => 122.182, "AGC" => 118.658, "AGG" => 120.489, "AGT" => 122.928,
@@ -326,6 +331,7 @@ function get_DNA3SPN_angle_param(angle_type::String, base_step::String)
     )
     # Phosphate-Sugar-Base
     PSB_params = Dict(
+        "XA" => 292, "XT" => 407, "XC" => 359, "XG" => 280,
         "AA" => 460, "TA" => 120, "CA" => 206, "GA" => 383,
         "AT" => 370, "TT" => 460, "CT" => 358, "GT" => 442,
         "AC" => 442, "TC" => 383, "CC" => 278, "GC" => 336,
@@ -388,6 +394,11 @@ function get_DNA3SPN_dihedral_equilibrium(angle_type::String, base_step::String)
     )
     # Phosphate-Sugar-Phosphate-Sugar
     PSPS_params = Dict(
+        # TODO: currently using "X" as "A", should be changed to average???
+        "XAA" => -155.622, "XAC" => -152.885, "XAG" => -151.259, "XAT" => -156.185,
+        "XCA" => -156.388, "XCC" => -155.577, "XCG" => -156.063, "XCT" => -157.660,
+        "XGA" => -159.083, "XGC" => -159.751, "XGG" => -154.497, "XGT" => -159.668,
+        "XTA" => -152.487, "XTC" => -151.938, "XTG" => -150.672, "XTT" => -155.597,
         "AAA" => -155.622, "AAC" => -152.885, "AAG" => -151.259, "AAT" => -156.185,
         "ACA" => -156.388, "ACC" => -155.577, "ACG" => -156.063, "ACT" => -157.660,
         "AGA" => -159.083, "AGC" => -159.751, "AGG" => -154.497, "AGT" => -159.668,

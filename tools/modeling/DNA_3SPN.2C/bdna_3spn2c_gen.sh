@@ -7,7 +7,7 @@ export X3DNA=~/Workspace/x3dna-v2.4
 # This tool is originally built by de Pablo's group and modified to generate
 # input files for Genesis.
 
-if [ $# -ne 1 ]; then
+if [ $# -lt 1 ]; then
     echo "Usage: $0 <sequence file>"
     exit 1
 fi
@@ -27,6 +27,10 @@ rm -f dna2c.curv
 echo "--------------------------------------------------------------------------------"
 echo "Making GROMACS itp files for GENESIS..."
 $DNA3SPNGRO_BIN_PATH/tools/modeling/DNA_3SPN.2C/x3dna_pdb_prune.jl ${1%.*}_x3dna.pdb
-$DNA3SPNGRO_BIN_PATH/src/aa_2_cg.jl ${1%.*}_x3dna_new.pdb --3spn-param 1 --cgpdb --cgconnect --psf
+if [ $# -eq 1 ]; then
+    $DNA3SPNGRO_BIN_PATH/src/aa_2_cg.jl ${1%.*}_x3dna_new.pdb --3spn-param 1 --cgpdb --cgconnect --psf
+else
+    $DNA3SPNGRO_BIN_PATH/src/aa_2_cg.jl ${1%.*}_x3dna_new.pdb --3spn-param 1 --cgpdb --cgconnect --psf $2
+fi
 echo " DONE!"
 echo "================================================================================"
