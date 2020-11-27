@@ -1034,7 +1034,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         tmp_top_bond = CGTopBond(i_res, i_res + 1, r_ps)
                         push!(top_cg_DNA_bonds, tmp_top_bond)
                         # angle P--S--B
-                        resname5  = i_res > 1 ? cg_resid_name[i_res - 1][end] : DNA_basetype_pre
+                        resname5  = i_res > chain.first ? cg_resid_name[i_res - 1][end] : DNA_basetype_pre
                         # resname5 = cg_resid_name[i_res - 1][end]
                         resname3 = cg_resid_name[i_res + 2][end]
                         coor_b   = cg_bead_coor[:, i_res + 2]
@@ -1133,10 +1133,39 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                                 tmp_top_dih    = CGTopDihedral(i_res, i_res + 2, i_res + 3, i_res + 5, dih_sp3s3p33)
                                 push!(top_cg_DNA_dih_periodic, tmp_top_dih)
                                 push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
+                            elseif DNA_circular
+                                base_two_steps = base_step * DNA_basetype_post
+                                dih_sp3s3p33   = get_DNA3SPN_dihedral_equilibrium("SPSP", base_two_steps)
+                                tmp_top_dih    = CGTopDihedral(i_res, i_res + 2, i_res + 3, chain.first, dih_sp3s3p33)
+                                push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                                push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
                             end
+                        elseif DNA_circular
+                            resname3  = DNA_basetype_post
+                            base_step = resname5 * resname3
+                            # bond S--P+1
+                            r_sp3        = get_DNA3SPN_bond_length("SP", base_step)
+                            tmp_top_bond = CGTopBond(i_res, chain.first, r_sp3)
+                            push!(top_cg_DNA_bonds, tmp_top_bond)
+                            # Angle S--P+1--S+1
+                            ang_sp3s3    = get_DNA3SPN_angle_equilibrium("SPS", base_step)
+                            k            = get_DNA3SPN_angle_param("SPS", base_step)
+                            tmp_top_angl = CGTopAngle(i_res, chain.first, chain.first + 1, ang_sp3s3)
+                            push!(top_cg_DNA_angles, tmp_top_angl)
+                            push!(param_cg_DNA_k_angles, k)
+                            # Dihedral S--P+1--S+1--B+1
+                            dih_sp3s3b3 = get_DNA3SPN_dihedral_equilibrium("SPSB", base_step)
+                            tmp_top_dih = CGTopDihedral(i_res, chain.first, chain.first + 1, chain.first + 2, dih_sp3s3b3)
+                            push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                            # Dihedral S--P+1--S+1--P+2
+                            base_two_steps = base_step * cg_resid_name[chain.first + 3][end]
+                            dih_sp3s3p33   = get_DNA3SPN_dihedral_equilibrium("SPSP", base_two_steps)
+                            tmp_top_dih    = CGTopDihedral(i_res, chain.first, chain.first + 1, chain.first + 3, dih_sp3s3p33)
+                            push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                            push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
                         end
                     elseif cg_bead_name[i_res] == "DP"
-                        resname5  = i_res > 1 ? cg_resid_name[i_res - 1][end] : DNA_basetype_pre
+                        resname5  = i_res > chain.first ? cg_resid_name[i_res - 1][end] : DNA_basetype_pre
                         resname3  = cg_resid_name[i_res + 2][end]
                         base_step = resname5 * resname3
                         # bond P--S
@@ -1162,10 +1191,23 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                             tmp_top_dih = CGTopDihedral(i_res, i_res + 1, i_res + 3, i_res + 4, dih_psp3s3)
                             push!(top_cg_DNA_dih_periodic, tmp_top_dih)
                             push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
+                        elseif DNA_circular
+                            base_two_steps = base_step * DNA_basetype_post
+                            # angle P--S--P+1
+                            ang_psp3 = get_DNA3SPN_angle_equilibrium("PSP", base_two_steps)
+                            k        = get_DNA3SPN_angle_param("PSP", "all")
+                            tmp_top_angl = CGTopAngle(i_res, i_res + 1, chain.first, ang_psp3)
+                            push!(top_cg_DNA_angles, tmp_top_angl)
+                            push!(param_cg_DNA_k_angles, k)
+                            # Dihedral P--S--P+1--S+1
+                            dih_psp3s3 = get_DNA3SPN_dihedral_equilibrium("PSPS", base_two_steps)
+                            tmp_top_dih = CGTopDihedral(i_res, i_res + 1, chain.first, chain.first + 1, dih_psp3s3)
+                            push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                            push!(top_cg_DNA_dih_Gaussian, tmp_top_dih)
                         end
                     elseif cg_bead_name[i_res] == "DB"
+                        resname5  = cg_resid_name[i_res][end]
                         if i_res + 2 < chain.last
-                            resname5  = cg_resid_name[i_res][end]
                             resname3  = cg_resid_name[i_res + 1][end]
                             base_step = resname5 * resname3
                             # angle B--S--P+1
@@ -1177,6 +1219,19 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                             # Dihedral B--S--P+1--S+1
                             dih_bsp3s3 = get_DNA3SPN_dihedral_equilibrium("BSPS", base_step)
                             tmp_top_dih = CGTopDihedral(i_res, i_res - 1, i_res + 1, i_res + 2, dih_bsp3s3)
+                            push!(top_cg_DNA_dih_periodic, tmp_top_dih)
+                        elseif DNA_circular
+                            resname3  = DNA_basetype_post
+                            base_step = resname5 * resname3
+                            # angle B--S--P+1
+                            ang_bsp3     = get_DNA3SPN_angle_equilibrium("BSP", base_step)
+                            k            = get_DNA3SPN_angle_param("BSP", base_step)
+                            tmp_top_angl = CGTopAngle(i_res, i_res - 1, chain.first, ang_bsp3)
+                            push!(top_cg_DNA_angles, tmp_top_angl)
+                            push!(param_cg_DNA_k_angles, k)
+                            # Dihedral B--S--P+1--S+1
+                            dih_bsp3s3 = get_DNA3SPN_dihedral_equilibrium("BSPS", base_step)
+                            tmp_top_dih = CGTopDihedral(i_res, i_res - 1, chain.first, chain.first + 1, dih_bsp3s3)
                             push!(top_cg_DNA_dih_periodic, tmp_top_dih)
                         end
                     else
@@ -2331,7 +2386,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp > 0
         # 3SPN.2C Gaussian dihedrals
         for dih in top_cg_DNA_dih_Gaussian
-            if is_dihedral_dangerous(dih)
+            if use_safe_dihedral > 0 && is_dihedral_dangerous(dih)
                 dih_func_type = DIHEDRAL_GAUS_MOD_TYPE[use_safe_dihedral]
             else
                 dih_func_type = DNA3SPN_DIH_G_FUNC_TYPE
@@ -2343,7 +2398,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
         # 3SPN.2C Periodic dihedrals
         for dih in top_cg_DNA_dih_periodic
-            if is_dihedral_dangerous(dih)
+            if use_safe_dihedral > 0 && is_dihedral_dangerous(dih)
                 dih_func_type = DIHEDRAL_PERI_MOD_TYPE[use_safe_dihedral]
             else
                 dih_func_type = DNA3SPN_DIH_P_FUNC_TYPE
