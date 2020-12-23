@@ -1,5 +1,6 @@
 [ cg_pair_energy_MJ_96 ]
 ; S.Miyazawa & RL.Jernigan J. Mol. Biol. (1996) 256, 623--644.
+; UNIT: RT !!!
 ; i   j   ene
 ALA ALA -2.72 
 ALA ARG -1.83 
