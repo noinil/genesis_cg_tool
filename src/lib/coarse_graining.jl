@@ -2499,12 +2499,12 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     #        [ exclusions ]
     # ---------------------
     # contact pairs
-    for c in top_pairs
-        i_exc = c.i
-        j_exc = c.j
-        new_exc = GenTopExclusion(i_exc, j_exc)
-        push!(top_exclusions, new_exc)
-    end
+    # for c in top_pairs
+    #     i_exc = c.i
+    #     j_exc = c.j
+    #     new_exc = GenTopExclusion(i_exc, j_exc)
+    #     push!(top_exclusions, new_exc)
+    # end
 
 
     # ----------
