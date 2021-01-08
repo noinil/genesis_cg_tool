@@ -52,17 +52,22 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     print(top_file, "[ molecules ] \n")
     print(top_file, system_name, "  1 \n\n")
 
-    print(top_file, "; [ cg_ele_mol_pairs ] \n")
+    print(top_file, "; [ cg_ele_chain_pairs ] \n")
     print(top_file, "; ON 1 - 2 : 3 - 4 \n")
     print(top_file, "; OFF 1 - 1 : 3 - 3 \n")
     print(top_file, "; OFF 1 - 1 \n\n")
 
-    print(top_file, "; [ pwmcos_mol_pairs ] \n")
+    print(top_file, "; [ pwmcos_chain_pairs ] \n")
     print(top_file, "; ON 1 - 2 : 3 - 4 \n")
     print(top_file, "; OFF 1 - 1 : 3 - 3 \n")
     print(top_file, "; OFF 2 - 3 \n\n")
 
-    print(top_file, "; [ cg_KH_mol_pairs ] \n")
+    print(top_file, "; [ pwmcosns_chain_pairs ] \n")
+    print(top_file, "; ON 1 - 2 : 3 - 4 \n")
+    print(top_file, "; OFF 1 - 1 : 3 - 3 \n")
+    print(top_file, "; OFF 2 - 3 \n\n")
+
+    print(top_file, "; [ cg_KH_chain_pairs ] \n")
     print(top_file, "; A 1 - 2 : 3 - 4 \n")
     print(top_file, "; OFF 1 - 1 : 3 - 3 \n")
     print(top_file, "; OFF 2 - 3 \n\n")
