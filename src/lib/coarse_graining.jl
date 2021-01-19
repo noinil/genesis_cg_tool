@@ -2262,8 +2262,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         # AICG2+ flexible
         if length(top_cg_pro_angles) > 0
             for ang in top_cg_pro_angles
-                if  in(ang.i, HPS_IDR_region) || in(ang.j, HPS_IDR_region) || in(ang.k, HPS_IDR_region) || 
-                    in(ang.i, KH_IDR_region) || in(ang.j, KH_IDR_region) || in(ang.k, KH_IDR_region)
+                if  ( in(ang.i, HPS_IDR_region) && in(ang.j, HPS_IDR_region) && in(ang.k, HPS_IDR_region) ) || 
+                    ( in(ang.i, KH_IDR_region) && in(ang.j, KH_IDR_region) && in(ang.k, KH_IDR_region) )
                     continue
                 end
                 new_angle = GenTopAngle(ang.i, ang.j, ang.k, AICG_ANG_F_FUNC_TYPE, 0.0, 0.0, 0.0)
@@ -2337,10 +2337,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         end
         # AICG2+ flexible dihedrals
         for dih in top_cg_pro_dihedrals
-            if  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
-                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region) ||
-                in(dih.i, KH_IDR_region) || in(dih.j, KH_IDR_region) ||
-                in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region)
+            if  ( in(dih.i, HPS_IDR_region) && in(dih.j, HPS_IDR_region) &&
+                in(dih.k, HPS_IDR_region) && in(dih.l, HPS_IDR_region) ) ||
+                ( in(dih.i, KH_IDR_region) && in(dih.j, KH_IDR_region) &&
+                in(dih.k, KH_IDR_region) && in(dih.l, KH_IDR_region) )
                 continue
             end
             new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, AICG_DIH_F_FUNC_TYPE, 0.0, 0.0, 0.0, 0)

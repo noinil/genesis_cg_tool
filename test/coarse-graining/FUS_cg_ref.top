@@ -16,17 +16,22 @@ FUS_cg
 [ molecules ] 
 FUS_cg  1 
 
-; [ cg_ele_mol_pairs ] 
+; [ cg_ele_chain_pairs ] 
 ; ON 1 - 2 : 3 - 4 
 ; OFF 1 - 1 : 3 - 3 
 ; OFF 1 - 1 
 
-; [ pwmcos_mol_pairs ] 
+; [ pwmcos_chain_pairs ] 
 ; ON 1 - 2 : 3 - 4 
 ; OFF 1 - 1 : 3 - 3 
 ; OFF 2 - 3 
 
-; [ cg_KH_mol_pairs ] 
+; [ pwmcosns_chain_pairs ] 
+; ON 1 - 2 : 3 - 4 
+; OFF 1 - 1 : 3 - 3 
+; OFF 2 - 3 
+
+; [ cg_KH_chain_pairs ] 
 ; A 1 - 2 : 3 - 4 
 ; OFF 1 - 1 : 3 - 3 
 ; OFF 2 - 3 
