@@ -233,7 +233,7 @@ function parse_commandline()
         default = 1
 
         "--use-safe-dihedral"
-        help = "Safe dih potential: 0) do nothing (default); 1) remove dih w/ large angles; 2) sin(kθ) type; 3) sin^3(θ) type."
+        help = "Safe dih potential: 0) do nothing (default); 1) cos^2(kθ) type; 2) remove dih w/ large angles; 3) sin^3(kθ) type."
         arg_type = Int
         default = 0
 

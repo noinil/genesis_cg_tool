@@ -2326,7 +2326,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region) 
                 continue
             end
-            if is_dihedral_dangerous(dih)
+            # if is_dihedral_dangerous(dih)
+            if true
                 dih_func_type = DIHEDRAL_GAUS_MOD_TYPE[use_safe_dihedral]
             else
                 dih_func_type = AICG_DIH_G_FUNC_TYPE
@@ -2355,7 +2356,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region)
                 continue
             end
-            if is_dihedral_dangerous(dih)
+            # if is_dihedral_dangerous(dih)
+            if true
                 dih_func_type = DIHEDRAL_PERI_MOD_TYPE[use_safe_dihedral]
             else
                 dih_func_type = CCGO_DIH_P_FUNC_TYPE
@@ -2371,7 +2373,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region)
                 continue
             end
-            if is_dihedral_dangerous(dih)
+            # if is_dihedral_dangerous(dih)
+            if true
                 dih_func_type = DIHEDRAL_PERI_MOD_TYPE[use_safe_dihedral]
             else
                 dih_func_type = CCGO_DIH_P_FUNC_TYPE
@@ -2386,7 +2389,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     if ff_dna == FF_DNA_3SPN2C && gen_3spn_itp > 0
         # 3SPN.2C Gaussian dihedrals
         for dih in top_cg_DNA_dih_Gaussian
-            if use_safe_dihedral > 0 && is_dihedral_dangerous(dih)
+            # if use_safe_dihedral > 0 && is_dihedral_dangerous(dih)
+            if true
                 dih_func_type = DIHEDRAL_GAUS_MOD_TYPE[use_safe_dihedral]
             else
                 dih_func_type = DNA3SPN_DIH_G_FUNC_TYPE
@@ -2398,7 +2402,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
         # 3SPN.2C Periodic dihedrals
         for dih in top_cg_DNA_dih_periodic
-            if use_safe_dihedral > 0 && is_dihedral_dangerous(dih)
+            # if use_safe_dihedral > 0 && is_dihedral_dangerous(dih)
+            if true
                 dih_func_type = DIHEDRAL_PERI_MOD_TYPE[use_safe_dihedral]
             else
                 dih_func_type = DNA3SPN_DIH_P_FUNC_TYPE
@@ -2413,7 +2418,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # RNA structure-based Periodic dihedrals
     if ff_rna == FF_RNA_HT
         for ( i_dih, dih ) in enumerate( top_cg_RNA_dihedrals )
-            if is_dihedral_dangerous(dih)
+            # if is_dihedral_dangerous(dih)
+            if true
                 dih_func_type = DIHEDRAL_PERI_MOD_TYPE[use_safe_dihedral]
             else
                 dih_func_type = RNA_DIH_FUNC_TYPE
@@ -2423,7 +2429,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             push!(top_dihedrals, new_dihedral)
         end
         for ( i_dih, dih ) in enumerate( top_cg_RNA_dihedrals )
-            if is_dihedral_dangerous(dih)
+            # if is_dihedral_dangerous(dih)
+            if true
                 dih_func_type = DIHEDRAL_PERI_MOD_TYPE[use_safe_dihedral]
             else
                 dih_func_type = RNA_DIH_FUNC_TYPE

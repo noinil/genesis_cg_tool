@@ -305,8 +305,8 @@ const CG_MOL_CONTACT_CUTOFF = 20.0
 const DIHEDRAL_SAFE_CUTOFF = 150.0
 const DIHEDRAL_GAUS_MOD_TYPE = Dict(
     0 => 21,                    # use-dafe-dihedral = 0
-    1 => 41,                    # use-safe-dihedral = 2; cos^2(kθ) type
-    3 => 43                     # use-safe-dihedral = 2; sin^3(kθ) type
+    1 => 41,                    # use-safe-dihedral = 1; cos^2(kθ) type
+    3 => 43                     # use-safe-dihedral = 3; sin^3(kθ) type
 )
 const DIHEDRAL_PERI_MOD_TYPE = Dict(
     0 => 1,                     # use-dafe-dihedral = 0
