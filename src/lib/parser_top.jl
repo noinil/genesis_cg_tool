@@ -10,7 +10,7 @@
 
 
 ###############################################################################
-#                                function lists                               
+#                                function lists
 # write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{String, Any})
 # write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args::Dict{String, Any})
 # read_groitp(itp_filename::AbstractString)
@@ -165,6 +165,20 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     wr_itp_exc_comm(io::IO) = @printf(io, ";%9s%10s\n", "i", "j")
     wr_itp_exc_line(io::IO, e::GenTopExclusion) = @printf(io, "%10d%10d\n", e.i, e.j)
 
+    # ----------
+    # [ pwmcos ]
+    # ----------
+    wr_itp_pwmcos_head(io::IO) = print(io, "[ pwmcos ] ; PWMcos parameter list\n")
+    wr_itp_pwmcos_comm(io::IO) = @printf(io, ";%5s%4s%9s%9s%9s%9s%12s%12s%12s%12s%8s%8s\n",
+                               "i", "f", "r0", "theta1", "theta2", "theta3",
+                               "ene_A", "ene_C", "ene_G", "ene_T",
+                               "gamma", "eps'")
+    wr_itp_pwmcos_line(io::IO, e::GenTopPWMcos) =
+        @printf(io, "%6d %3d %8.5f %8.3f %8.3f %8.3f%12.6f%12.6f%12.6f%12.6f%8.3f%8.3f \n",
+                 e.i, e.function_type, e.r0, e.theta1, e.theta2, e.theta3,
+                 e.ene_A, e.ene_C, e.ene_G, e.ene_T, e.gamma, e.eps)
+
+
     # ---------------------
     # [ cg_IDR_HPS_region ]
     # ---------------------
@@ -260,14 +274,26 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
         print(itp_file, "\n")
     end
 
-    # ---------------------
-    #        [ exclusions ]
-    # ---------------------
+    # --------------
+    # [ exclusions ]
+    # --------------
     if length(top.top_exclusions) > 0
         wr_itp_exc_head(itp_file)
         wr_itp_exc_comm(itp_file)
         for exclusion in top.top_exclusions
             wr_itp_exc_line(itp_file, exclusion)
+        end
+        print(itp_file, "\n")
+    end
+
+    # ----------
+    # [ pwmcos ]
+    # ----------
+    if length(top.top_pwmcos) > 0
+        wr_itp_pwmcos_head(itp_file)
+        wr_itp_pwmcos_comm(itp_file)
+        for pwmcos in top.top_pwmcos
+            wr_itp_pwmcos_line(itp_file, pwmcos)
         end
         print(itp_file, "\n")
     end
