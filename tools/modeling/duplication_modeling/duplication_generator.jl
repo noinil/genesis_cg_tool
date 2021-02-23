@@ -27,6 +27,8 @@ function main(args)
 
     DENSE = get(args, "density", 1.0)
 
+    ROT   = get(args, "random-rotation", false)
+
     mol_top = read_grotop(top_filename)
     mol_crd = read_grocrd(crd_filename)
 
@@ -73,6 +75,14 @@ function main(args)
                 if !( i_mol_global in REAL_INDICES )
                     continue
                 end
+
+                if ROT
+                    rot_matrix = generate_random_rotation()
+                    mol_coors = rot_matrix * mol_orig_coors
+                else
+                    mol_coors = mol_orig_coors
+                end
+
                 shift_x = (ix - 1) * (MOL_SIZE[1] + PAD_X * 2)
                 shift_y = (iy - 1) * (MOL_SIZE[2] + PAD_Y * 2)
                 shift_z = (iz - 1) * (MOL_SIZE[3] + PAD_Z * 2)
@@ -83,9 +93,9 @@ function main(args)
                             mol_top.top_atoms[i_bead].residue_name,
                             mol_top.top_atoms[i_bead].atom_name,
                             i_bead_global % 100000,
-                            ( mol_orig_coors[1,i_bead] + shift_x ) * 0.1,
-                            ( mol_orig_coors[2,i_bead] + shift_y ) * 0.1,
-                            ( mol_orig_coors[3,i_bead] + shift_z ) * 0.1,
+                            ( mol_coors[1,i_bead] + shift_x ) * 0.1,
+                            ( mol_coors[2,i_bead] + shift_y ) * 0.1,
+                            ( mol_coors[3,i_bead] + shift_z ) * 0.1,
                             0.0, 0.0, 0.0)
                 end
             end
@@ -153,6 +163,10 @@ function parse_commandline()
         help     = "Density (probability) of molecules."
         arg_type = Float64
         default  = 1.0
+
+        "--random-rotation"
+        help = "Perform random rotation for each duplicate."
+        action = :store_true
 
         "--debug"
         help = "DEBUG."
