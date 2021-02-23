@@ -61,10 +61,6 @@ function main(args)
 
     @printf("Duplicated system has %d x %d x %d x %d%% = %d copies, in total %d atoms \n",
             NUM_X, NUM_Y, NUM_Z, Int(floor(DENSE*100)), num_copies, total_num_particles)
-    @printf("Duplicated system size: %16.3f x %16.3f x %16.3f \n",
-            NUM_X * ( MOL_SIZE[1] + 2 * PAD_X ),
-            NUM_Y * ( MOL_SIZE[2] + 2 * PAD_Y ),
-            NUM_Z * ( MOL_SIZE[3] + 2 * PAD_Z ))
 
     i_bead_global = 0
     i_mol_global  = 0
@@ -102,6 +98,11 @@ function main(args)
         end
     end
     @printf(gro_file, "%15.4f%15.4f%15.4f \n\n", 0.0, 0.0, 0.0)
+
+    @printf("Duplicated system size estimation (if no rotation): %16.3f x %16.3f x %16.3f \n",
+            NUM_X * ( MOL_SIZE[1] + 2 * PAD_X ),
+            NUM_Y * ( MOL_SIZE[2] + 2 * PAD_Y ),
+            NUM_Z * ( MOL_SIZE[3] + 2 * PAD_Z ))
 
     close(gro_file)
 end
