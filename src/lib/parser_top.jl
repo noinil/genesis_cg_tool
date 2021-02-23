@@ -178,6 +178,15 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
                  e.i, e.function_type, e.r0, e.theta1, e.theta2, e.theta3,
                  e.ene_A, e.ene_C, e.ene_G, e.ene_T, e.gamma, e.eps)
 
+    # ----------
+    # [ pwmcosns ]
+    # ----------
+    wr_itp_pwmcosns_head(io::IO) = print(io, "[ pwmcosns ] ; PWMcos-ns parameter list\n")
+    wr_itp_pwmcosns_comm(io::IO) = @printf(io, ";%5s%4s%9s%9s%9s%8s\n",
+                                         "i", "f", "r0", "theta1", "theta3", "eps")
+    wr_itp_pwmcosns_line(io::IO, e::GenTopPWMcos) =
+        @printf(io, "%6d %3d %8.5f %8.3f %8.3f %8.3f \n",
+                e.i, e.function_type, e.r0 * 0.1, e.theta1, e.theta3, e.eps)
 
     # ---------------------
     # [ cg_IDR_HPS_region ]
@@ -298,6 +307,18 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
         print(itp_file, "\n")
     end
 
+    # ------------
+    # [ pwmcosns ]
+    # ------------
+    if length(top.top_pwmcosns) > 0
+        wr_itp_pwmcosns_head(itp_file)
+        wr_itp_pwmcosns_comm(itp_file)
+        for pwmcosns in top.top_pwmcosns
+            wr_itp_pwmcosns_line(itp_file, pwmcosns)
+        end
+        print(itp_file, "\n")
+    end
+
     # ---------------------
     # [ cg_IDR_HPS_region ]
     # ---------------------
@@ -335,6 +356,9 @@ function write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args
     verbose = get(args, "verbose", false)
     appendto_filename = get(args, "patch", "")
 
+    do_output_pwmcos   = get(args, "pwmcos", true)
+    do_output_pwmcosns = get(args, "pwmcos-ns", true)
+
     if length( appendto_filename ) == 0
         itp_pwmcos_name = system_name * "_pwmcos.itp_patch"
         itp_pwmcos_file = open(itp_pwmcos_name, "w")
@@ -343,12 +367,18 @@ function write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args
         itp_pwmcos_file = open(itp_pwmcos_name, "a")
     end
 
-    itp_pwmcos_head = "[ pwmcos ]\n"
-    itp_pwmcos_comm = @sprintf(";%5s%4s%9s%9s%9s%9s%12s%12s%12s%12s%8s%8s\n",
-                               "i", "f", "r0", "theta1", "theta2", "theta3",
-                               "ene_A", "ene_C", "ene_G", "ene_T",
-                               "gamma", "eps'")
-    itp_pwmcos_line = "%6d %3d %8.5f %8.3f %8.3f %8.3f%12.6f%12.6f%12.6f%12.6f%8.3f%8.3f \n"
+
+    if gen_pwmcos_itp
+        itp_pwmcos_head = "[ pwmcos ]\n"
+        itp_pwmcos_comm = @sprintf(";%5s%4s%9s%9s%9s%9s%12s%12s%12s%12s%8s%8s\n",
+                                   "i", "f", "r0", "theta1", "theta2", "theta3",
+                                   "ene_A", "ene_C", "ene_G", "ene_T",
+                                   "gamma", "eps'")
+    elseif gen_pwmcos_ns_itp
+        itp_pwmcos_head = "[ pwmcosns ] ; PWMcos-ns parameter list\n"
+        itp_pwmcos_comm = @sprintf(";%5s%4s%9s%9s%9s%8s\n",
+                                   "i", "f", "r0", "theta1", "theta3", "eps")
+    end
 
     print(itp_pwmcos_file, itp_pwmcos_head)
     print(itp_pwmcos_file, itp_pwmcos_comm)
@@ -362,7 +392,7 @@ function write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args
             @printf(itp_pwmcos_file,
                     "%6d %3d %8.5f %8.3f %8.3f %8.3f \n",
                     p.i, p.function_type, p.r0 * 0.1, p.theta1, p.theta3,
-                    p.gamma)
+                    p.eps)
         end
     end
     print(itp_pwmcos_file, "\n")
@@ -390,6 +420,7 @@ function read_groitp(itp_filename::AbstractString)
     top_pairs         = Vector{GenTopPair}(undef, 0)
     top_exclusions    = Vector{GenTopExclusion}(undef, 0)
     top_pwmcos        = Vector{GenTopPWMcos}(undef, 0)
+    top_pwmcosns      = Vector{GenTopPWMcos}(undef, 0)
     top_idr_hps       = Vector{GenTopRegion}(undef, 0)
     top_idr_kh        = Vector{GenTopRegion}(undef, 0)
 
@@ -519,6 +550,19 @@ function read_groitp(itp_filename::AbstractString)
         push!(top_pwmcos, new_pwmcos)
     end
 
+    function read_top_pwmcosns(line::AbstractString)
+        words  = split(line)
+        i      = parse(Int, words[1])
+        f_type = parse(Int, words[2])
+        r0 = parse(Float64, words[3]) * 10.0
+        t1 = parse(Float64, words[4])
+        t3 = parse(Float64, words[5])
+        ep = parse(Float64, words[6])
+        new_pwmcosns = GenTopPWMcos(i, f_type, r0, t1, 0.0, t3,
+                                    0.0, 0.0, 0.0, 0.0, 0.0, ep)
+        push!(top_pwmcosns, new_pwmcosns)
+    end
+
     function read_top_idr_hps(line::AbstractString)
         words   = split(line)
         i       = parse(Int, words[1])
@@ -590,6 +634,8 @@ function read_groitp(itp_filename::AbstractString)
                 read_top_exclusions(line)
             elseif section_name == "pwmcos"
                 read_top_pwmcos(line)
+            elseif section_name == "pwmcosns"
+                read_top_pwmcosns(line)
             elseif section_name == "cg_IDR_HPS_region"
                 read_top_idr_hps(line)
             elseif section_name == "cg_IDR_KH_region"
@@ -608,6 +654,7 @@ function read_groitp(itp_filename::AbstractString)
                                  top_pairs,
                                  top_exclusions,
                                  top_pwmcos,
+                                 top_pwmcosns,
                                  top_idr_hps,
                                  top_idr_kh)
 
@@ -638,6 +685,7 @@ function read_grotop(top_filename::AbstractString)
     top_pairs                  = Vector{GenTopPair}(undef, 0)
     top_exclusions             = Vector{GenTopExclusion}(undef, 0)
     top_pwmcos                 = Vector{GenTopPWMcos}(undef, 0)
+    top_pwmcosns               = Vector{GenTopPWMcos}(undef, 0)
     top_idr_hps                = Vector{GenTopRegion}(undef, 0)
     top_idr_kh                 = Vector{GenTopRegion}(undef, 0)
     top_mol_list               = Vector{GenTopMolList}(undef, 0)
@@ -764,6 +812,17 @@ function read_grotop(top_filename::AbstractString)
                                      t.gamma, t.eps)
                     push!(top_pwmcos, s)
                 end
+                for t in tmp_mol.top_pwmcosns
+                    s = GenTopPWMcos(t.i + num_atom,
+                                     t.function_type,
+                                     t.r0,
+                                     t.theta1,
+                                     t.theta2,
+                                     t.theta3,
+                                     t.ene_A, t.ene_C, t.ene_G, t.ene_T,
+                                     t.gamma, t.eps)
+                    push!(top_pwmcosns, s)
+                end
                 for t in tmp_mol.top_idr_hps
                     s = GenTopRegion(t.istart + num_atom,
                                      t.iend + num_atom)
@@ -798,6 +857,7 @@ function read_grotop(top_filename::AbstractString)
                           top_pairs,
                           top_exclusions,
                           top_pwmcos,
+                          top_pwmcosns,
                           top_idr_hps,
                           top_idr_kh,
                           top_mol_list)
@@ -885,6 +945,7 @@ function read_psf(psf_filename::AbstractString)
     top_pairs                  = Vector{GenTopPair}(undef, 0)
     top_exclusions             = Vector{GenTopExclusion}(undef, 0)
     top_pwmcos                 = Vector{GenTopPWMcos}(undef, 0)
+    top_pwmcosns               = Vector{GenTopPWMcos}(undef, 0)
     top_idr_hps                = Vector{GenTopRegion}(undef, 0)
     top_idr_kh                 = Vector{GenTopRegion}(undef, 0)
     top_mol_list               = Vector{GenTopMolList}(undef, 0)
@@ -950,6 +1011,7 @@ function read_psf(psf_filename::AbstractString)
                           top_pairs,
                           top_exclusions,
                           top_pwmcos,
+                          top_pwmcosns,
                           top_idr_hps,
                           top_idr_kh,
                           top_mol_list)

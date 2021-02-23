@@ -67,6 +67,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     cgRNA_use_phosphate_go  = get(args, "cgRNA-phosphate-Go", false)
     pwmcos_gamma            = get(args, "pwmcos-scale", 1.0)
     pwmcos_epsil            = get(args, "pwmcos-shift", 0.0)
+    pwmcosns_epsil          = get(args, "pwmcos-ns-ene", -1.0)
 
     # ----------------------
     # More details from TOML
@@ -347,9 +348,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     param_cg_RNA_e_other_contact = []
 
     # protein-DNA
-    top_cg_pro_DNA_pwmcos    = Vector{CGTopPWMcos}(undef, 0)
-    top_cg_pro_DNA_contact   = Vector{CGTopContact}(undef, 0)
-    top_pwmcos_ns_native_contacts = []
+    top_cg_pro_DNA_pwmcos         = Vector{CGTopPWMcos}(undef, 0)
+    top_cg_pro_DNA_pwmcosns       = Vector{CGTopPWMcos}(undef, 0)
+    top_cg_pro_DNA_contact        = Vector{CGTopContact}(undef, 0)
 
     # protein-RNA
     top_cg_pro_RNA_contact   = Vector{CGTopContact}(undef, 0)
@@ -1985,9 +1986,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     end
 
 
-    # ============================================================
-    # PWMcos parameters: protein-DNA sequence-specific interaction
-    # ============================================================
+    # ===================================================================
+    # PWMcos-ns parameters: protein-DNA sequence-non-specific interaction
+    # ===================================================================
     #    ______        ____  __
     #   |  _ \ \      / /  \/  | ___ ___  ___       _ __  ___
     #   | |_) \ \ /\ / /| |\/| |/ __/ _ \/ __|_____| '_ \/ __|
@@ -1996,6 +1997,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # 
     # ============================================================
     if ff_pro_dna == FF_PWMcos_ns
+
+        # pwmcos_ns_native_contacts = []
 
         if num_chain_pro == 0
             error("Cannot generate PWMcos parameters without protein...")
@@ -2055,10 +2058,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         theta1 = compute_vec_angle(vec0, vec1)
                         theta3 = compute_vec_angle(vec0, vec3)
 
-                        push!(top_pwmcos_ns_native_contacts, (i_res - chain_pro.first + 1,
-                                                              r0,
-                                                              theta1,
-                                                              theta3))
+                        # push!(pwmcos_ns_native_contacts, (i_res - chain_pro.first + 1,
+                        #                                   r0,
+                        #                                   theta1,
+                        #                                   theta3))
 
                         if do_debug
                             println("PWMcos | pro ===> ", i_res - chain_pro.first + 1,
@@ -2067,6 +2070,12 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                                     " theta1 = ", theta1,
                                     " theta3 = ", theta3)
                         end
+
+                        tmp_top_pwmcosns = CGTopPWMcos(i_res - chain_pro.first + 1,
+                                                       r0, theta1, 0.0, theta3,
+                                                       0.0, 0.0, 0.0, 0.0)
+                        push!(top_cg_pro_DNA_pwmcosns, tmp_top_pwmcosns)
+
                     end
                 end
             end
@@ -2186,6 +2195,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     top_pairs                      = Vector{GenTopPair}(undef, 0)
     top_exclusions                 = Vector{GenTopExclusion}(undef, 0)
     top_pwmcos                     = Vector{GenTopPWMcos}(undef, 0)
+    top_pwmcosns                   = Vector{GenTopPWMcos}(undef, 0)
     top_idr_hps                    = Vector{GenTopRegion}(undef, 0)
     top_idr_kh                     = Vector{GenTopRegion}(undef, 0)
     top_mol_list                   = Vector{GenTopMolList}(undef, 0)
@@ -2502,9 +2512,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     end
 
 
-    # ---------------------
-    #        [ exclusions ]
-    # ---------------------
+    # --------------
+    # [ exclusions ]
+    # --------------
     # contact pairs
     # for c in top_pairs
     #     i_exc = c.i
@@ -2523,10 +2533,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         push!(top_pwmcos, new_pwmcos)
     end
 
-    for p in top_pwmcos_ns_native_contacts
-        new_pwmcos = GenTopPWMcos(p[1], PWMCOS_NS_FUNC_TYPE, p[2], p[3], 0.0, p[4],
-                                  0.0, 0.0, 0.0, 0.0, -1.0, 0.0)
-        push!(top_pwmcos, new_pwmcos)
+    for p in top_cg_pro_DNA_pwmcosns
+        new_pwmcos = GenTopPWMcos(p.i, PWMCOS_FUNC_TYPE, p.r0, p.t1, p.t2, p.t3,
+                                  p.eA, p.eC, p.eG, p.eT, pwmcos_gamma, pwmcos_epsil)
+        push!(top_pwmcosns, new_pwmcos)
     end
 
     
@@ -2596,6 +2606,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         top_pairs,
                         top_exclusions,
                         top_pwmcos,
+                        top_pwmcosns,
                         top_idr_hps,
                         top_idr_kh,
                         top_mol_list)

@@ -164,6 +164,7 @@ struct GenTopMolecule
     top_pairs::Vector{GenTopPair}
     top_exclusions::Vector{GenTopExclusion}
     top_pwmcos::Vector{GenTopPWMcos}
+    top_pwmcosns::Vector{GenTopPWMcos}
     top_idr_hps::Vector{GenTopRegion}
     top_idr_kh::Vector{GenTopRegion}
 end
@@ -195,6 +196,7 @@ struct GenTopology
     top_pairs::Vector{GenTopPair}
     top_exclusions::Vector{GenTopExclusion}
     top_pwmcos::Vector{GenTopPWMcos}
+    top_pwmcosns::Vector{GenTopPWMcos}
     top_idr_hps::Vector{GenTopRegion}
     top_idr_kh::Vector{GenTopRegion}
 

@@ -140,7 +140,7 @@ function aa_2_cg(args)
     #                            Output CG Topology                           #
     ###########################################################################
 
-    if gen_pwmcos_itp
+    if gen_pwmcos_itp || gen_pwmcos_ns_itp
         do_output_top    = false
         do_output_gro    = false
         do_output_pwmcos = true
@@ -267,6 +267,11 @@ function parse_commandline()
         "--pwmcos-ns"
         help = "Generate parameters for protein-DNA sequence-NON-specific interactions."
         action = :store_true
+
+        "--pwmcos-ns-ene"
+        help = "Interaction strength for PWMcos-ns (hydrogen-bond)."
+        arg_type = Float64
+        default = -1.0
 
         "--psf"
         help = "Prepare PSF file."
