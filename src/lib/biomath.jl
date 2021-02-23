@@ -195,6 +195,28 @@ function compute_rmsd(coors_group_1::Array{<:Real, 2}, coors_group_2::Array{<:Re
     return rmsd
 end
 
+# --------------------------
+# Generate a random rotation
+# --------------------------
+function generate_random_rotation()
+    # step 1: random axis
+    rand_vec = rand(Float64, 3) .- 0.5
+    rand_vec_norm = sqrt(rand_vec' * rand_vec)
+    axis = rand_vec ./ rand_vec_norm
+    (ax, ay, az) = axis
+
+    outer_product_matrix = axis * axis'
+    cross_product_matrix = [0 -az ay; az 0 -ax; -ay ax 0]
+
+    # step 2: random θ
+    theta = rand() * 2 * pi
+    cos_theta = cos(theta)
+    sin_theta = sin(theta)
+    R = cos_theta * I + (1 - cos_theta) * outer_product_matrix + sin_theta * cross_product_matrix
+
+    # return the rotation matrix
+    return R
+end
 
 # ===================
 # Physical properties
