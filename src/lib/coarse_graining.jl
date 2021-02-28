@@ -79,8 +79,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
         if haskey(ff_detail_config, "3SPN.2C")
             if haskey(ff_detail_config["3SPN.2C"], "USE_5_PHOSPHATE")
-                index_string = ff_detail_config["IDR"]["AICG2p_IDR_local"]
-                if index_string == "YES"
+                val_string = ff_detail_config["3SPN.2C"]["USE_5_PHOSPHATE"]
+                if val_string == "YES"
                     DNA_use_5_phos = true
                 end
             end
