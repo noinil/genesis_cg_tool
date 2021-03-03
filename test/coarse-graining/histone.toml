@@ -1,0 +1,4 @@
+[ IDR ]
+  AICG2p_IDR_local = "1 to 32, 136 to 158, 238 to 251, 358 to 365, 366 to 391, 491 to 522, 626 to 648, 728 to 741, 848 to 855, 856 to 881"
+  AICG2p_IDR_nonlocal = "1 to 32, 136 to 158, 238 to 251, 358 to 365, 366 to 391, 491 to 522, 626 to 648, 728 to 741, 848 to 855, 856 to 881"
+

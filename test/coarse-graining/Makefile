@@ -3,15 +3,15 @@
 
 default:
 	
-run_all: run_VP run_ROM run_TAL run_DNA run_NHP run_FUS
+run_all: run_VP run_ROM run_TAL run_DNA run_NHP run_FUS run_histone
 	@echo "-------------------------------------------"
 	@echo "New files generated."
 
-diff_all: diff_VP diff_ROM diff_TAL diff_DNA diff_NHP diff_FUS
+diff_all: diff_VP diff_ROM diff_TAL diff_DNA diff_NHP diff_FUS diff_histone
 	@echo "-------------------------------------------"
 	@echo "File comparison finished."
 
-clean_all: clean_VP clean_TAL clean_ROM clean_DNA clean_NHP clean_FUS
+clean_all: clean_VP clean_TAL clean_ROM clean_DNA clean_NHP clean_FUS clean_histone
 	@echo "-------------------------------------------"
 	@echo "Cleaning finished."
 
@@ -96,4 +96,16 @@ diff_FUS:
 
 clean_FUS:
 	rm -f FUS_cg.{itp,gro,top,pdb,psf}
+
+run_histone:
+	../../src/aa_2_cg.jl --cgpdb --cgconnect -f histone.toml -c histone.charge histone.pdb
+
+diff_histone:
+	diff histone_cg.itp histone_cg_ref.itp || exit 0
+	diff histone_cg.gro histone_cg_ref.gro || exit 0
+	diff histone_cg.pdb histone_cg_ref.pdb || exit 0
+	diff histone_cg.top histone_cg_ref.top || exit 0
+
+clean_histone:
+	rm -f histone_cg.{itp,gro,top,pdb,psf}
 
