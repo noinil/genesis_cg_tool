@@ -12,7 +12,7 @@ struct AAResidue
 end
 
 struct AAChain
-    id::Char
+    id::String
     segname::String
     moltype::Int
     residues::Vector{Int64}

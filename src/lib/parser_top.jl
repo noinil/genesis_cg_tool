@@ -368,13 +368,13 @@ function write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args
     end
 
 
-    if gen_pwmcos_itp
+    if do_output_pwmcos
         itp_pwmcos_head = "[ pwmcos ]\n"
         itp_pwmcos_comm = @sprintf(";%5s%4s%9s%9s%9s%9s%12s%12s%12s%12s%8s%8s\n",
                                    "i", "f", "r0", "theta1", "theta2", "theta3",
                                    "ene_A", "ene_C", "ene_G", "ene_T",
                                    "gamma", "eps'")
-    elseif gen_pwmcos_ns_itp
+    elseif do_output_pwmcosns
         itp_pwmcos_head = "[ pwmcosns ] ; PWMcos-ns parameter list\n"
         itp_pwmcos_comm = @sprintf(";%5s%4s%9s%9s%9s%8s\n",
                                    "i", "f", "r0", "theta1", "theta3", "eps")

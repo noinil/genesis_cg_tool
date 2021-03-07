@@ -196,7 +196,7 @@ function make_cg_protein_structure(args)
                 end
                 residues[j] = AAResidue(aa_residue_name, [j])
             end
-            new_chain = AAChain(chain_id_lib[mod(l, 63) + 1], rpad(mol_name, 6)[1:6], MOL_PROTEIN, [i + i_offset for i = 1 : protein_length])
+            new_chain = AAChain(""*chain_id_lib[mod(l, 63) + 1], rpad(mol_name, 6)[1:6], MOL_PROTEIN, [i + i_offset for i = 1 : protein_length])
             chains[l] = new_chain
         end
         chain0[1] = chains[1]

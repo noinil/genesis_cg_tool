@@ -35,6 +35,7 @@ function aa_2_cg(args)
     # -----------------
     verbose            = get(args, "verbose", false)
     pdb_name           = get(args, "pdb", "")
+    is_mmCIF           = get(args, "mmCIF", false)
     gen_pwmcos_itp     = get(args, "pwmcos", false)
     gen_pwmcos_ns_itp  = get(args, "pwmcos-ns", false)
     do_output_psf      = get(args, "psf", false)
@@ -104,7 +105,12 @@ function aa_2_cg(args)
         println("> Open PDB file:")
     end
 
-    aa_molecule = read_PDB(pdb_name)
+    if is_mmCIF
+        cif_data = read_mmCIF(pdb_name)
+        aa_molecule = mmCIF_to_AAMolecule(cif_data)
+    else
+        aa_molecule = read_PDB(pdb_name)
+    end
 
     aa_num_atom    = length(aa_molecule.atom_names)
     aa_num_residue = length(aa_molecule.residues)
@@ -305,6 +311,10 @@ function parse_commandline()
 
         "--show-sequence"
         help = "Show sequence of molecules in PDB."
+        action = :store_true
+
+        "--mmCIF"
+        help = "Use mmCIF format PDB file as input."
         action = :store_true
 
         "--output-name"

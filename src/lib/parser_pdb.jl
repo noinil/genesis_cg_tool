@@ -7,13 +7,22 @@
 #                                                                             #
 ###############################################################################
 
+# =============
+# Function list
+#
+# function parse_PDB_line(pdb_line::AbstractString)
+# function write_PDB_line(io::IO, aline::PDBLine)
+# function read_PDB(pdb_name::AbstractString)
+# function write_pdb(top::GenTopology, conf::Conformation, system_name::AbstractString, args::Dict{String, <:Any}=Dict{String, Any}())
+# =============
+
 using Printf
 
 struct PDBLine
     atom_serial::Int     # line[7:11]
     atom_name::String    # line[13:16]
     residue_name::String # line[18:21]
-    chain_id::Char       # line[22]
+    chain_id::String     # line[22]
     residue_serial::Int  # line[23:26]
     coor_x::Float64      # line[31:38]
     coor_y::Float64      # line[39:46]
@@ -35,7 +44,7 @@ function parse_PDB_line(pdb_line::AbstractString)
     end
     atom_name       = strip(pdb_line[13:16])
     residue_name    = strip(pdb_line[18:21])
-    chain_id        = pdb_line[22]
+    chain_id        = pdb_line[22:22]
     residue_serial  = parse(Int, pdb_line[23:26])
     coor_x          = parse(Float64, pdb_line[31:38])
     coor_y          = parse(Float64, pdb_line[39:46])
@@ -127,11 +136,11 @@ function read_PDB(pdb_name::AbstractString)
     curr_chain    = NaN
     curr_rname    = "    "
     residue_name  = "    "
-    chain_id      = '?'
+    chain_id      = "?"
     tmp_res_atoms = []
     tmp_chain_res = []
     segment_id    = " "
- 
+
     # ========================================
     # Step 2: Add atoms to residues and chains
     # ========================================
@@ -143,10 +152,9 @@ function read_PDB(pdb_name::AbstractString)
                 tmp_res_atoms = []
             end
             if length(tmp_chain_res) > 0
-            
-                # -------------------------------
-                # Determine chain molecule type  
-                # -------------------------------
+                # -----------------------------
+                # Determine chain molecule type
+                # -----------------------------
                 mol_type = -1
                 for i_res in tmp_chain_res
                     res_name = aa_residues[i_res].name
