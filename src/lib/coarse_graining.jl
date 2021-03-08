@@ -315,11 +315,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     top_cg_pro_dihedrals     = Vector{CGTopDihedral}(undef, 0)
     top_cg_pro_aicg13        = Vector{CGTopAngle}(undef, 0)
     top_cg_pro_aicg14        = Vector{CGTopDihedral}(undef, 0)
-    top_cg_pro_go_contact    = Vector{CGTopContact}(undef, 0)
+    top_cg_pro_go_contact    = [[] for i in 1:cg_num_particles]
 
     param_cg_pro_e_13        = []
     param_cg_pro_e_14        = []
-    param_cg_pro_e_contact   = []
 
     AICG2p_flexible_local    = []
     AICG2p_flexible_nonlocal = []
@@ -636,8 +635,6 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             println(" - - - - - - - - - - - - - - - - - - - - - - - -")
             println(">      $(i_step).2.2: Looking for native contacts.")
         end
-        e_ground_contact = 0.0
-        num_contact = 0
 
         # intra-molecular contacts
         if verbose
@@ -669,7 +666,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             end
             # ------------------
 
-            for i_res in chain.first : chain.last - 4
+            Threads.@threads for i_res in chain.first : chain.last - 4
                 coor_cai = cg_bead_coor[:, i_res]
                 for j_res in i_res + 4 : chain.last
                     coor_caj = cg_bead_coor[:, j_res]
@@ -677,9 +674,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         native_dist = compute_distance(coor_cai, coor_caj)
                         num_cg_pro_contact_all += 1
                         num_cg_pro_contact_intra += 1
-                        tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                        push!(top_cg_pro_go_contact, tmp_top_cnt)
 
+                        e_local = 0.0
                         if ff_pro == FF_pro_AICG2p
                             # count AICG2+ atomic contact
                             contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
@@ -697,10 +693,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                             if e_local < AICG_ENE_LOWER_LIM
                                 e_local = AICG_ENE_LOWER_LIM
                             end
-                            e_ground_contact += e_local
-                            num_contact      += 1
-                            push!(param_cg_pro_e_contact, e_local)
                         end
+                        push!(top_cg_pro_go_contact[i_res], [j_res, native_dist, e_local])
                     end
                 end
             end
@@ -751,7 +745,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         continue
                     end
 
-                    for i_res in chain1.first : chain1.last
+                    Threads.@threads for i_res in chain1.first : chain1.last
                         coor_cai = cg_bead_coor[:, i_res]
 
                         cai_centj_dist = compute_distance(coor_cai, centroid_chain2)
@@ -765,9 +759,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                                 native_dist = compute_distance(coor_cai, coor_caj)
                                 num_cg_pro_contact_all += 1
                                 num_cg_pro_contact_inter += 1
-                                tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                                push!(top_cg_pro_go_contact, tmp_top_cnt)
 
+                                e_local = 0.0
                                 if ff_pro == FF_pro_AICG2p
                                     # count AICG2+ atomic contact
                                     contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
@@ -785,10 +778,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                                     if e_local < AICG_ENE_LOWER_LIM
                                         e_local = AICG_ENE_LOWER_LIM
                                     end
-                                    e_ground_contact += e_local
-                                    num_contact      += 1
-                                    push!(param_cg_pro_e_contact, e_local)
                                 end
+                                push!(top_cg_pro_go_contact[i_res], [j_res, native_dist, e_local])
                             end
                         end
                     end
@@ -800,6 +791,15 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         end
 
         if ff_pro == FF_pro_AICG2p
+            e_ground_contact = 0.0
+            num_contact = 0
+            # count num of contacts, sum up e_ground_contact
+            for i_res in 1:cg_num_particles
+                for cntct_tmp in top_cg_pro_go_contact[i_res]
+                    num_contact += 1
+                    e_ground_contact += cntct_tmp[3]
+                end
+            end
             # normalize
             if num_contact > 0
                 e_ground_contact /= num_contact
@@ -808,12 +808,16 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             end
 
             if aicg_scale_scheme == 0
-                for i in 1:length(param_cg_pro_e_contact)
-                    param_cg_pro_e_contact[i] *= AICG_CONTACT_AVE / e_ground_contact
+                for i in 1:cg_num_particles
+                    for cntct_tmp in top_cg_pro_go_contact[i]
+                        cntct_tmp[3] *= AICG_CONTACT_AVE / e_ground_contact
+                    end
                 end
             elseif aicg_scale_scheme == 1
-                for i in 1:length(param_cg_pro_e_contact)
-                    param_cg_pro_e_contact[i] *= -AICG_CONTACT_GEN
+                for i in 1:cg_num_particles
+                    for cntct_tmp in top_cg_pro_go_contact[i]
+                        cntct_tmp[3] *= -AICG_CONTACT_GEN
+                    end
                 end
             end
         end
@@ -821,7 +825,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         if verbose
             println("------------------------------------------------------------")
             @printf("          > Total number of protein contacts: %12d  \n",
-                    length( top_cg_pro_go_contact ))
+                    sum( length.( top_cg_pro_go_contact ) ))
         end
 
     end
@@ -2457,24 +2461,28 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # ---------
     # protein Go-type native contacts
     if ff_pro == FF_pro_AICG2p
-        for (i_c, c) in enumerate(top_cg_pro_go_contact)
-            if  in(c.i, AICG2p_flexible_nonlocal) || in(c.j, AICG2p_flexible_nonlocal) ||
-                in(c.i, HPS_IDR_region) || in(c.j, HPS_IDR_region) ||
-                in(c.i, KH_IDR_region) || in(c.j, KH_IDR_region)
-                continue
+        for i_res in 1:cg_num_particles
+            for c in top_cg_pro_go_contact[i_res]
+                if  in(i_res, AICG2p_flexible_nonlocal) || in(c[1], AICG2p_flexible_nonlocal) ||
+                    in(i_res, HPS_IDR_region) || in(c[1], HPS_IDR_region) ||
+                    in(i_res, KH_IDR_region) || in(c[1], KH_IDR_region)
+                    continue
+                end
+                new_pair = GenTopPair(i_res, c[1], AICG_CONTACT_FUNC_TYPE, c[2], c[3])
+                push!(top_pairs, new_pair)
             end
-            new_pair = GenTopPair(c.i, c.j, AICG_CONTACT_FUNC_TYPE, c.r0, param_cg_pro_e_contact[i_c])
-            push!(top_pairs, new_pair)
         end
     # Clementi Go native contacts
     elseif ff_pro == FF_pro_Clementi_Go
-        for c in top_cg_pro_go_contact
-            if  in(c.i, HPS_IDR_region) || in(c.j, HPS_IDR_region) ||
-                in(c.i, KH_IDR_region) || in(c.j, KH_IDR_region)
-                continue
+        for i_res in 1:cg_num_particles
+            for c in top_cg_pro_go_contact[i_res]
+                if  in(i_res, HPS_IDR_region) || in(c[1], HPS_IDR_region) ||
+                    in(i_res, KH_IDR_region) || in(c[1], KH_IDR_region)
+                    continue
+                end
+                new_pair = GenTopPair(i_res, c[1], CCGO_CONTACT_FUNC_TYPE, c[2], CCGO_NATIVE_EPSILON * ccgo_contact_scale)
+                push!(top_pairs, new_pair)
             end
-            new_pair = GenTopPair(c.i, c.j, CCGO_CONTACT_FUNC_TYPE, c.r0, CCGO_NATIVE_EPSILON * ccgo_contact_scale)
-            push!(top_pairs, new_pair)
         end
     end
 
@@ -2660,7 +2668,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         println(log_file, "================================================================================")
         println(log_file, " Interaction info:")
         if num_chain_pro > 0
-            @printf(log_file, " - Number of protein contacts:     %12d  \n", length(top_cg_pro_go_contact))
+            @printf(log_file, " - Number of protein contacts:     %12d  \n", length(top_pairs))
         end
         if num_chain_RNA > 0
             @printf(log_file, " - Number of RNA contacts:         %12d  \n", length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) )
