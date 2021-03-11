@@ -641,7 +641,6 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             @printf("%11s Calculating intra-molecular contacts... \n", " ")
             @printf("              ... chain   : %32s", " ")
         end
-        i_progress_count = 0
         for i_chain in 1:aa_num_chain
 
             if do_test_local_only
@@ -657,12 +656,11 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             # -----------------
             # show progress bar
             # -----------------
-            if  verbose
-                i_progress_count += 1
+            if verbose
                 print("\b"^32)
-                progress_percent = trunc(Int, i_progress_count / num_chain_pro * 20)
+                progress_percent = trunc(Int, i_chain / aa_num_chain * 20)
                 progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
-                @printf(" [%20s] %2d / %2d ", progress_bar, i_progress_count, num_chain_pro)
+                @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / aa_num_chain * 100)
             end
             # ------------------
 
@@ -1522,7 +1520,6 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             @printf("%11s Calculating intra-molecular contacts... \n", " ")
             @printf("              ... progress: %32s", " ")
         end
-        i_progress_count = 0
         for i_chain in 1:aa_num_chain
 
             if do_test_local_only
@@ -1539,11 +1536,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             # show progress bar
             # -----------------
             if verbose
-                i_progress_count += 1
                 print("\b"^32)
-                progress_percent = trunc(Int, i_progress_count / ( num_chain_RNA ) * 20)
+                progress_percent = trunc(Int, i_chain / aa_num_chain * 20)
                 progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
-                @printf(" [%20s] %2d / %2d ", progress_bar, i_progress_count, num_chain_RNA)
+                @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / aa_num_chain * 100)
             end
             # ------------------
 
