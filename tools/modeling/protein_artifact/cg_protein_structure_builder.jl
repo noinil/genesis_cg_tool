@@ -29,6 +29,11 @@ function parse_commandline()
         arg_type = Int
         default = 100
 
+        "--IDR-model"
+        help = "IDR-model: 1) HPS; 2) KH; 3) AICG2+ LOCAL"
+        arg_type = Int
+        default = 1
+
         "--straightness"
         help = "Angle threshold to create a (non)-straight chain."
         arg_type = Float64
@@ -83,6 +88,7 @@ function make_cg_protein_structure(args)
     grid_dx = get(args, "dx", 10.0)
     grid_dy = get(args, "dy", 10.0)
     mol_num = get(args, "copy", 1)
+    idr_model = get(args, "IDR-model", 1)
     mol_grid_size = floor(Int, sqrt(mol_num))
 
     println("============================================================")
@@ -211,7 +217,14 @@ function make_cg_protein_structure(args)
     # coarse graining from AAMolecule
     # ===============================
     force_field = ForceFieldCG(ff_pro, 1, 1, 0, 0, 0)
-    args["modeling-options"] = Dict("IDR" => Dict("HPS_region" => "1 to $protein_length"))
+    if idr_model == 1
+        args["modeling-options"] = Dict("IDR" => Dict("HPS_region" => "1 to $protein_length"))
+    elseif idr_model == 2
+        args["modeling-options"] = Dict("IDR" => Dict("KH_region" => "1 to $protein_length"))
+    elseif idr_model == 3
+        args["modeling-options"] = Dict("IDR" => Dict("AICG2p_IDR_local" => "1 to $protein_length",
+                                                      "AICG2p_IDR_nonlocal" => "1 to $protein_length"))
+    end
     args["cgconnect"] = true
 
     cg_top0, cg_conf0 = coarse_graining(new_mol0, force_field, args)
