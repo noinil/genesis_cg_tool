@@ -239,9 +239,9 @@ function parse_commandline()
         default = 1
 
         "--use-safe-dihedral"
-        help = "Safe dih potential: 0) do nothing (default); 1) cos^2(kθ) type; 2) remove dih w/ large angles; 3) sin^3(kθ) type."
+        help = "Safe dih potential: 0) do nothing; 1) cos^2(kθ) type (default); 2) remove dih w/ large angles; 3) sin^3(kθ) type."
         arg_type = Int
-        default = 0
+        default = 1
 
         "--3spn-param"
         help = "Generate 3SPN.2C parameters from x3DNA generated PDB structure."

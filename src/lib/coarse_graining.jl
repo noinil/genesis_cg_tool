@@ -56,7 +56,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     do_output_log           = get(args, "log", false)
     do_test_local_only      = get(args, "test-local-only", false)
 
-    use_safe_dihedral       = get(args, "use-safe-dihedral", 0)
+    use_safe_dihedral       = get(args, "use-safe-dihedral", 1)
 
     gen_3spn_itp            = get(args, "3spn-param", 0)
     DNA_use_5_phos          = get(args, "3spn-use-5-phos", false)
