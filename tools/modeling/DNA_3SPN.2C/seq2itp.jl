@@ -167,7 +167,7 @@ function gen_3spn_itp_from_DNA_seq()
             # add residue index to chain
             push!(tmp_resi_indices, i_resi)
         end
-        chain_id = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i_chain]
+        chain_id = ""*"ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i_chain]
         segment_id = dna_seq_name[1:3] * "_" * chain_id
         push!(aa_chains, AAChain(chain_id, segment_id, MOL_DNA, tmp_resi_indices))
     end
