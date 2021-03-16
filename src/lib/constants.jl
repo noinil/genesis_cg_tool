@@ -314,6 +314,10 @@ const DIHEDRAL_PERI_MOD_TYPE = Dict(
     2 => 31,                    # use-safe-dihedral = 2; remove dangerous dih
     3 => 33                     # use-safe-dihedral = 3; sin^3(θ) type
 )
+const DIHEDRAL_TABU_MOD_TYPE = Dict(
+    0 => 22,                    # use-dafe-dihedral = 0
+    1 => 52                     # use-safe-dihedral = 1; cos^2(kθ) type
+)
 
 ###############################################################################
 #                         Molecule specific parameters                        #

@@ -2354,7 +2354,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 in(dih.k, KH_IDR_region) && in(dih.l, KH_IDR_region) )
                 continue
             end
-            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, AICG_DIH_F_FUNC_TYPE, 0.0, 0.0, 0.0, 0)
+            dih_func_type = DIHEDRAL_TABU_MOD_TYPE[use_safe_dihedral]
+            new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type, 0.0, 0.0, 0.0, 0)
             push!(top_dihedrals, new_dihedral)
         end
     # Clementi Go dihedral

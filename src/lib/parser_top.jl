@@ -142,7 +142,7 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
             @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef * CAL2JOU, d.n)
         elseif f == 21 || f == 41 || f == 43
             @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15.4E\n", d.i, d.j, d.k, d.l, f, d.d0, d.coef * CAL2JOU, d.w)
-        elseif f == 22
+        elseif f == 22 || f == 52
             @printf(io, "%10d%10d%10d%10d%5d\n", d.i, d.j, d.k, d.l, f)
         elseif f == 31
             @printf(io, "%10d%10d%10d%10d%5d%15.4E%15.4E%15d\n", d.i, d.j, d.k, d.l, f, d.d0, 0.0, d.n)
