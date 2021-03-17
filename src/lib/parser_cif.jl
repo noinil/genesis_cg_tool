@@ -361,10 +361,10 @@ _atom_site.pdbx_formal_charge
                 )
     end
 
-    print(pdb_file,"#\n")
-    print(pdb_file,"\n")
+    print(cif_file,"#\n")
+    print(cif_file,"\n")
 
-    close(pdb_file)
+    close(cif_file)
 
     if verbose
         println(">           ... .pdb (CG) : DONE!")
