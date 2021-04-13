@@ -336,67 +336,68 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     top_cg_RNA_bonds             = Vector{CGTopBond}(undef, 0)
     top_cg_RNA_angles            = Vector{CGTopAngle}(undef, 0)
     top_cg_RNA_dihedrals         = Vector{CGTopDihedral}(undef, 0)
-    top_cg_RNA_base_stack        = Vector{CGTopContact}(undef, 0)
-    top_cg_RNA_base_pair         = Vector{CGTopContact}(undef, 0)
-    top_cg_RNA_other_contact     = Vector{CGTopContact}(undef, 0)
+    # top_cg_RNA_base_stack        = Vector{CGTopContact}(undef, 0)
+    # top_cg_RNA_base_pair         = Vector{CGTopContact}(undef, 0)
+    # top_cg_RNA_other_contact     = Vector{CGTopContact}(undef, 0)
+    top_cg_RNA_base_stack        = [[] for i in 1:cg_num_particles]
+    top_cg_RNA_base_pair         = [[] for i in 1:cg_num_particles]
+    top_cg_RNA_other_contact     = [[] for i in 1:cg_num_particles]
     param_cg_RNA_k_bonds         = []
     param_cg_RNA_k_angles        = []
     param_cg_RNA_k_dihedrals     = []
-    param_cg_RNA_e_base_stack    = []
-    param_cg_RNA_e_base_pair     = []
-    param_cg_RNA_e_other_contact = []
+    # param_cg_RNA_e_base_stack    = []
+    # param_cg_RNA_e_base_pair     = []
+    # param_cg_RNA_e_other_contact = []
 
     # protein-DNA
     top_cg_pro_DNA_pwmcos         = Vector{CGTopPWMcos}(undef, 0)
     top_cg_pro_DNA_pwmcosns       = Vector{CGTopPWMcos}(undef, 0)
-    top_cg_pro_DNA_contact        = Vector{CGTopContact}(undef, 0)
+    # top_cg_pro_DNA_contact        = Vector{CGTopContact}(undef, 0)
+    top_cg_pro_DNA_contact        = [[] for i in 1:cg_num_particles]
 
     # protein-RNA
-    top_cg_pro_RNA_contact   = Vector{CGTopContact}(undef, 0)
-    param_cg_pro_RNA_e_contact = []
+    # top_cg_pro_RNA_contact   = Vector{CGTopContact}(undef, 0)
+    # param_cg_pro_RNA_e_contact = []
+    top_cg_pro_RNA_contact     = [[] for i in 1:cg_num_particles]
 
     # --------------------
     # geometric properties
     # --------------------
     # center of geometry
-    geo_centroid               = zeros(Float64, (3, aa_num_chain))
+    # geo_centroid               = zeros(Float64, (3, aa_num_chain))
     # radius of gyration
     geo_radius_of_gyration     = zeros(Float64, aa_num_chain)
     # radius of circumsphere
     geo_radius_of_circumsphere = zeros(Float64, aa_num_chain)
 
-    # =============================
-    # Step 4: CG model for proteins
-    # =============================
-    #                  _       _
-    #  _ __  _ __ ___ | |_ ___(_)_ __
-    # | '_ \| '__/ _ \| __/ _ \ | '_ \
-    # | |_) | | | (_) | ||  __/ | | | |
-    # | .__/|_|  \___/ \__\___|_|_| |_|
-    # |_|
-    #
-    # =================================
+    # =========================================================
+    # Step 4: Determine CG particles and geometry of each chain
+    # =========================================================
+    i_step += 1
+    if verbose
+        println("============================================================")
+        println("> Step $(i_step): determine protein/DNA/RNA chais.")
+    end
 
-    num_cg_pro_contact_all = 0
-    num_cg_pro_contact_intra = 0
-    num_cg_pro_contact_inter = 0
+    # -------
+    # protein
+    # -------
+
     if num_chain_pro > 0
-        i_step += 1
-        if verbose
-            println("============================================================")
-            println("> Step $(i_step): processing proteins.")
-        end
-
-        # --------------------------------
-        # Step 4.1: find out C-alpha atoms
-        # --------------------------------
         if verbose
             println("------------------------------------------------------------")
-            println(">      $(i_step).1: determine CA mass, charge, and coordinates.")
+            println(">      PROTEIN: determine CA mass, charge, and coordinates.")
         end
 
         for i_chain in 1:aa_num_chain
             chain = cg_chains[i_chain]
+
+            if verbose
+                print("\b"^32)
+                progress_percent = trunc(Int, i_chain / aa_num_chain  * 20)
+                progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+                @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / aa_num_chain * 100)
+            end
 
             if chain.moltype != MOL_PROTEIN
                 continue
@@ -437,46 +438,290 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 error("ERROR in user-defined charge distribution.\n")
             end
         end
+    end
+
+    # ---
+    # DNA
+    # ---
+
+    if num_chain_DNA > 0
+
         if verbose
-            println(">           ... DONE!")
+            println("\n------------------------------------------------------------")
+            println(">      DNA: determine P, S, B mass, charge, and coordinates.")
         end
 
-        # ----------------------------------------
-        # Step 4.1.1: determine geometric features
-        # ----------------------------------------
-        if verbose
-            println("------------------------------------------------------------")
-            println(">      $(i_step).1.1: determine Centroid, Rg, Rc...")
-        end
-
-        for i_chain in 1:aa_num_chain
+        for i_chain in 1 : aa_num_chain
             chain = cg_chains[i_chain]
 
-            if chain.moltype != MOL_PROTEIN
+            if verbose
+                print("\b"^32)
+                progress_percent = trunc(Int, i_chain / aa_num_chain * 20)
+                progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+                @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / aa_num_chain * 100)
+            end
+
+            if chain.moltype != MOL_DNA
                 continue
             end
 
-            # centroid
-            coor_centroid = zeros(Float64, 3)
             for i_res in chain.first : chain.last
-                coor_centroid += cg_bead_coor[:, i_res]
+                res_name  = cg_residues[i_res].res_name
+                bead_name = cg_residues[i_res].atm_name
+                bead_type = bead_name == "DP" || bead_name == "DS" ? bead_name : res_name
+                bead_coor = compute_center_of_mass(cg_residues[i_res].atoms, aa_atom_name, aa_coor)
+                cg_resid_name[i_res]   = res_name
+                cg_resid_index[i_res]  = cg_residues[i_res].res_idx
+                cg_bead_name[i_res]    = bead_name
+                cg_bead_type[i_res]    = bead_type
+                cg_bead_charge[i_res]  = RES_CHARGE_DICT[bead_type]
+                cg_bead_mass[i_res]    = RES_MASS_DICT[bead_type]
+                cg_bead_coor[:, i_res] = bead_coor[:]
+                cg_chain_id[i_res]     = i_chain
+                cg_seg_name[i_res]     = chain.segname
             end
-            coor_centroid /= (chain.last - chain.first + 1)
-            geo_centroid[:, i_chain] = coor_centroid
+        end
+    end
 
-            # Rg
-            tmp_dist = 0
-            tmp_dist_sq_sum = 0
-            for i_res in chain.first : chain.last
-                vec_from_center   = cg_bead_coor[:, i_res] - coor_centroid
-                vec_norm_tmp      = norm(vec_from_center)
-                tmp_dist          = vec_norm_tmp > tmp_dist ? vec_norm_tmp : tmp_dist
-                tmp_dist_sq_sum  += vec_norm_tmp * vec_norm_tmp
+    # ---
+    # RNA
+    # ---
+
+    if num_chain_RNA > 0
+
+        if  verbose
+            println("\n------------------------------------------------------------")
+            println(">      RNA: determine P, S, B mass, charge, and coordinates.")
+        end
+
+        for i_chain in 1 : aa_num_chain
+            chain = cg_chains[i_chain]
+
+            if verbose
+                print("\b"^32)
+                progress_percent = trunc(Int, i_chain / aa_num_chain * 20)
+                progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+                @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / aa_num_chain * 100)
             end
-            rg = sqrt(tmp_dist_sq_sum / (chain.last - chain.first + 1))
-            rc = tmp_dist
-            geo_radius_of_gyration[i_chain]     = rg
-            geo_radius_of_circumsphere[i_chain] = rc
+
+            if chain.moltype != MOL_RNA
+                continue
+            end
+
+            for i_res in chain.first : chain.last
+                res_name  = cg_residues[i_res].res_name
+                bead_name = cg_residues[i_res].atm_name
+                bead_type = bead_name == "RP" || bead_name == "RS" ? bead_name : res_name
+                # bead_coor = compute_center_of_mass(cg_residues[i_res].atoms, aa_atom_name, aa_coor)
+                cg_resid_name[i_res]   = res_name
+                cg_resid_index[i_res]  = cg_residues[i_res].res_idx
+                cg_bead_name[i_res]    = bead_name
+                cg_bead_type[i_res]    = bead_type
+                cg_bead_charge[i_res]  = RES_CHARGE_DICT[bead_type]
+                cg_bead_mass[i_res]    = RES_MASS_DICT[bead_type]
+                cg_chain_id[i_res]     = i_chain
+                cg_seg_name[i_res]     = chain.segname
+                if bead_name == "RP"
+                    for i_atom in cg_residues[i_res].atoms
+                        if aa_atom_name[i_atom][1] == 'P'
+                            bead_coor = aa_coor[:, i_atom]
+                        end
+                    end
+                elseif bead_name == "RS"
+                    total_mass      = 0
+                    tmp_coor        = zeros(Float64, 3)
+                    for i_atom in cg_residues[i_res].atoms
+                        a_name = aa_atom_name[i_atom]
+                        if in(a_name, ["C1'", "C2'", "C3'", "C4'", "O4'"] )
+                            a_mass      = ATOM_MASS_DICT[a_name[1]]
+                            a_coor      = aa_coor[:, i_atom]
+                            total_mass += a_mass
+                            tmp_coor   += a_coor * a_mass
+                        end
+                    end
+                    bead_coor = tmp_coor / total_mass
+                elseif bead_name == "RB"
+                    if res_name[end] == 'A' || res_name[end] == 'G'
+                        for i_atom in cg_residues[i_res].atoms
+                            if aa_atom_name[i_atom] == "N1"
+                                bead_coor = aa_coor[:, i_atom]
+                            end
+                        end
+                    else
+                        for i_atom in cg_residues[i_res].atoms
+                            if aa_atom_name[i_atom] == "N3"
+                                bead_coor = aa_coor[:, i_atom]
+                            end
+                        end
+                    end
+                end
+                cg_bead_coor[:, i_res] = bead_coor[:]
+            end
+        end
+    end
+
+    # ===================
+    # Geometry properties
+    # ===================
+    if verbose
+        println("\n------------------------------------------------------------")
+        println(">      determine Centroid, Rg, Rc...")
+    end
+
+    for i_chain in 1:aa_num_chain
+        chain = cg_chains[i_chain]
+
+        if verbose
+            print("\b"^32)
+            progress_percent = trunc(Int, i_chain / aa_num_chain * 20)
+            progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+            @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / aa_num_chain * 100)
+        end
+
+        # centroid
+        coor_centroid = zeros(Float64, 3)
+        for i_res in chain.first : chain.last
+            coor_centroid += cg_bead_coor[:, i_res]
+        end
+        coor_centroid /= (chain.last - chain.first + 1)
+        # geo_centroid[:, i_chain] = coor_centroid
+
+        # Rg
+        tmp_dist = 0
+        tmp_dist_sq_sum = 0
+        for i_res in chain.first : chain.last
+            vec_from_center   = cg_bead_coor[:, i_res] - coor_centroid
+            vec_norm_tmp      = norm(vec_from_center)
+            tmp_dist          = vec_norm_tmp > tmp_dist ? vec_norm_tmp : tmp_dist
+            tmp_dist_sq_sum  += vec_norm_tmp * vec_norm_tmp
+        end
+        rg = sqrt(tmp_dist_sq_sum / (chain.last - chain.first + 1))
+        rc = tmp_dist
+        geo_radius_of_gyration[i_chain]     = rg
+        geo_radius_of_circumsphere[i_chain] = rc
+    end
+
+    if verbose
+        println("\n>           ... geometric properties : DONE!")
+    end
+
+
+    # ====================================
+    # Cell lists for contact determination
+    # ================================================
+    #   ____ _____ _     _       _     ___ ____ _____
+    #  / ___| ____| |   | |     | |   |_ _/ ___|_   _|
+    # | |   |  _| | |   | |     | |    | |\___ \ | |
+    # | |___| |___| |___| |___  | |___ | | ___) || |
+    #  \____|_____|_____|_____| |_____|___|____/ |_|
+    #
+    # ================================================
+    i_step += 1
+    if verbose
+        println("============================================================")
+        println("> Step $(i_step): Cell list construction.")
+    end
+
+    if verbose
+        println("------------------------------------------------------------")
+        println(">      $(i_step).1: Cell Division.")
+        println(" - - - - - - - - - - - - - - - - - - - - - - - -")
+        println(">      $(i_step).1.1: Determine system size.")
+    end
+
+    sys_size_lower = minimum(cg_bead_coor, dims=2) .- 1.0
+    sys_size_upper = maximum(cg_bead_coor, dims=2) .+ 1.0
+    sys_size_3d = sys_size_upper - sys_size_lower
+
+    if verbose
+        println(" - - - - - - - - - - - - - - - - - - - - - - - -")
+        println(">      $(i_step).1.2: Determine cell size.")
+    end
+
+    cell_num_3d = max.(Int.(ceil.(sys_size_3d / ( 18.0 + AICG_GO_ATOMIC_CUTOFF ))) .- 1, 1)
+    cell_num_all = prod(cell_num_3d)
+    cell_size_3d = sys_size_3d ./ cell_num_3d
+
+    if verbose
+        println(" - - - - - - - - - - - - - - - - - - - - - - - -")
+        println(">      $(i_step).1.3: Prepare cells.")
+    end
+
+    cell_neighbors = [[] for i in 1:cell_num_all]
+    for i in 1:cell_num_3d[1]
+        for j in 1:cell_num_3d[2]
+            for k in 1:cell_num_3d[3]
+                box_indx = (i - 1) * cell_num_3d[2] * cell_num_3d[3] + (j -1) * cell_num_3d[3] + k
+                for n_i in max(1, i - 1):min(cell_num_3d[1], i + 1)
+                    for n_j in max(1, j - 1):min(cell_num_3d[2], j + 1)
+                        for n_k in max(1, k - 1):min(cell_num_3d[3], k + 1)
+                            nb_box_indx = (n_i - 1) * cell_num_3d[2] * cell_num_3d[3] + (n_j -1) * cell_num_3d[3] + n_k
+                            push!(cell_neighbors[box_indx], nb_box_indx)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    # ------------------------
+    # put particles into cells
+    # ------------------------
+    if verbose
+        println("------------------------------------------------------------")
+        println(">      $(i_step).2: Put particles into cells.")
+    end
+
+    cell_particles = [[] for i in 1:cell_num_all]
+    cell_index_cg_bead = [0 for i in 1:cg_num_particles]
+    for i_chain in 1:aa_num_chain
+        chain = cg_chains[i_chain]
+
+        if verbose
+            print("\b"^32)
+            progress_percent = trunc(Int, i_chain / aa_num_chain * 20)
+            progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
+            @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / aa_num_chain * 100)
+        end
+
+        for i_res in chain.first : chain.last
+            x, y, z = cg_bead_coor[:, i_res] .- sys_size_lower
+            bi = Int.(ceil.(x / cell_size_3d[1]))
+            bj = Int.(ceil.(y / cell_size_3d[2]))
+            bk = Int.(ceil.(z / cell_size_3d[3]))
+            box_indx = (bi - 1) * cell_num_3d[2] * cell_num_3d[3] + (bj -1) * cell_num_3d[3] + bk
+
+            push!(cell_particles[box_indx], i_res)
+            cell_index_cg_bead[i_res] = box_indx
+        end
+    end
+    if verbose
+        println("\n>           ... cell lists : DONE!")
+    end
+
+
+
+    # =============================
+    # Step 4: CG model for proteins
+    # =============================
+    #                  _       _
+    #  _ __  _ __ ___ | |_ ___(_)_ __
+    # | '_ \| '__/ _ \| __/ _ \ | '_ \
+    # | |_) | | | (_) | ||  __/ | | | |
+    # | .__/|_|  \___/ \__\___|_|_| |_|
+    # |_|
+    #
+    # =================================
+
+    num_cg_pro_contact_all = 0
+    num_cg_pro_contact_intra = 0
+    num_cg_pro_contact_inter = 0
+
+    if num_chain_pro > 0
+        i_step += 1
+        if verbose
+            println("============================================================")
+            println("> Step $(i_step): processing proteins.")
         end
 
         # -----------------------------
@@ -484,9 +729,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         # -----------------------------
         if verbose
             println("------------------------------------------------------------")
-            println(">      $(i_step).2: CG protein topology.")
+            println(">      $(i_step).1: CG protein topology.")
             println(" - - - - - - - - - - - - - - - - - - - - - - - -")
-            println(">      $(i_step).2.1: CG protein local interactions.")
+            println(">      $(i_step).1.1: CG protein local interactions.")
         end
         for i_chain in 1:aa_num_chain
             chain = cg_chains[i_chain]
@@ -633,7 +878,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         # -----------------------
         if verbose
             println(" - - - - - - - - - - - - - - - - - - - - - - - -")
-            println(">      $(i_step).2.2: Looking for native contacts.")
+            println(">      $(i_step).1.2: Looking for native contacts.")
         end
 
         # intra-molecular contacts
@@ -649,10 +894,6 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
             chain = cg_chains[i_chain]
 
-            if chain.moltype != MOL_PROTEIN
-                continue
-            end
-
             # -----------------
             # show progress bar
             # -----------------
@@ -662,37 +903,91 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 progress_bar = "|" ^ progress_percent * " " ^ (20 - progress_percent)
                 @printf(" [%20s] %5.1f %% ", progress_bar, i_chain / aa_num_chain * 100)
             end
-            # ------------------
 
-            Threads.@threads for i_res in chain.first : chain.last - 4
-                coor_cai = cg_bead_coor[:, i_res]
-                for j_res in i_res + 4 : chain.last
-                    coor_caj = cg_bead_coor[:, j_res]
-                    if is_protein_native_contact(cg_residues[i_res].atoms, cg_residues[j_res].atoms, aa_atom_name, aa_coor)
-                        native_dist = compute_distance(coor_cai, coor_caj)
-                        num_cg_pro_contact_all += 1
-                        num_cg_pro_contact_intra += 1
+            if chain.moltype != MOL_PROTEIN
+                continue
+            end
 
-                        e_local = 0.0
-                        if ff_pro == FF_pro_AICG2p
-                            # count AICG2+ atomic contact
-                            contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
-                                                                       cg_residues[ j_res ].atoms,
-                                                                       cg_resid_name[i_res],
-                                                                       cg_resid_name[j_res],
-                                                                       aa_atom_name,
-                                                                       aa_coor)
+            if chain.last - chain.first < 100
+                Threads.@threads for i_res in chain.first : chain.last - 4
+                    cell_i = cell_index_cg_bead[i_res]
+                    coor_cai = cg_bead_coor[:, i_res]
+                    neighbor_cell_i = cell_neighbors[cell_i]
+                    for j_res in i_res + 4 : chain.last
+                        cell_j = cell_index_cg_bead[j_res]
+                        if ! (cell_j in neighbor_cell_i)
+                            continue
+                        end
+                        coor_caj = cg_bead_coor[:, j_res]
+                        if is_protein_native_contact(cg_residues[i_res].atoms, cg_residues[j_res].atoms, aa_atom_name, aa_coor)
+                            native_dist = compute_distance(coor_cai, coor_caj)
+                            num_cg_pro_contact_all += 1
+                            num_cg_pro_contact_intra += 1
 
-                            # calculate AICG2+ pairwise energy
-                            e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
-                            if e_local > AICG_ENE_UPPER_LIM
-                                e_local = AICG_ENE_UPPER_LIM
+                            e_local = 0.0
+                            if ff_pro == FF_pro_AICG2p
+                                # count AICG2+ atomic contact
+                                contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
+                                                                           cg_residues[ j_res ].atoms,
+                                                                           cg_resid_name[i_res],
+                                                                           cg_resid_name[j_res],
+                                                                           aa_atom_name,
+                                                                           aa_coor)
+
+                                # calculate AICG2+ pairwise energy
+                                e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
+                                if e_local > AICG_ENE_UPPER_LIM
+                                    e_local = AICG_ENE_UPPER_LIM
+                                end
+                                if e_local < AICG_ENE_LOWER_LIM
+                                    e_local = AICG_ENE_LOWER_LIM
+                                end
                             end
-                            if e_local < AICG_ENE_LOWER_LIM
-                                e_local = AICG_ENE_LOWER_LIM
+                            push!(top_cg_pro_go_contact[i_res], [j_res, native_dist, e_local])
+                        end
+                    end
+                end
+            else
+                Threads.@threads for i_res in chain.first : chain.last
+                    cell_i = cell_index_cg_bead[i_res]
+                    coor_cai = cg_bead_coor[:, i_res]
+                    neighbor_cell_i = cell_neighbors[cell_i]
+                    for j_cell in neighbor_cell_i
+                        for j_res in cell_particles[j_cell]
+                            if cg_chain_id[j_res] != i_chain
+                                continue
+                            end
+                            if j_res < i_res + 4
+                                continue
+                            end
+                            coor_caj = cg_bead_coor[:, j_res]
+                            if is_protein_native_contact(cg_residues[i_res].atoms, cg_residues[j_res].atoms, aa_atom_name, aa_coor)
+                                native_dist = compute_distance(coor_cai, coor_caj)
+                                num_cg_pro_contact_all += 1
+                                num_cg_pro_contact_inter += 1
+
+                                e_local = 0.0
+                                if ff_pro == FF_pro_AICG2p
+                                    # count AICG2+ atomic contact
+                                    contact_counts = count_aicg_atomic_contact(cg_residues[ i_res ].atoms,
+                                                                               cg_residues[ j_res ].atoms,
+                                                                               cg_resid_name[i_res],
+                                                                               cg_resid_name[j_res],
+                                                                               aa_atom_name,
+                                                                               aa_coor)
+
+                                    # calculate AICG2+ pairwise energy
+                                    e_local = dot(AICG_PAIRWISE_ENERGY, contact_counts)
+                                    if e_local > AICG_ENE_UPPER_LIM
+                                        e_local = AICG_ENE_UPPER_LIM
+                                    end
+                                    if e_local < AICG_ENE_LOWER_LIM
+                                        e_local = AICG_ENE_LOWER_LIM
+                                    end
+                                end
+                                push!(top_cg_pro_go_contact[i_res], [j_res, native_dist, e_local])
                             end
                         end
-                        push!(top_cg_pro_go_contact[i_res], [j_res, native_dist, e_local])
                     end
                 end
             end
@@ -725,33 +1020,21 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     continue
                 end
 
-                centroid_chain1 = geo_centroid[:, i_chain]
-                radius_of_circ1 = geo_radius_of_circumsphere[i_chain]
-
-                for j_chain in i_chain + 1 : aa_num_chain
-                    chain2 = cg_chains[j_chain]
-
-                    if chain2.moltype != MOL_PROTEIN
-                        continue
-                    end
-
-                    centroid_chain2 = geo_centroid[:, j_chain]
-                    radius_of_circ2 = geo_radius_of_circumsphere[j_chain]
-
-                    cent_cent_dist = compute_distance(centroid_chain1, centroid_chain2)
-                    if cent_cent_dist > radius_of_circ1 + radius_of_circ2 + CG_MOL_CONTACT_CUTOFF
-                        continue
-                    end
-
-                    Threads.@threads for i_res in chain1.first : chain1.last
-                        coor_cai = cg_bead_coor[:, i_res]
-
-                        cai_centj_dist = compute_distance(coor_cai, centroid_chain2)
-                        if cai_centj_dist > radius_of_circ2 + CG_MOL_CONTACT_CUTOFF
-                            continue
-                        end
-
-                        for j_res in chain2.first : chain2.last
+                Threads.@threads for i_res in chain1.first : chain1.last
+                    cell_i = cell_index_cg_bead[i_res]
+                    coor_cai = cg_bead_coor[:, i_res]
+                    neighbor_cell_i = cell_neighbors[cell_i]
+                    for j_cell in neighbor_cell_i
+                        for j_res in cell_particles[j_cell]
+                            if j_res < i_res
+                                continue
+                            end
+                            if cg_chains[cg_chain_id[j_res]].moltype != MOL_PROTEIN
+                                continue
+                            end
+                            if cg_chain_id[j_res] == i_chain
+                                continue
+                            end
                             coor_caj = cg_bead_coor[:, j_res]
                             if is_protein_native_contact(cg_residues[i_res].atoms, cg_residues[j_res].atoms, aa_atom_name, aa_coor)
                                 native_dist = compute_distance(coor_cai, coor_caj)
@@ -875,88 +1158,14 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             println("> Step $(i_step): processing DNA.")
         end
 
-        # ----------------------------------
-        #        Step 5.1: determine P, S, B
-        # ----------------------------------
-        if verbose
-            println("------------------------------------------------------------")
-            println(">      $(i_step).1: determine P, S, B mass, charge, and coordinates.")
-        end
-
-        for i_chain in 1 : aa_num_chain
-            chain = cg_chains[i_chain]
-
-            if chain.moltype != MOL_DNA
-                continue
-            end
-
-            for i_res in chain.first : chain.last
-                res_name  = cg_residues[i_res].res_name
-                bead_name = cg_residues[i_res].atm_name
-                bead_type = bead_name == "DP" || bead_name == "DS" ? bead_name : res_name
-                bead_coor = compute_center_of_mass(cg_residues[i_res].atoms, aa_atom_name, aa_coor)
-                cg_resid_name[i_res]   = res_name
-                cg_resid_index[i_res]  = cg_residues[i_res].res_idx
-                cg_bead_name[i_res]    = bead_name
-                cg_bead_type[i_res]    = bead_type
-                cg_bead_charge[i_res]  = RES_CHARGE_DICT[bead_type]
-                cg_bead_mass[i_res]    = RES_MASS_DICT[bead_type]
-                cg_bead_coor[:, i_res] = bead_coor[:]
-                cg_chain_id[i_res]     = i_chain
-                cg_seg_name[i_res]     = chain.segname
-            end
-        end
-
-        if verbose
-            println(">           ... DONE!")
-        end
-
-        # ----------------------------------------
-        # Step 5.1.1: determine geometric features
-        # ----------------------------------------
-        if verbose
-            println("------------------------------------------------------------")
-            println(">      $(i_step).1.1: determine Centroid, Rg, Rc...")
-        end
-
-        for i_chain in 1:aa_num_chain
-            chain = cg_chains[i_chain]
-
-            if chain.moltype != MOL_DNA
-                continue
-            end
-
-            # centroid
-            coor_centroid = zeros(Float64, 3)
-            for i_res in chain.first : chain.last
-                coor_centroid += cg_bead_coor[:, i_res]
-            end
-            coor_centroid /= (chain.last - chain.first + 1)
-            geo_centroid[:, i_chain] = coor_centroid
-
-            # Rg
-            tmp_dist = 0
-            tmp_dist_sq_sum = 0
-            for i_res in chain.first : chain.last
-                vec_from_center   = cg_bead_coor[:, i_res] - coor_centroid
-                vec_norm_tmp      = norm(vec_from_center)
-                tmp_dist          = vec_norm_tmp > tmp_dist ? vec_norm_tmp : tmp_dist
-                tmp_dist_sq_sum  += vec_norm_tmp * vec_norm_tmp
-            end
-            rg = sqrt(tmp_dist_sq_sum / (chain.last - chain.first + 1))
-            rc = tmp_dist
-            geo_radius_of_gyration[i_chain]     = rg
-            geo_radius_of_circumsphere[i_chain] = rc
-        end
-
         # ---------------------------------
-        #        Step 5.2: 3SPN.2C topology
+        #        Step 5.1: 3SPN.2C topology
         # ---------------------------------
         if verbose
             println("------------------------------------------------------------")
-            println(">      $(i_step).2: 3SPN.2C topology.")
+            println(">      $(i_step).1: 3SPN.2C topology.")
             println(" - - - - - - - - - - - - - - - - - - - - - - - -")
-            println(">      $(i_step).2.1: 3SPN.2C local interactions.")
+            println(">      $(i_step).1.1: 3SPN.2C local interactions.")
         end
         for i_chain in 1:aa_num_chain
 
@@ -1276,122 +1485,14 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             println("> Step $(i_step): processing RNA.")
         end
 
-        # ----------------------------------
-        #         determine P, S, B
-        # ----------------------------------
-        if  verbose
-            println("------------------------------------------------------------")
-            println(">      $(i_step).1: determine P, S, B mass, charge, and coordinates.")
-        end
-
-        for i_chain in 1 : aa_num_chain
-            chain = cg_chains[i_chain]
-
-            if chain.moltype != MOL_RNA
-                continue
-            end
-
-            for i_res in chain.first : chain.last
-                res_name  = cg_residues[i_res].res_name
-                bead_name = cg_residues[i_res].atm_name
-                bead_type = bead_name == "RP" || bead_name == "RS" ? bead_name : res_name
-                # bead_coor = compute_center_of_mass(cg_residues[i_res].atoms, aa_atom_name, aa_coor)
-                cg_resid_name[i_res]   = res_name
-                cg_resid_index[i_res]  = cg_residues[i_res].res_idx
-                cg_bead_name[i_res]    = bead_name
-                cg_bead_type[i_res]    = bead_type
-                cg_bead_charge[i_res]  = RES_CHARGE_DICT[bead_type]
-                cg_bead_mass[i_res]    = RES_MASS_DICT[bead_type]
-                cg_chain_id[i_res]     = i_chain
-                cg_seg_name[i_res]     = chain.segname
-                if bead_name == "RP"
-                    for i_atom in cg_residues[i_res].atoms
-                        if aa_atom_name[i_atom][1] == 'P'
-                            bead_coor = aa_coor[:, i_atom]
-                        end
-                    end
-                elseif bead_name == "RS"
-                    total_mass      = 0
-                    tmp_coor        = zeros(Float64, 3)
-                    for i_atom in cg_residues[i_res].atoms
-                        a_name = aa_atom_name[i_atom]
-                        if in(a_name, ["C1'", "C2'", "C3'", "C4'", "O4'"] )
-                            a_mass      = ATOM_MASS_DICT[a_name[1]]
-                            a_coor      = aa_coor[:, i_atom]
-                            total_mass += a_mass
-                            tmp_coor   += a_coor * a_mass
-                        end
-                    end
-                    bead_coor = tmp_coor / total_mass
-                elseif bead_name == "RB"
-                    if res_name[end] == 'A' || res_name[end] == 'G'
-                        for i_atom in cg_residues[i_res].atoms
-                            if aa_atom_name[i_atom] == "N1"
-                                bead_coor = aa_coor[:, i_atom]
-                            end
-                        end
-                    else
-                        for i_atom in cg_residues[i_res].atoms
-                            if aa_atom_name[i_atom] == "N3"
-                                bead_coor = aa_coor[:, i_atom]
-                            end
-                        end
-                    end
-                end
-                cg_bead_coor[:, i_res] = bead_coor[:]
-            end
-        end
-
-        if verbose
-            println(">           ... DONE!")
-        end
-
-        # ----------------------------------------
-        # Step 6.1.1: determine geometric features
-        # ----------------------------------------
-        if verbose
-            println("------------------------------------------------------------")
-            println(">      $(i_step).1.1: determine Centroid, Rg, Rc...")
-        end
-
-        for i_chain in 1:aa_num_chain
-            chain = cg_chains[i_chain]
-
-            if chain.moltype != MOL_RNA
-                continue
-            end
-
-            # centroid
-            coor_centroid = zeros(Float64, 3)
-            for i_res in chain.first : chain.last
-                coor_centroid += cg_bead_coor[:, i_res]
-            end
-            coor_centroid /= (chain.last - chain.first + 1)
-            geo_centroid[:, i_chain] = coor_centroid
-
-            # Rg
-            tmp_dist = 0
-            tmp_dist_sq_sum = 0
-            for i_res in chain.first : chain.last
-                vec_from_center   = cg_bead_coor[:, i_res] - coor_centroid
-                vec_norm_tmp      = norm(vec_from_center)
-                tmp_dist          = vec_norm_tmp > tmp_dist ? vec_norm_tmp : tmp_dist
-                tmp_dist_sq_sum  += vec_norm_tmp * vec_norm_tmp
-            end
-            rg = sqrt(tmp_dist_sq_sum / (chain.last - chain.first + 1))
-            rc = tmp_dist
-            geo_radius_of_gyration[i_chain]     = rg
-            geo_radius_of_circumsphere[i_chain] = rc
-        end
-
         # -------------------------
-        # Step 6.2: RNA topology
+        # Step 6.1: RNA topology
         # -------------------------
         if verbose
             println("------------------------------------------------------------")
-            println(">      $(i_step).2: RNA topology.")
+            println(">      $(i_step).1: RNA topology.")
             println(" - - - - - - - - - - - - - - - - - - - - - - - -")
-            println(">      $(i_step).2.1: RNA local interactions.")
+            println(">      $(i_step).1.1: RNA local interactions.")
 
             @printf("%11s Calculating bonded terms... \n", " ")
         end
@@ -1516,7 +1617,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         # -----------------------
         if verbose
             println(" - - - - - - - - - - - - - - - - - - - - - - - -")
-            println(">      $(i_step).2.2: RNA HT-type native contacts.")
+            println(">      $(i_step).1.2: RNA HT-type native contacts.")
             @printf("%11s Calculating intra-molecular contacts... \n", " ")
             @printf("              ... progress: %32s", " ")
         end
@@ -1527,10 +1628,6 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             end
 
             chain = cg_chains[i_chain]
-
-            if chain.moltype != MOL_RNA
-                continue
-            end
 
             # -----------------
             # show progress bar
@@ -1543,75 +1640,95 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             end
             # ------------------
 
-            for i_res in chain.first : chain.last - 3
+            if chain.moltype != MOL_RNA
+                continue
+            end
+
+            Threads.@threads for i_res in chain.first : chain.last - 3
 
                 if cg_bead_name[i_res] == "RP" && ! cgRNA_use_phosphate_go
                     continue
                 end
 
                 coor_i = cg_bead_coor[:, i_res]
+                cell_i = cell_index_cg_bead[i_res]
+                neighbor_cell_i = cell_neighbors[cell_i]
 
-                for j_res in i_res + 3 : chain.last
+                for j_cell in neighbor_cell_i
+                    for j_res in cell_particles[j_cell]
+                        if cg_chain_id[j_res] != i_chain
+                            continue
+                        end
+                        if j_res < i_res + 3
+                            continue
+                        end
+                        if cgRNA_use_phosphate_go
+                            if cg_bead_name[i_res] == "RP" || cg_bead_name[j_res] == "RP"
+                                if j_res < i_res + 4
+                                    continue
+                                end
+                            end
+                        elseif cg_bead_name[j_res] == "RP"
+                            continue
+                        end
 
-                    if cgRNA_use_phosphate_go
-                        if cg_bead_name[i_res] == "RP" || cg_bead_name[j_res] == "RP"
-                            if j_res < i_res + 4
+                        if cg_bead_name[i_res] == "RS" || cg_bead_name[j_res] == "RS"
+                            if j_res < i_res + 6
                                 continue
                             end
                         end
-                    elseif cg_bead_name[j_res] == "RP"
-                        continue
-                    end
 
-                    if cg_bead_name[i_res] == "RS" || cg_bead_name[j_res] == "RS"
-                        if j_res < i_res + 6
+                        coor_j = cg_bead_coor[:, j_res]
+
+                        adist, nhb  = compute_RNA_native_contact(cg_residues[i_res].atoms,
+                                                                 cg_residues[j_res].atoms,
+                                                                 aa_atom_name,
+                                                                 aa_coor)
+                        if adist > RNA_GO_ATOMIC_CUTOFF
                             continue
                         end
-                    end
 
-                    coor_j = cg_bead_coor[:, j_res]
-                    native_dist = compute_distance(coor_i, coor_j)
-                    adist, nhb  = compute_RNA_native_contact(cg_residues[i_res].atoms,
-                                                             cg_residues[j_res].atoms,
-                                                             aa_atom_name,
-                                                             aa_coor)
+                        native_dist = compute_distance(coor_i, coor_j)
 
-                    if adist > RNA_GO_ATOMIC_CUTOFF
-                        continue
-                    end
-
-                    if j_res == i_res + 3 && cg_bead_name[i_res] == "RB"
-                        coor_i_sug = cg_bead_coor[:, i_res - 1]
-                        coor_j_sug = cg_bead_coor[:, j_res - 1]
-                        st_dih = compute_dihedral(coor_i, coor_i_sug, coor_j_sug, coor_j)
-                        if abs( st_dih ) < RNA_STACK_DIH_CUTOFF && adist < RNA_STACK_DIST_CUTOFF
-                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                            push!(top_cg_RNA_base_stack, tmp_top_cnt)
-                            push!(param_cg_RNA_e_base_stack, RNA_STACK_EPSILON)
+                        if j_res == i_res + 3 && cg_bead_name[i_res] == "RB"
+                            coor_i_sug = cg_bead_coor[:, i_res - 1]
+                            coor_j_sug = cg_bead_coor[:, j_res - 1]
+                            st_dih = compute_dihedral(coor_i, coor_i_sug, coor_j_sug, coor_j)
+                            if abs( st_dih ) < RNA_STACK_DIH_CUTOFF && adist < RNA_STACK_DIST_CUTOFF
+                                # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                                # push!(top_cg_RNA_base_stack, tmp_top_cnt)
+                                # push!(param_cg_RNA_e_base_stack, RNA_STACK_EPSILON)
+                                push!(top_cg_RNA_base_stack[i_res], [j_res, native_dist, RNA_STACK_EPSILON])
+                            else
+                                # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                                # push!(top_cg_RNA_other_contact, tmp_top_cnt)
+                                # push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
+                                push!(top_cg_RNA_other_contact[i_res], [j_res, native_dist, RNA_PAIR_EPSILON_OTHER["BB"]])
+                            end
+                        elseif cg_bead_name[i_res] == "RB" && cg_bead_name[j_res] == "RB"
+                            if nhb == 2
+                                # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                                # push!(top_cg_RNA_base_pair, tmp_top_cnt)
+                                # push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_2HB)
+                                push!(top_cg_RNA_base_pair[i_res], [j_res, native_dist, RNA_BPAIR_EPSILON_2HB])
+                            elseif nhb >= 3
+                                # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                                # push!(top_cg_RNA_base_pair, tmp_top_cnt)
+                                # push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_3HB)
+                                push!(top_cg_RNA_base_pair[i_res], [j_res, native_dist, RNA_BPAIR_EPSILON_3HB])
+                            else
+                                # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                                # push!(top_cg_RNA_other_contact, tmp_top_cnt)
+                                # push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
+                                push!(top_cg_RNA_other_contact[i_res], [j_res, native_dist, RNA_PAIR_EPSILON_OTHER["BB"]])
+                            end
                         else
-                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                            push!(top_cg_RNA_other_contact, tmp_top_cnt)
-                            push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
+                            contact_type = cg_bead_name[i_res][end] * cg_bead_name[j_res][end]
+                            # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                            # push!(top_cg_RNA_other_contact, tmp_top_cnt)
+                            # push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER[contact_type])
+                            push!(top_cg_RNA_other_contact[i_res], [j_res, native_dist, RNA_PAIR_EPSILON_OTHER[contact_type]])
                         end
-                    elseif cg_bead_name[i_res] == "RB" && cg_bead_name[j_res] == "RB"
-                        if nhb == 2
-                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                            push!(top_cg_RNA_base_pair, tmp_top_cnt)
-                            push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_2HB)
-                        elseif nhb >= 3
-                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                            push!(top_cg_RNA_base_pair, tmp_top_cnt)
-                            push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_3HB)
-                        else
-                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                            push!(top_cg_RNA_other_contact, tmp_top_cnt)
-                            push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
-                        end
-                    else
-                        contact_type = cg_bead_name[i_res][end] * cg_bead_name[j_res][end]
-                        tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                        push!(top_cg_RNA_other_contact, tmp_top_cnt)
-                        push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER[contact_type])
                     end
                 end
             end
@@ -1644,40 +1761,29 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                     continue
                 end
 
-                centroid_chain1 = geo_centroid[:, i_chain]
-                radius_of_circ1 = geo_radius_of_circumsphere[i_chain]
-
-                for j_chain in i_chain + 1 : aa_num_chain
-                    chain_2 = cg_chains[j_chain]
-                    if chain_2.moltype != MOL_RNA
+                Threads.@threads for i_res in chain_1.first : chain_1.last
+                    if cg_bead_name[i_res] == "RP" && ! cgRNA_use_phosphate_go
                         continue
                     end
+                    coor_i = cg_bead_coor[:, i_res]
+                    cell_i = cell_index_cg_bead[i_res]
+                    neighbor_cell_i = cell_neighbors[cell_i]
 
-                    centroid_chain2 = geo_centroid[:, j_chain]
-                    radius_of_circ2 = geo_radius_of_circumsphere[j_chain]
-
-                    cent_cent_dist = compute_distance(centroid_chain1, centroid_chain2)
-                    if cent_cent_dist > radius_of_circ1 + radius_of_circ2 + CG_MOL_CONTACT_CUTOFF
-                        continue
-                    end
-
-                    for i_res in chain_1.first : chain_1.last
-                        if cg_bead_name[i_res] == "RP" && ! cgRNA_use_phosphate_go
-                            continue
-                        end
-                        coor_i = cg_bead_coor[:, i_res]
-
-                        coori_centj_dist = compute_distance(coor_i, centroid_chain2)
-                        if coori_centj_dist > radius_of_circ2 + CG_MOL_CONTACT_CUTOFF
-                            continue
-                        end
-
-                        for j_res in chain_2.first : chain_2.last
+                    for j_cell in neighbor_cell_i
+                        for j_res in cell_particles[j_cell]
+                            if j_res < i_res
+                                continue
+                            end
+                            if cg_chains[cg_chain_id[j_res]].moltype != MOL_RNA
+                                continue
+                            end
+                            if cg_chain_id[j_res] == i_chain
+                                continue
+                            end
                             if cg_bead_name[j_res] == "RP" && ! cgRNA_use_phosphate_go
                                 continue
                             end
                             coor_j = cg_bead_coor[:, j_res]
-                            native_dist = compute_distance(coor_i, coor_j)
                             adist, nhb  = compute_RNA_native_contact(cg_residues[i_res].atoms,
                                                                      cg_residues[j_res].atoms,
                                                                      aa_atom_name,
@@ -1685,25 +1791,30 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                             if adist > RNA_GO_ATOMIC_CUTOFF
                                 continue
                             end
+                            native_dist = compute_distance(coor_i, coor_j)
                             if cg_bead_name[i_res] == "RB" && cg_bead_name[j_res] == "RB"
                                 if nhb == 2
-                                    tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                                    push!(top_cg_RNA_base_pair, tmp_top_cnt)
-                                    push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_2HB)
+                                    # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                                    # push!(top_cg_RNA_base_pair, tmp_top_cnt)
+                                    # push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_2HB)
+                                    push!(top_cg_RNA_base_pair[i_res], [j_res, native_dist, RNA_BPAIR_EPSILON_2HB])
                                 elseif nhb >= 3
-                                    tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                                    push!(top_cg_RNA_base_pair, tmp_top_cnt)
-                                    push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_3HB)
+                                    # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                                    # push!(top_cg_RNA_base_pair, tmp_top_cnt)
+                                    # push!(param_cg_RNA_e_base_pair, RNA_BPAIR_EPSILON_3HB)
+                                    push!(top_cg_RNA_base_pair[i_res], [j_res, native_dist, RNA_BPAIR_EPSILON_3HB])
                                 else
-                                    tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                                    push!(top_cg_RNA_other_contact, tmp_top_cnt)
-                                    push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
+                                    # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                                    # push!(top_cg_RNA_other_contact, tmp_top_cnt)
+                                    # push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER["BB"])
+                                    push!(top_cg_RNA_other_contact[i_res], [j_res, native_dist, RNA_PAIR_EPSILON_OTHER["BB"]])
                                 end
                             else
                                 contact_type = cg_bead_name[i_res][end] * cg_bead_name[j_res][end]
-                                tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                                push!(top_cg_RNA_other_contact, tmp_top_cnt)
-                                push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER[contact_type])
+                                # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                                # push!(top_cg_RNA_other_contact, tmp_top_cnt)
+                                # push!(param_cg_RNA_e_other_contact, RNA_PAIR_EPSILON_OTHER[contact_type])
+                                push!(top_cg_RNA_other_contact[i_res], [j_res, native_dist, RNA_PAIR_EPSILON_OTHER[contact_type]])
                             end
                         end
                     end
@@ -1717,7 +1828,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         if verbose
             println("------------------------------------------------------------")
             @printf("          > Total number of RNA contacts:     %12d  \n",
-                    length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) )
+                    sum(length.(top_cg_RNA_base_stack)) +
+                    sum(length.(top_cg_RNA_base_pair)) +
+                    sum(length.(top_cg_RNA_other_contact)) )
         end
 
     end
@@ -1761,32 +1874,17 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 continue
             end
 
-            centroid_chain_pro = geo_centroid[:, i_chain]
-            radius_of_circ_pro = geo_radius_of_circumsphere[i_chain]
 
-            for j_chain in 1 : aa_num_chain
-                chain_RNA = cg_chains[j_chain]
-                if chain_RNA.moltype != MOL_RNA
-                    continue
-                end
+            Threads.@threads for i_res in chain_pro.first : chain_pro.last
+                cell_i = cell_index_cg_bead[i_res]
+                neighbor_cell_i = cell_neighbors[cell_i]
+                coor_i = cg_bead_coor[:, i_res]
 
-                centroid_chain_rna = geo_centroid[:, j_chain]
-                radius_of_circ_rna = geo_radius_of_circumsphere[j_chain]
-
-                cent_cent_dist = compute_distance(centroid_chain_pro, centroid_chain_rna)
-                if cent_cent_dist > radius_of_circ_pro + radius_of_circ_rna + CG_MOL_CONTACT_CUTOFF
-                    continue
-                end
-
-                for i_res in chain_pro.first : chain_pro.last
-                    coor_i = cg_bead_coor[:, i_res]
-
-                    cai_centj_dist = compute_distance(coor_i, centroid_chain_rna)
-                    if cai_centj_dist > radius_of_circ_rna + CG_MOL_CONTACT_CUTOFF
-                        continue
-                    end
-
-                    for j_res in chain_RNA.first : chain_RNA.last
+                for j_cell in neighbor_cell_i
+                    for j_res in cell_particles[j_cell]
+                        if cg_chains[cg_chain_id[j_res]].moltype != MOL_RNA
+                            continue
+                        end
                         if cg_bead_name[j_res] == "RP" && ! cgRNA_use_phosphate_go
                             continue
                         end
@@ -1796,17 +1894,20 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         coor_j = cg_bead_coor[:, j_res]
                         native_dist = compute_distance(coor_i, coor_j)
                         if cg_bead_name[j_res] == "RS"
-                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                            push!(top_cg_pro_RNA_contact, tmp_top_cnt)
-                            push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_S)
+                            # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                            # push!(top_cg_pro_RNA_contact, tmp_top_cnt)
+                            # push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_S)
+                            push!(top_cg_pro_RNA_contact[i_res], [j_res, native_dist, PRO_RNA_GO_EPSILON_S])
                         elseif cg_bead_name[j_res] == "RB"
-                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                            push!(top_cg_pro_RNA_contact, tmp_top_cnt)
-                            push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_B)
+                            # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                            # push!(top_cg_pro_RNA_contact, tmp_top_cnt)
+                            # push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_B)
+                            push!(top_cg_pro_RNA_contact[i_res], [j_res, native_dist, PRO_RNA_GO_EPSILON_B])
                         elseif cg_bead_name[j_res] == "RP" && ! cgRNA_use_phosphate_go
-                            tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                            push!(top_cg_pro_RNA_contact, tmp_top_cnt)
-                            push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_P)
+                            # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                            # push!(top_cg_pro_RNA_contact, tmp_top_cnt)
+                            # push!(param_cg_pro_RNA_e_contact, PRO_RNA_GO_EPSILON_P)
+                            push!(top_cg_pro_RNA_contact[i_res], [j_res, native_dist, PRO_RNA_GO_EPSILON_P])
                         end
                     end
                 end
@@ -1816,7 +1917,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         if verbose
             println("\n------------------------------------------------------------")
             @printf("          > Total number of protein-RNA contacts: %8d  \n",
-                    length(top_cg_pro_RNA_contact) )
+                    sum( length.(top_cg_pro_RNA_contact) ) )
         end
     end
 
@@ -2119,45 +2220,26 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 continue
             end
 
-            centroid_chain_pro = geo_centroid[:, i_chain]
-            radius_of_circ_pro = geo_radius_of_circumsphere[i_chain]
+            Threads.@threads for i_res in chain_pro.first : chain_pro.last
+                cell_i = cell_index_cg_bead[i_res]
+                neighbor_cell_i = cell_neighbors[cell_i]
+                coor_i = cg_bead_coor[:, i_res]
 
+                for j_cell in neighbor_cell_i
+                    for j_res in cell_particles[j_cell]
 
-            for j_chain in 1:aa_num_chain
-                chain_DNA = cg_chains[j_chain]
-
-                if chain_DNA.moltype != MOL_DNA
-                    continue
-                end
-
-                centroid_chain_dna = geo_centroid[:, j_chain]
-                radius_of_circ_dna = geo_radius_of_circumsphere[j_chain]
-
-                cent_cent_dist = compute_distance(centroid_chain_pro, centroid_chain_dna)
-                if cent_cent_dist > radius_of_circ_pro + radius_of_circ_dna + CG_MOL_CONTACT_CUTOFF
-                    continue
-                end
-
-                for i_res in chain_pro.first : chain_pro.last
-                    coor_i = cg_bead_coor[:, i_res]
-
-                    cai_centj_dist = compute_distance(coor_i, centroid_chain_dna)
-                    if cai_centj_dist > radius_of_circ_dna + CG_MOL_CONTACT_CUTOFF
-                        continue
-                    end
-
-                    for j_res in chain_DNA.first : chain_DNA.last
-
+                        if cg_chains[cg_chain_id[j_res]].moltype != MOL_DNA
+                            continue
+                        end
                         if !is_protein_DNA_Go_contact(cg_residues[i_res].atoms, cg_residues[j_res].atoms, aa_atom_name, aa_coor)
                             continue
                         end
 
                         coor_j = cg_bead_coor[:, j_res]
-
                         native_dist = compute_distance(coor_i, coor_j)
-
-                        tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
-                        push!(top_cg_pro_DNA_contact, tmp_top_cnt)
+                        # tmp_top_cnt = CGTopContact(i_res, j_res, native_dist)
+                        # push!(top_cg_pro_DNA_contact, tmp_top_cnt)
+                        push!(top_cg_pro_DNA_contact[i_res], [j_res, native_dist])
 
                     end
                 end
@@ -2167,7 +2249,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         if verbose
             println("\n------------------------------------------------------------")
             @printf("          > Total number of protein-DNA contacts: %8d  \n",
-                    length(top_cg_pro_DNA_contact) )
+                    sum( length.(top_cg_pro_DNA_contact) ) )
         end
     end
 
@@ -2485,34 +2567,40 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
 
     # RNA HT-type native contacts
     if ff_rna == FF_RNA_HT
-        for (i_c, c) in enumerate(top_cg_RNA_base_stack)
-            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0, param_cg_RNA_e_base_stack[i_c])
-            push!(top_pairs, new_pair)
-        end
-        for (i_c, c) in enumerate(top_cg_RNA_base_pair)
-            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0, param_cg_RNA_e_base_pair[i_c])
-            push!(top_pairs, new_pair)
-        end
-        for (i_c, c) in enumerate(top_cg_RNA_other_contact)
-            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0, param_cg_RNA_e_other_contact[i_c])
-            push!(top_pairs, new_pair)
+        for i_res in 1:cg_num_particles
+            for c in top_cg_RNA_base_stack[i_res]
+                new_pair = GenTopPair(i_res, c[1], RNA_CONTACT_FUNC_TYPE, c[2], c[3])
+                push!(top_pairs, new_pair)
+            end
+            for c in top_cg_RNA_base_pair[i_res]
+                new_pair = GenTopPair(i_res, c[1], RNA_CONTACT_FUNC_TYPE, c[2], c[3])
+                push!(top_pairs, new_pair)
+            end
+            for c in top_cg_RNA_other_contact[i_res]
+                new_pair = GenTopPair(i_res, c[1], RNA_CONTACT_FUNC_TYPE, c[2], c[3])
+                push!(top_pairs, new_pair)
+            end
         end
     end
 
     # protein-RNA native contacts
     if ff_pro_rna == FF_pro_RNA_Go
-        for (i_c, c) in enumerate(top_cg_pro_RNA_contact)
-            new_pair = GenTopPair(c.i, c.j, RNA_CONTACT_FUNC_TYPE, c.r0, param_cg_pro_RNA_e_contact[i_c])
-            push!(top_pairs, new_pair)
+        for i_res in 1:cg_num_particles
+            for c in top_cg_pro_RNA_contact[i_res]
+                new_pair = GenTopPair(i_res, c[1], RNA_CONTACT_FUNC_TYPE, c[2], c[3])
+                push!(top_pairs, new_pair)
+            end
         end
     end
 
 
     # protein-DNA native contacts
     if ff_pro_dna == FF_pro_DNA_Go
-        for c in top_cg_pro_DNA_contact
-            new_pair = GenTopPair(c.i, c.j, CCGO_CONTACT_FUNC_TYPE, c.r0, CCGO_NATIVE_EPSILON * ccgo_contact_scale)
-            push!(top_pairs, new_pair)
+        for i_res in 1:cg_num_particles
+            for c in top_cg_pro_DNA_contact[i_res]
+                new_pair = GenTopPair(i_res, c[1], CCGO_CONTACT_FUNC_TYPE, c[2], CCGO_NATIVE_EPSILON * ccgo_contact_scale)
+                push!(top_pairs, new_pair)
+            end
         end
     end
 
@@ -2544,7 +2632,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         push!(top_pwmcosns, new_pwmcos)
     end
 
-    
+
     # ---------------------
     # [ cg_IDR_HPS_region ]
     # ---------------------
@@ -2665,13 +2753,14 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         println(log_file, "================================================================================")
         println(log_file, " Interaction info:")
         if num_chain_pro > 0
-            @printf(log_file, " - Number of protein contacts:     %12d  \n", length(top_pairs))
+            @printf(log_file, " - Number of protein contacts:     %12d  \n", sum( length.(top_cg_pro_go_contact) ))
         end
         if num_chain_RNA > 0
-            @printf(log_file, " - Number of RNA contacts:         %12d  \n", length(top_cg_RNA_base_stack) + length(top_cg_RNA_base_pair) + length(top_cg_RNA_other_contact) )
+            @printf(log_file, " - Number of RNA contacts:         %12d  \n", sum( length.(top_cg_RNA_base_stack) )
+                    + sum( length.(top_cg_RNA_base_pair) ) + sum( length.(top_cg_RNA_other_contact) ) )
         end
         if num_chain_RNA > 0 && num_chain_pro > 0
-            @printf(log_file, " - Number of protein-RNA contacts: %12d  \n", length(top_cg_pro_RNA_contact) )
+            @printf(log_file, " - Number of protein-RNA contacts: %12d  \n", sum(length.(top_cg_pro_RNA_contact)) )
         end
         println(log_file, "================================================================================")
 
