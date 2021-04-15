@@ -161,21 +161,83 @@ function read_genesis_remd_log(genesis_remd_log_filename::AbstractString)
 
 end
 
-using ArgParse
+if abspath(PROGRAM_FILE) == @__FILE__
+    using ArgParse
 
-function parse_commandline()
-    s = ArgParseSettings()
+    function parse_commandline()
+        s = ArgParseSettings()
 
-    @add_arg_table s begin
-        "--remd", "-R"
-        help     = "Analyze REMD results."
-        action   = :store_true
+        @add_arg_table s begin
+            "--remd", "-R"
+            help     = "Analyze REMD results."
+            action   = :store_true
 
-        "--remd-main-log"
-        help     = "File name of the master log of REMD."
-        arg_type = String
-        default  = ""
+            "--remd-main-log"
+            help     = "File name of the master log of REMD."
+            arg_type = String
+            default  = ""
+
+            "--output", "-o"
+            help     = "File name of the output."
+            arg_type = String
+            default  = ""
+        end
+
+        return parse_args(s)
     end
 
-    return parse_args(s)
+    args = parse_commandline()
+
+    run_remd_analysis = get(args, "remd", false)
+    remd_main_log_fname = args["remd-main-log"]
+    if length(args["output"]) > 0
+        remd_system_name = args["output"]
+    else
+        remd_system_name = remd_main_log_fname[1:end-4]
+    end
+
+    if run_remd_analysis
+        # read the master log file
+        (param_dim_1, exchange_data, param_data, replica_data) = read_genesis_remd_log(remd_main_log_fname)
+
+        # --------------------
+        # output exchange data
+        # --------------------
+        remd_exchange_data_fname = remd_system_name * "_exchange.dat"
+        remd_exchange_of = open(remd_exchange_data_fname, "w")
+        for i in 1:length(exchange_data[1])
+            @printf(remd_exchange_of, " %3d <-> %3d  :  %3.1f %% \n", exchange_data[1][i], exchange_data[2][i], exchange_data[3][i] * 100)
+        end
+        close(remd_exchange_of)
+
+        # --------------------------------
+        # output parameter on each replica
+        # --------------------------------
+        remd_par_on_rep_fname = remd_system_name * "_par_on_rep.dat"
+        remd_par_on_rep_of = open(remd_par_on_rep_fname, "w")
+        for t in 1:size(replica_data)[1]
+            @printf(remd_par_on_rep_of, " %16d ", replica_data[t, 1])
+            for p in replica_data[t, 2:end]
+                @printf(remd_par_on_rep_of, " %3d ", p)
+            end
+            @printf(remd_par_on_rep_of, " \n")
+        end
+        close(remd_par_on_rep_of)
+
+        # ---------------------------------
+        # output replica for each parameter
+        # ---------------------------------
+        remd_rep_on_par_fname = remd_system_name * "_rep_on_par.dat"
+        remd_rep_on_par_of = open(remd_rep_on_par_fname, "w")
+        for t in 1:size(param_data)[1]
+            @printf(remd_rep_on_par_of, " %16d ", param_data[t, 1])
+            for p in param_data[t, 2:end]
+                @printf(remd_rep_on_par_of, " %3d ", p)
+            end
+            @printf(remd_rep_on_par_of, " \n")
+        end
+        close(remd_rep_on_par_of)
+
+    end
+
 end
