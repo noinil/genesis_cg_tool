@@ -28,10 +28,15 @@ function compute_nativeness(t::GenTopology, c::Conformation, args::Dict{String, 
     cutoff  = get(args, "cutoff", 1.2)
     beta    = get(args, "beta", 5.0)
 
+    region  = get(args, "region", [])
+
     # count number of native contacts
     num_native_contacts = 0
     for p in t.top_pairs
         if p.function_type == 1 || p.function_type == 2
+            if length(region) > 0 && (!in(p.i, region) || !in(p.j, region))
+                continue
+            end
             num_native_contacts += 1
         end
     end
@@ -44,6 +49,9 @@ function compute_nativeness(t::GenTopology, c::Conformation, args::Dict{String, 
             r0 = p.r0
             i  = p.i
             j  = p.j
+            if length(region) > 0 && (!in(i, region) || !in(j, region))
+                continue
+            end
             r  = compute_distance(c.coors[:, i], c.coors[:, j])
             if q_type == 1      # simple type
                 if r <= r0 * cutoff
