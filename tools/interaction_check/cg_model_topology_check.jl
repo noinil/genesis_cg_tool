@@ -31,12 +31,19 @@ function main(args)
     # -----------
     println("====================================================================================================")
     for bond in mytop.top_bonds
-        if bond.r0 < 0.3
+        if bond.r0 < 3.0
             @printf("Short bond length (< 3.0Å): %10d %3s %10d %3s - %6.3fÅ \n",
                     bond.i, mytop.top_atoms[bond.i].atom_type,
                     bond.j, mytop.top_atoms[bond.j].atom_type,
-                    bond.r0 * 10)
+                    bond.r0)
         end
+        if bond.r0 > 6.0
+            @printf("Long  bond length (> 6.0Å): %10d %3s %10d %3s - %6.3fÅ \n",
+                    bond.i, mytop.top_atoms[bond.i].atom_type,
+                    bond.j, mytop.top_atoms[bond.j].atom_type,
+                    bond.r0)
+        end
+
     end
 
     # -----
@@ -68,11 +75,17 @@ function main(args)
     # ---------------
     println("====================================================================================================")
     for contact in mytop.top_pairs
-        if contact.r0 < 0.4
+        if contact.r0 < 4.0
             @printf("Short contact (< 4.0Å): %10d %3s %10d %3s - %6.3fÅ \n",
                     contact.i, mytop.top_atoms[contact.i].atom_type,
                     contact.j, mytop.top_atoms[contact.j].atom_type,
-                    contact.r0 * 10)
+                    contact.r0)
+        end
+        if contact.r0 > 18.0
+            @printf("Short contact (> 18.0Å): %10d %3s %10d %3s - %6.3fÅ \n",
+                    contact.i, mytop.top_atoms[contact.i].atom_type,
+                    contact.j, mytop.top_atoms[contact.j].atom_type,
+                    contact.r0)
         end
     end
 
