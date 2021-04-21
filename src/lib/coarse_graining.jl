@@ -746,6 +746,14 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 dist12 = compute_distance(coor1, coor2)
                 tmp_top_bond = CGTopBond(i_res, i_res + 1, dist12)
                 push!(top_cg_pro_bonds, tmp_top_bond)
+                if verbose && ( dist12 > 4.0 || dist12 < 3.6 )
+                    errmsg = @sprintf("WARNING: abnormal bond length in chain %d, residue %d %s and %d %s, r0 = %8.3f",
+                                      i_chain,
+                                      i_res, cg_bead_name[i_res],
+                                      i_res + 1, cg_bead_name[i_res + 1],
+                                      dist12)
+                    println(errmsg)
+                end
             end
         end
         if verbose

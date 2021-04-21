@@ -82,7 +82,7 @@ function main(args)
                     contact.r0)
         end
         if contact.r0 > 18.0
-            @printf("Short contact (> 18.0Å): %10d %3s %10d %3s - %6.3fÅ \n",
+            @printf("Long  contact (> 18.0Å): %10d %3s %10d %3s - %6.3fÅ \n",
                     contact.i, mytop.top_atoms[contact.i].atom_type,
                     contact.j, mytop.top_atoms[contact.j].atom_type,
                     contact.r0)

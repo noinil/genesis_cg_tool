@@ -165,16 +165,17 @@ function mmCIF_to_AAMolecule(cif_data::Dict)
     # ---------------
     # Local variables
     # ---------------
-    i_resid       = 0
-    curr_resid    = NaN
-    curr_chain    = "?"
-    curr_rname    = "    "
-    residue_name  = "    "
-    chain_id      = "?"
-    tmp_res_atoms = []
-    tmp_chain_res = []
-    segment_id    = " "
- 
+    i_resid        = 0
+    curr_resid     = NaN
+    curr_chain     = "?"
+    curr_rname     = "    "
+    residue_serial = NaN
+    residue_name   = "    "
+    chain_id       = "?"
+    tmp_res_atoms  = []
+    tmp_chain_res  = []
+    segment_id     = " "
+
     # --------------------------------
     # Add atoms to residues and chains
     # --------------------------------
@@ -191,7 +192,7 @@ function mmCIF_to_AAMolecule(cif_data::Dict)
             segment_id     = " "
         end
 
-        if chain_id != curr_chain || i_atom > aa_num_atom
+        if chain_id != curr_chain || residue_serial > curr_resid + 1 || i_atom > aa_num_atom
             if length(tmp_res_atoms) > 0
                 push!(aa_residues, AAResidue(curr_rname, tmp_res_atoms))
                 tmp_res_atoms = []
