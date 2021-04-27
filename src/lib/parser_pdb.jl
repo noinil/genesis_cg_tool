@@ -78,7 +78,7 @@ function parse_PDB_line(pdb_line::AbstractString)
 end
 
 function write_PDB_line(io::IO, aline::PDBLine)
-    @printf(io, "ATOM  %5d %4s %4s%1s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f%10s%2s%2s \n",
+    @printf(io, "ATOM  %5d %4s %4s%1s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f%10s%2s%2d \n",
             aline.atom_serial,
             aline.atom_name,
             rpad(aline.residue_name, 4),
@@ -91,7 +91,7 @@ function write_PDB_line(io::IO, aline::PDBLine)
             aline.tempfactor,
             aline.segment_id,
             aline.element_name,
-            aline.charge)
+            Int(round(aline.charge)))
 end
 
 
