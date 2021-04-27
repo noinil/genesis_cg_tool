@@ -9,6 +9,34 @@
 
 using Printf
 
+function read_fasta(fasta_filename::String)
+    mol_seqence = ""
+    num_chain = 0
+    seq_list = []
+    for line in eachline(fasta_filename)
+        if length(line) == 0
+            continue
+        end
+        if line[1] == '>'
+            if num_chain > 0 && length(mol_seqence) > 0
+                push!(seq_list, mol_seqence)
+            end
+            mol_seqence = ""
+            num_chain += 1
+            continue
+        end
+        seq = strip(line)
+        if length(seq) == 0
+            continue
+        end
+        mol_seqence *= join(split(seq))
+    end
+    if num_chain > 0 && length(mol_seqence) > 0
+        push!(seq_list, mol_seqence)
+    end
+    return (num_chain, seq_list[:])
+end
+
 function read_modified_pfm(pfm_filename::String)
     pfm = Dict()
     for line in eachline(pfm_filename)
