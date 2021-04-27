@@ -25,6 +25,11 @@ function write_grocrd(top::GenTopology, conf::Conformation, sys_name::AbstractSt
 
     cg_num_particles = conf.num_particle
 
+    # measure box size
+    (minx, miny, minz) = minimum(conf.coors, dims=2)
+    (maxx, maxy, maxz) = maximum(conf.coors, dims=2)
+    box_size = [maxx, maxy, maxz] - [minx, miny, minz]
+
     @printf(gro_file, "CG model %s, t = %16.3f \n", system_name, 0)
     @printf(gro_file, "%12d \n", cg_num_particles)
 
@@ -39,7 +44,7 @@ function write_grocrd(top::GenTopology, conf::Conformation, sys_name::AbstractSt
                 conf.coors[3 , i_bead] * 0.1,
                 0.0, 0.0, 0.0)
     end
-    @printf(gro_file, "%15.4f%15.4f%15.4f \n\n", 0.0, 0.0, 0.0)
+    @printf(gro_file, "%15.4f%15.4f%15.4f \n\n", box_size[1] * 0.1, box_size[2] * 0.1, box_size[3] * 0.1)
 
     close(gro_file)
 
