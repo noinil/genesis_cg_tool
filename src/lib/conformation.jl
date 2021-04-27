@@ -10,7 +10,7 @@ end
 function centroid(c::Conformation)
     coor_centroid = zeros(Float64, 3)
     for i_bead in 1 : c.num_particle
-        coor_centroid .+= c.coor[:, i_bead]
+        coor_centroid .+= c.coors[:, i_bead]
     end
     coor_centroid ./= c.num_particle
     return coor_centroid
