@@ -286,6 +286,30 @@ ATOM_NAME_LIST_DS = ("C5'", "C4'", "C3'", "C2'", "C1'", "O4'")
 ATOM_NAME_LIST_RP = ("P", "OP1", "OP2", "O1P", "O2P")
 ATOM_NAME_LIST_RS = ("C5'", "C4'", "C3'", "C2'", "C1'", "O5'", "O4'", "O3'", "O2'")
 
+RES_FASTA_LONGNAME_DICT_PRO = Dict(
+    'A' => "ALA",
+    'R' => "ARG",
+    'N' => "ASN",
+    'D' => "ASP",
+    'C' => "CYS",
+    'Q' => "GLN",
+    'E' => "GLU",
+    'G' => "GLY",
+    'H' => "HIS",
+    'I' => "ILE",
+    'L' => "LEU",
+    'K' => "LYS",
+    'M' => "MET",
+    'F' => "PHE",
+    'P' => "PRO",
+    'S' => "SER",
+    'T' => "THR",
+    'W' => "TRP",
+    'Y' => "TYR",
+    'V' => "VAL"
+)
+
+
 # ==============
 # Molecule Types
 # ==============
