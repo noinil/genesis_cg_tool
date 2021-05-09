@@ -4,15 +4,7 @@ using Random
 using Printf
 using ArgParse
 
-include("../../../src/lib/biomath.jl")
-include("../../../src/lib/molecule.jl")
-include("../../../src/lib/topology.jl")
-include("../../../src/lib/constants.jl")
-include("../../../src/lib/selection.jl")
-include("../../../src/lib/coarse_graining_subroutines.jl")
-include("../../../src/lib/conformation.jl")
-include("../../../src/lib/coarse_graining.jl")
-include("../../../src/lib/parsers.jl")
+include("../../../src/lib/gcj.jl")
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -44,21 +36,6 @@ function parse_commandline()
         arg_type = String
         default = "straight"
 
-        "--copy"
-        help = "Number of chains created."
-        arg_type = Int
-        default = 1
-
-        "--dx"
-        help = "Delta x of the chain grid."
-        arg_type = Float64
-        default = 10.0
-
-        "--dy"
-        help = "Delta y of the chain grid."
-        arg_type = Float64
-        default = 10.0
-
         "--force-field-protein"
         help = "Force field for protein."
         arg_type = String
@@ -85,11 +62,7 @@ function make_cg_protein_structure(args)
     # non-straightness (because ideal straight chain could have problem...)
     threshold_angle = get( args, "straightness", 45.0)
 
-    grid_dx = get(args, "dx", 10.0)
-    grid_dy = get(args, "dy", 10.0)
-    mol_num = get(args, "copy", 1)
     idr_model = get(args, "IDR-model", 1)
-    mol_grid_size = floor(Int, sqrt(mol_num))
 
     println("============================================================")
 
@@ -129,31 +102,10 @@ function make_cg_protein_structure(args)
         # -----------------------------------
         # read in protein sequence from fasta
         # -----------------------------------
-        protein_seqence = ""
-        num_chain = 0
-        for line in eachline(seq_name)
-            if length(line) == 0
-                continue
-            end
-            if line[1] == '>'
-                num_chain += 1
-                continue
-            end
-            if num_chain > 1
-                error("Only support single-chain protein!")
-            end
-            seq = strip(line)
-            if length(seq) == 0
-                continue
-            end
-            for b in seq
-                if ! haskey(AA_FULLNAME_DICT, b)
-                    error("Wrong protein sequence!")
-                end
-            end
-            protein_seqence *= seq
-        end
-        protein_length = length(protein_seqence)
+        num_chain, seq_list = read_fasta("./00_ntail.fasta")
+        protein_seqence = seq_list[1]
+        protein_length  = length(protein_seqence)
+
     else
         println("> Generating random protein sequence:")
 
@@ -171,47 +123,39 @@ function make_cg_protein_structure(args)
     # =======================================
     # Generating AAMolecule based on sequence
     # =======================================
-    atom_names = Vector{String}(undef, protein_length * mol_num)
-    atom_coors = zeros(3, protein_length * mol_num)
-    residues   = Vector{AAResidue}(undef, protein_length * mol_num)
-    chains     = Vector{AAChain}(undef, mol_num)
+    atom_names = Vector{String}(undef, protein_length)
+    atom_coors = zeros(3, protein_length)
+    residues   = Vector{AAResidue}(undef, protein_length)
     chain0     = Vector{AAChain}(undef, 1)
 
     if args["strategy"] == "straight"
-        for l in 1 : mol_num
-            i_offset = (l - 1) * protein_length
-            theta = rand() * threshold_angle
-            for i in 1 : protein_length
-                j = i + i_offset
+        theta = rand() * threshold_angle
+        for i in 1 : protein_length
+            aa_short_name = protein_seqence[i]
+            aa_residue_name = AA_FULLNAME_DICT[aa_short_name]
 
-                aa_short_name = protein_seqence[i]
-                aa_residue_name = AA_FULLNAME_DICT[aa_short_name]
-                
-                atom_names[j] = "CA"
-                if i == 1
-                    (m, n) = fldmod(l - 1, mol_grid_size)
-                    atom_coors[:, j] = [m * grid_dx, n * grid_dy, 0]
+            atom_names[i] = "CA"
+            if i == 1
+                atom_coors[:, i] = [0, 0, 0]
+            else
+                if mod(i, 2) == 0
+                    theta = rand() * threshold_angle
+                    phi   = rand() * 360
+                    atom_coors[:, i] = atom_coors[:, i - 1] + [sind(theta) * cosd(phi), sind(theta) * sind(phi), cosd(theta)] * 3.8
                 else
-                    if mod(i, 2) == 0
-                        theta = rand() * threshold_angle
-                        phi   = rand() * 360
-                        atom_coors[:, j] = atom_coors[:, j - 1] + [sind(theta) * cosd(phi), sind(theta) * sind(phi), cosd(theta)] * 3.8
-                    else
-                        atom_coors[:, j] = atom_coors[:, j - 2] + [0, 0, cosd(theta)] * 3.8 * 2
-                    end
+                    atom_coors[:, i] = atom_coors[:, i - 2] + [0, 0, cosd(theta)] * 3.8 * 2
                 end
-                residues[j] = AAResidue(aa_residue_name, [j])
             end
-            new_chain = AAChain(""*chain_id_lib[mod(l, 63) + 1], rpad(mol_name, 6)[1:6], MOL_PROTEIN, [i + i_offset for i = 1 : protein_length])
-            chains[l] = new_chain
+            residues[i] = AAResidue(aa_residue_name, [i])
         end
-        chain0[1] = chains[1]
+        new_chain = AAChain(""*chain_id_lib[1], rpad(mol_name, 6)[1:6], MOL_PROTEIN, [i for i = 1 : protein_length])
+
+        chain0[1] = new_chain
     elseif args["strategy"] == "random-walk"
         println("Self-avoiding random walk not support yet.")
     end
 
     new_mol0 = AAMolecule(atom_names[1:protein_length], atom_coors[1:3, 1:protein_length], residues[1:protein_length], chain0)
-    new_mols = AAMolecule(atom_names, atom_coors, residues, chains)
 
     # ===============================
     # coarse graining from AAMolecule
@@ -228,12 +172,11 @@ function make_cg_protein_structure(args)
     args["cgconnect"] = true
 
     cg_top0, cg_conf0 = coarse_graining(new_mol0, force_field, args)
-    cg_tops, cg_confs = coarse_graining(new_mols, force_field, args)
 
     write_grotop(cg_top0, mol_name, args)
-    write_grocrd(cg_tops, cg_confs, mol_name, args)
-    write_pdb(cg_tops, cg_confs, mol_name, args)
-    write_psf(cg_tops, mol_name, args)
+    write_grocrd(cg_top0, cg_conf0, mol_name, args)
+    write_pdb(cg_top0, cg_conf0, mol_name, args)
+    write_psf(cg_top0, mol_name, args)
 
     return 0
 end
