@@ -9,6 +9,8 @@
 ###############################################################################
 # Function list
 #
+# read_mmCIF(cif_name::AbstractString, args::Dict{String, <:Any}=Dict{String, Any}())
+# write_mmCIF(top::GenTopology, conf::Conformation, system_name::AbstractString, args::Dict{String, <:Any}=Dict{String, Any}())
 ###############################################################################
 
 using Printf
@@ -316,7 +318,7 @@ _atom_site.pdbx_formal_charge
     # ====================
     num_particles  = conf.num_particle
 
-    chain_id_set  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890_."
+    chain_id_set  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
     tmp_chain_id  = 0
     tmp_seg_name  = ""
     real_chain_id = 1
@@ -337,7 +339,7 @@ _atom_site.pdbx_formal_charge
             asym_id       = ""
             i_tmp = real_chain_id
             while i_tmp > 0
-                (i_tmp, j) = divrem(i_tmp, 64)
+                (i_tmp, j) = divrem(i_tmp - 1, 52)
                 asym_id *= chain_id_set[j + 1]
             end
         end
