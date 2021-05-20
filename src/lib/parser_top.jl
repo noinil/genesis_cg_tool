@@ -409,6 +409,8 @@ end
 
 function read_groitp(itp_filename::AbstractString)
 
+    top_mols = Vector{GenTopMolecule}(undef, 0)
+
     mol_name          = ""
     nonlocal_interval = 0
     num_atom          = 0
@@ -448,8 +450,14 @@ function read_groitp(itp_filename::AbstractString)
         i      = parse(Int, words[1])
         j      = parse(Int, words[2])
         f_type = parse(Int, words[3])
-        r0     = parse(Float64, words[4]) * 10.0
-        coef   = parse(Float64, words[5]) * 0.005 * JOU2CAL
+        if length(words) == 5
+            r0   = parse(Float64, words[4]) * 10.0
+            coef = parse(Float64, words[5]) * 0.005 * JOU2CAL
+        else
+            # TODO: fix this part!
+            r0   = 0.0
+            coef = 0.0
+        end
         new_bond = GenTopBond(i, j, f_type, r0, coef)
         push!(top_bonds, new_bond)
     end
@@ -464,9 +472,11 @@ function read_groitp(itp_filename::AbstractString)
         coef   = 0.0
         w      = 0.0
         if f_type == 1
-            eq   = parse(Float64, words[5])
-            coef = parse(Float64, words[6]) * 0.5 * JOU2CAL
-            w    = 0.0
+            if length(words) == 6
+                eq   = parse(Float64, words[5])
+                coef = parse(Float64, words[6]) * 0.5 * JOU2CAL
+                w    = 0.0
+            end
         elseif f_type == 21
             eq   = parse(Float64, words[5]) * 10.0
             coef = parse(Float64, words[6]) * JOU2CAL
@@ -521,8 +531,14 @@ function read_groitp(itp_filename::AbstractString)
         i      = parse(Int, words[1])
         j      = parse(Int, words[2])
         f_type = parse(Int, words[3])
-        r0     = parse(Float64, words[4]) * 10.0
-        coef   = parse(Float64, words[5]) * JOU2CAL
+        if length(words) == 5
+            r0   = parse(Float64, words[4]) * 10.0
+            coef = parse(Float64, words[5]) * JOU2CAL
+        else
+            # TODO: fix this part!
+            r0   = 0.0
+            coef = 0.0
+        end
         new_pair = GenTopPair(i, j, f_type, r0, coef)
         push!(top_pairs, new_pair)
     end
@@ -624,6 +640,36 @@ function read_groitp(itp_filename::AbstractString)
         end
 
         if section_name == "moleculetype"
+            num_atom = length(top_atoms)
+            if num_atom > 0
+                new_top_mol = GenTopMolecule(mol_name, nonlocal_interval, num_atom,
+                                             top_atoms,
+                                             top_bonds,
+                                             top_angles,
+                                             top_dihedrals,
+                                             top_pairs,
+                                             top_exclusions,
+                                             top_pwmcos,
+                                             top_pwmcosns,
+                                             top_idr_hps,
+                                             top_idr_kh)
+
+                push!(top_mols, new_top_mol)
+
+                top_atoms         = Vector{GenTopAtom}(undef, 0)
+                top_bonds         = Vector{GenTopBond}(undef, 0)
+                top_angles        = Vector{GenTopAngle}(undef, 0)
+                top_dihedrals     = Vector{GenTopDihedral}(undef, 0)
+                top_pairs         = Vector{GenTopPair}(undef, 0)
+                top_exclusions    = Vector{GenTopExclusion}(undef, 0)
+                top_pwmcos        = Vector{GenTopPWMcos}(undef, 0)
+                top_pwmcosns      = Vector{GenTopPWMcos}(undef, 0)
+                top_idr_hps       = Vector{GenTopRegion}(undef, 0)
+                top_idr_kh        = Vector{GenTopRegion}(undef, 0)
+                c_id_tmp = 0
+                s_name_tmp = ""
+            end
+
             words = split(line)
             mol_name = words[1]
             nonlocal_interval = parse(Int, words[2])
@@ -656,20 +702,22 @@ function read_groitp(itp_filename::AbstractString)
     end
 
     num_atom = length(top_atoms)
+    if num_atom > 0
+        new_top_mol = GenTopMolecule(mol_name, nonlocal_interval, num_atom,
+                                     top_atoms,
+                                     top_bonds,
+                                     top_angles,
+                                     top_dihedrals,
+                                     top_pairs,
+                                     top_exclusions,
+                                     top_pwmcos,
+                                     top_pwmcosns,
+                                     top_idr_hps,
+                                     top_idr_kh)
+        push!(top_mols, new_top_mol)
+    end
 
-    new_top_mol = GenTopMolecule(mol_name, nonlocal_interval, num_atom,
-                                 top_atoms,
-                                 top_bonds,
-                                 top_angles,
-                                 top_dihedrals,
-                                 top_pairs,
-                                 top_exclusions,
-                                 top_pwmcos,
-                                 top_pwmcosns,
-                                 top_idr_hps,
-                                 top_idr_kh)
-
-    return new_top_mol
+    return top_mols
 end
 
 function read_grotop(top_filename::AbstractString)
@@ -714,9 +762,12 @@ function read_grotop(top_filename::AbstractString)
     # read the top file itself
     # ------------------------
     # in some cases, there is information in the topology file...
-    # new_mol = read_groitp(top_filename)
-    # new_mol_name = new_mol.mol_name
-    # mol_topologies[new_mol_name] = new_mol
+    new_mols = read_groitp(top_filename)
+    for new_mol in new_mols
+        new_mol_name = new_mol.mol_name
+        mol_topologies[new_mol_name] = new_mol
+    end
+
 
     for line in eachline(top_filename)
         sep  = findfirst(";", line)
@@ -739,9 +790,11 @@ function read_grotop(top_filename::AbstractString)
             if !isabspath(mol_file_name)
                 mol_file_name = normpath( joinpath( top_dirname, mol_file_name ) ) 
             end
-            new_mol = read_groitp(mol_file_name)
-            new_mol_name = new_mol.mol_name
-            mol_topologies[new_mol_name] = new_mol
+            new_mols = read_groitp(mol_file_name)
+            for new_mol in new_mols
+                new_mol_name = new_mol.mol_name
+                mol_topologies[new_mol_name] = new_mol
+            end
         end
 
         if line[1] == '['
