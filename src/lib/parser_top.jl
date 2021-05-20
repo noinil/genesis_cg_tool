@@ -433,7 +433,11 @@ function read_groitp(itp_filename::AbstractString)
         a_name = words[5]
         f_type = parse(Int, words[6])
         charge = parse(Float64, words[7])
-        mass   = parse(Float64, words[8])
+        if length(words) >=8
+            mass = parse(Float64, words[8])
+        else
+            mass = 1.0
+        end
         new_atom = GenTopAtom(a_indx, a_type, r_indx, r_name,
                               a_name, f_type, charge, mass, c_id, s_name)
         push!(top_atoms, new_atom)
@@ -612,6 +616,13 @@ function read_groitp(itp_filename::AbstractString)
             continue
         end
 
+        # --------------------------------------------
+        # TODO: conditional reading not implemented...
+        # --------------------------------------------
+        if line[1] == '#'
+            continue
+        end
+
         if section_name == "moleculetype"
             words = split(line)
             mol_name = words[1]
@@ -698,6 +709,15 @@ function read_grotop(top_filename::AbstractString)
     else
         top_dirname = dirname(top_filename) * "/"
     end
+
+    # ------------------------
+    # read the top file itself
+    # ------------------------
+    # in some cases, there is information in the topology file...
+    # new_mol = read_groitp(top_filename)
+    # new_mol_name = new_mol.mol_name
+    # mol_topologies[new_mol_name] = new_mol
+
     for line in eachline(top_filename)
         sep  = findfirst(";", line)
         if sep != nothing
@@ -708,6 +728,7 @@ function read_grotop(top_filename::AbstractString)
         if length(line) == 0
             continue
         end
+
 
         if startswith(line, "#include")
             mol_file_name = strip(line[9:end], ['\"', '\'', ' '])
