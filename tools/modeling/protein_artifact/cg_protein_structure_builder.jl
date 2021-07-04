@@ -102,7 +102,7 @@ function make_cg_protein_structure(args)
         # -----------------------------------
         # read in protein sequence from fasta
         # -----------------------------------
-        num_chain, seq_list = read_fasta("./00_ntail.fasta")
+        num_chain, seq_list = read_fasta(seq_name)
         protein_seqence = seq_list[1]
         protein_length  = length(protein_seqence)
 
