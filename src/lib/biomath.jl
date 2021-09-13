@@ -136,12 +136,12 @@ function compute_superimposition_transformation(coors_group_1::Array{<:Real, 2},
     coors_group_3 = coors_group_2 .* measure_scale
 
     # Step 2: compute centroids
-    # 
+    #
     coor_centroid_1 = sum(coors_group_1, dims=2) .* (1 / coor_size)
     coor_centroid_3 = sum(coors_group_3, dims=2) .* (1 / coor_size)
 
     # Step 3: shift coordinates to centroid
-    # 
+    #
     coors_shift_1 = coors_group_1 .- coor_centroid_1
     coors_shift_3 = coors_group_3 .- coor_centroid_3
 
@@ -150,7 +150,7 @@ function compute_superimposition_transformation(coors_group_1::Array{<:Real, 2},
     s = svd(coors_shift_1 * coors_shift_3')
 
     # rotation
-    # 
+    #
     d = det(s.V * s.U') < 0.0 ? -1.0 : 1.0
     m = diagm([1, 1, d])
     rotation_matrix = s.V * m * s.U'
@@ -160,7 +160,7 @@ function compute_superimposition_transformation(coors_group_1::Array{<:Real, 2},
     translation_matrix = ( coor_centroid_3 ./ measure_scale ) - ( rotation_matrix * coor_centroid_1 )
 
     # final RMSD fit
-    # 
+    #
     fit = GeoTransformation(rotation_matrix, translation_matrix)
 
     return fit
@@ -218,6 +218,49 @@ function generate_random_rotation()
     return R
 end
 
+# ------------------------------
+# Rotate by theta around an axis
+# ------------------------------
+function rotation_matrix_around_axis(axis::Vector{<:Real}, theta)
+    cost = cosd(theta)
+    sint = sind(theta)
+    _1_m_cost = 1 - cost
+    ux = axis[1]
+    uy = axis[2]
+    uz = axis[3]
+    rotmat = reshape([cost + ux*ux*_1_m_cost,
+                      uy*ux*_1_m_cost + uz*sint,
+                      uz*ux*_1_m_cost - uy*sint,
+                      ux*uy*_1_m_cost - uz*sint,
+                      cost + uy*uy*_1_m_cost,
+                      uz*uy*_1_m_cost + ux*sint,
+                      ux*uz*_1_m_cost + uy*sint,
+                      uy*uz*_1_m_cost - ux*sint,
+                      cost + uz*uz*_1_m_cost], (3, 3))
+    return rotmat
+end
+
+function rotation_matrix_around_x(theta)
+    cost = cosd(theta)
+    sint = sind(theta)
+    rotmat = [1 0 0; 0 cost -sint; 0 sint cost]
+    return rotmat
+end
+
+function rotation_matrix_around_y(theta)
+    cost = cosd(theta)
+    sint = sind(theta)
+    rotmat = [cost 0 sint; 0 1 0; -sint 0 cost]
+    return rotmat
+end
+
+function rotation_matrix_around_z(theta)
+    cost = cosd(theta)
+    sint = sind(theta)
+    rotmat = [cost -sint 0; sint cost 0; 0 0 1]
+    return rotmat
+end
+
 # ===================
 # Physical properties
 # ===================
@@ -239,4 +282,3 @@ function compute_center_of_mass(atom_indices::Vector{Int}, atom_names::Vector{St
 
     return com
 end
-
