@@ -135,9 +135,9 @@ function generate_NA_structure(args)
         for ibp in 1:num_bp
             @printf(of_bp_frames, "... %5d %s ...\n", ibp, bp_names[ibp])
             @printf(of_bp_frames, "%10.4f%10.4f%10.4f\n", bp_frame_orign[1,ibp], bp_frame_orign[2,ibp], bp_frame_orign[3,ibp])
-            @printf(of_bp_frames, "%10.4f%10.4f%10.4f\n", bp_frame_basis[1,1,ibp], bp_frame_basis[2,1,ibp], bp_frame_basis[3,1,ibp])
-            @printf(of_bp_frames, "%10.4f%10.4f%10.4f\n", bp_frame_basis[1,2,ibp], bp_frame_basis[2,2,ibp], bp_frame_basis[3,2,ibp])
-            @printf(of_bp_frames, "%10.4f%10.4f%10.4f\n", bp_frame_basis[1,3,ibp], bp_frame_basis[2,3,ibp], bp_frame_basis[3,3,ibp])
+            @printf(of_bp_frames, "%10.4f%10.4f%10.4f\n", bp_frame_basis[1,1,ibp], bp_frame_basis[1,2,ibp], bp_frame_basis[1,3,ibp])
+            @printf(of_bp_frames, "%10.4f%10.4f%10.4f\n", bp_frame_basis[2,1,ibp], bp_frame_basis[2,2,ibp], bp_frame_basis[2,3,ibp])
+            @printf(of_bp_frames, "%10.4f%10.4f%10.4f\n", bp_frame_basis[3,1,ibp], bp_frame_basis[3,2,ibp], bp_frame_basis[3,3,ibp])
         end
     end
 
@@ -221,14 +221,14 @@ function generate_NA_structure(args)
             @printf(of_base_frames, "... %5d %s ...\n", ibp, bp_names[ibp])
             @printf(of_base_frames, "---------------------------------------------\n")
             @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base1_orign[1], global_base1_orign[2], global_base1_orign[3])
-            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base1_basis[1,1], global_base1_basis[2,1], global_base1_basis[3,1])
-            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base1_basis[1,2], global_base1_basis[2,2], global_base1_basis[3,2])
-            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base1_basis[1,3], global_base1_basis[2,3], global_base1_basis[3,3])
+            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base1_basis[1,1], global_base1_basis[1,2], global_base1_basis[1,3])
+            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base1_basis[2,1], global_base1_basis[2,2], global_base1_basis[2,3])
+            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base1_basis[3,1], global_base1_basis[3,2], global_base1_basis[3,3])
             @printf(of_base_frames, "---------------------------------------------\n")
             @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base2_orign[1], global_base2_orign[2], global_base2_orign[3])
-            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base2_basis[1,1], global_base2_basis[2,1], global_base2_basis[3,1])
-            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base2_basis[1,2], global_base2_basis[2,2], global_base2_basis[3,2])
-            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base2_basis[1,3], global_base2_basis[2,3], global_base2_basis[3,3])
+            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base2_basis[1,1], global_base2_basis[1,2], global_base2_basis[1,3])
+            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base2_basis[2,1], global_base2_basis[2,2], global_base2_basis[2,3])
+            @printf(of_base_frames, "%10.4f%10.4f%10.4f\n", global_base2_basis[3,1], global_base2_basis[3,2], global_base2_basis[3,3])
         end
 
         # =======================
