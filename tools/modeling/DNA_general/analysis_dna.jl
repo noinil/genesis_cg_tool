@@ -50,10 +50,10 @@ function analyze_NA_structure(args)
     # ======================
     # read in standard bases
     # ======================
-    std_base_A = read_DNA_standard_base(lib_path * "/lib/Atomic_A.pdb", "purine")
-    std_base_C = read_DNA_standard_base(lib_path * "/lib/Atomic_C.pdb", "pyrimidine")
-    std_base_G = read_DNA_standard_base(lib_path * "/lib/Atomic_G.pdb", "purine")
-    std_base_T = read_DNA_standard_base(lib_path * "/lib/Atomic_T.pdb", "pyrimidine")
+    std_base_A = read_DNA_standard_base(lib_path * "/lib/aa_A.pdb", "purine")
+    std_base_C = read_DNA_standard_base(lib_path * "/lib/aa_C.pdb", "pyrimidine")
+    std_base_G = read_DNA_standard_base(lib_path * "/lib/aa_G.pdb", "purine")
+    std_base_T = read_DNA_standard_base(lib_path * "/lib/aa_T.pdb", "pyrimidine")
     map_base_atom_coors = Dict("DA" => std_base_A[2],
                                "DC" => std_base_C[2],
                                "DG" => std_base_G[2],

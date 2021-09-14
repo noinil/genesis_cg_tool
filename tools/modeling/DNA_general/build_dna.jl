@@ -55,10 +55,10 @@ function generate_NA_structure(args)
     # ------------------
     # read in structures
     # ------------------
-    std_base_A = read_DNA_standard_base(lib_path * "/lib/Atomic_A.pdb")
-    std_base_C = read_DNA_standard_base(lib_path * "/lib/Atomic_C.pdb")
-    std_base_G = read_DNA_standard_base(lib_path * "/lib/Atomic_G.pdb")
-    std_base_T = read_DNA_standard_base(lib_path * "/lib/Atomic_T.pdb")
+    std_base_A = read_DNA_standard_base(lib_path * "/lib/aa_A.pdb")
+    std_base_C = read_DNA_standard_base(lib_path * "/lib/aa_C.pdb")
+    std_base_G = read_DNA_standard_base(lib_path * "/lib/aa_G.pdb")
+    std_base_T = read_DNA_standard_base(lib_path * "/lib/aa_T.pdb")
     map_base_atom_coors = Dict('A' => std_base_A[2],
                                'C' => std_base_C[2],
                                'G' => std_base_G[2],
