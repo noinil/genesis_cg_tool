@@ -3,7 +3,7 @@
 using Printf
 using ArgParse
 
-include("../../../src/lib/biomath.jl")
+include("../../../src/lib/gcj.jl")
 
 function read_DNA_standard_base(fname)
     pdb_atom_names = []
@@ -63,10 +63,12 @@ end
 function generate_NA_structure(args)
 
     par_fname  = get(args, "param", "")
-    pdb_fname  = get(args, "output", "_DNA_constructed_.pdb")
+    out_fname  = get(args, "output", "_DNA_constructed_")
     seq_fname  = get(args, "sequence", "")
     i_template = get(args, "template", 1)
     do_debug   = get(args, "debug", false)
+
+    pdb_fname = out_fname * ".pdb"
 
     bp_names = []
     bp_parms = []
@@ -401,9 +403,9 @@ end
 
 if abspath(PROGRAM_FILE) == @__FILE__
 
-    args = ArgParseSettings()
+    struct_args = ArgParseSettings()
 
-    @add_arg_table args begin
+    @add_arg_table struct_args begin
         "--param", "-p"
         help     = "User-defined parameter file of base-pair and base-step local structures. (will OVERWRITE the templated params)"
         arg_type = String
@@ -422,12 +424,49 @@ if abspath(PROGRAM_FILE) == @__FILE__
         "--output", "-o"
         help     = "PDB file name (output) "
         arg_type = String
-        default  = "_DNA_constructed_.pdb"
+        default  = "_DNA_constructed_"
+
+        "--cg", "-C"
+        help = "Generate CG topology and coordinates (3SPN.2C)"
+        action = :store_true
+
+        "--5P"
+        help = "CG: Starting from Phosphate at the 5-end."
+        action = :store_true
+
+        "--infinite"
+        help = "CG: Prepare an infinite DNA model."
+        action = :store_true
 
         "--debug"
         help = "Debug mode"
         action = :store_true
     end
 
-    generate_NA_structure(parse_args(args))
+    main_args = parse_args(struct_args)
+
+    # ----------------------------
+    # Generate atomistic structure
+    # ----------------------------
+    generate_NA_structure(main_args)
+
+    # -----------------------
+    # Generate CG top and crd
+    # -----------------------
+    do_cg = get(main_args, "cg", false)
+    if do_cg
+        aa_mol_name = main_args["output"]
+        aa_dna_mol = read_PDB(aa_mol_name*".pdb")
+
+        cg_mol_name = aa_mol_name * "_cg"
+        cg_args = main_args
+        cg_args["3spn-param"] = 2
+        cg_args["3spn-use-5-phos"] = get(main_args, "5P", false)
+        cg_args["3spn-circular"] = get(main_args, "infinite", false)
+        force_field = ForceFieldCG(1, 1, 1, 0, 0, 0)
+        cg_top, cg_conf = coarse_graining(aa_dna_mol, force_field, cg_args)
+        write_grotop(cg_top, cg_mol_name, cg_args)
+        write_grocrd(cg_top, cg_conf, cg_mol_name, cg_args)
+        write_mmCIF(cg_top, cg_conf, cg_mol_name, cg_args)
+    end
 end
