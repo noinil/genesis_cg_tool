@@ -37,8 +37,6 @@ end
 
 function analyze_NA_structure(args)
 
-    lib_path = @__DIR__
-
     # ----
     # args
     # ----
@@ -50,6 +48,7 @@ function analyze_NA_structure(args)
     # ======================
     # read in standard bases
     # ======================
+    lib_path = @__DIR__
     std_base_A = read_DNA_standard_base(lib_path * "/lib/aa_A.pdb", "purine")
     std_base_C = read_DNA_standard_base(lib_path * "/lib/aa_C.pdb", "pyrimidine")
     std_base_G = read_DNA_standard_base(lib_path * "/lib/aa_G.pdb", "purine")

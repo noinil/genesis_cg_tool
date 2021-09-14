@@ -24,31 +24,108 @@ function read_DNA_standard_base(fname)
     return [pdb_atom_names, coor_array]
 end
 
+function read_param_template(fname)
+    base_pair_params = Dict()
+    base_step_params = Dict()
+    for line in eachline(fname)
+        if startswith(line, "#") || length(strip(line)) == 0
+            continue
+        else
+            words = split(line)
+            if length(words[1]) == 1
+                base_pair_params[words[1][1]] = [words[2], [parse(Float64, words[i]) for i in 3:8]]
+            elseif length(words[1]) == 2
+                base_step_params[words[1]] = [parse(Float64, words[i]) for i in 2:7]
+            end
+        end
+    end
+    return [base_pair_params, base_step_params]
+end
+
+function read_DNA_sequence(fname)
+    dna_seq = ""
+    for line in eachline(fname)
+        if line[1] == '>'
+            continue
+        end
+        seq = strip(line)
+        for b in seq
+            if ! in(b, "ACGT")
+                error("Wrong DNA sequence!")
+            end
+        end
+        dna_seq *= seq
+    end
+    return dna_seq
+end
+
+# main
 function generate_NA_structure(args)
 
-    lib_path = @__DIR__
-    # ==============
-    # read in params
-    # ==============
-    par_fname = get(args, "param", "")
-    pdb_fname = get(args, "output", "_DNA_constructed_.pdb")
-    do_debug  = get(args, "debug", false)
+    par_fname  = get(args, "param", "")
+    pdb_fname  = get(args, "output", "_DNA_constructed_.pdb")
+    seq_fname  = get(args, "sequence", "")
+    i_template = get(args, "template", 1)
+    do_debug   = get(args, "debug", false)
 
     bp_names = []
     bp_parms = []
     bs_parms = []
-    if length(par_fname) == 0
-        println("\e[0;31;40m ERROR: Please specify the DNA structural parameter file. \e[0m")
-        exit()
+
+    # =======================================
+    # generate base-pair and base-step params
+    # =======================================
+    # ----------------
+    # read in template
+    # ----------------
+    lib_path = @__DIR__
+    if i_template == 0          # ideally regular B-type dsDNA
+        template_fname = lib_path * "/lib/regular_B_DNA_params.dat"
+    elseif i_template == 1      # averaged B-type dsDNA
+        template_fname = lib_path * "/lib/average_B_DNA_params.dat"
+    else
+        error("TEMPLATE type not supported ...")
     end
-    for line in eachline(par_fname)
-        if line[1] in "ACGT"
-            words = split(line)
-            local_bp_parms = [parse(Float64, words[i]) for i in 2:7]
-            local_bs_parms = [parse(Float64, words[i]) for i in 8:13]
-            push!(bp_names, words[1])
-            push!(bp_parms, local_bp_parms)
-            push!(bs_parms, local_bs_parms)
+    template_base_pair_params, template_base_step_params = read_param_template(template_fname)
+    # --------------------
+    # read in DNA sequence
+    # --------------------
+    if length(par_fname) == 0 && length(seq_fname) == 0
+        error("Either sequence file or user-defined parameter file should be given!")
+    end
+    if length(seq_fname) > 0
+        seq_DNA = read_DNA_sequence(seq_fname)
+        for ( i, b ) in enumerate(seq_DNA)
+            # base-pair
+            tmp_bp_param = template_base_pair_params[b]
+            push!(bp_names, tmp_bp_param[1])
+            push!(bp_parms, tmp_bp_param[2])
+            # base-step
+            tmp_bs_param = zeros(Float64, 6)
+            if i > 1
+                base_step = seq_DNA[i-1:i]
+                tmp_bs_param = template_base_step_params[base_step]
+            end
+            push!(bs_parms, tmp_bs_param)
+        end
+    end
+
+    # =========================
+    # user-specified parameters
+    # =========================
+    # !!! NOTE !!! this part will overwrite the "templated" params!!!
+    if length(par_fname) > 0
+        # println("\e[0;31;40m ERROR: Please specify the DNA structural parameter file. \e[0m")
+        # exit()
+        for line in eachline(par_fname)
+            if line[1] in "ACGT"
+                words = split(line)
+                local_bp_parms = [parse(Float64, words[i]) for i in 2:7]
+                local_bs_parms = [parse(Float64, words[i]) for i in 8:13]
+                push!(bp_names, words[1])
+                push!(bp_parms, local_bp_parms)
+                push!(bs_parms, local_bs_parms)
+            end
         end
     end
 
@@ -104,7 +181,11 @@ function generate_NA_structure(args)
         # angles
         tmp_RollTilt = sqrt(tmp_tilt * tmp_tilt + tmp_roll * tmp_roll)
         tmp_phi_sign = tmp_tilt > 0 ? 1 : -1
-        tmp_phi      = acosd(tmp_roll / tmp_RollTilt) * tmp_phi_sign
+        if abs(tmp_RollTilt) < 1.e-10
+            tmp_phi = 0
+        else
+            tmp_phi      = acosd(tmp_roll / tmp_RollTilt) * tmp_phi_sign
+        end
 
         # -----------------------------------------------
         # calculate frames with respect to the current bp
@@ -324,17 +405,27 @@ if abspath(PROGRAM_FILE) == @__FILE__
 
     @add_arg_table args begin
         "--param", "-p"
-        help     = "Parameter file of base-pair and base-step local structures."
+        help     = "User-defined parameter file of base-pair and base-step local structures. (will OVERWRITE the templated params)"
+        arg_type = String
+        default  = ""
+
+        "--template", "-t"
+        help     = "Template of base-pair and base-step parameters: 0) ideally regular B-DNA; 1) average B-DNA "
+        arg_type = Int
+        default  = 1
+
+        "--sequence", "-s"
+        help     = "File name for DNA sequence (.fasta)"
         arg_type = String
         default  = ""
 
         "--output", "-o"
-        help     = "PDB file as output."
+        help     = "PDB file name (output) "
         arg_type = String
         default  = "_DNA_constructed_.pdb"
 
         "--debug"
-        help = "DEBUG."
+        help = "Debug mode"
         action = :store_true
     end
 
