@@ -9,6 +9,7 @@ include("../../src/lib/conformation.jl")
 include("../../src/lib/parser_top.jl")
 include("../../src/lib/parser_crd.jl")
 include("../../src/lib/parser_pdb.jl")
+include("../../src/lib/parser_cif.jl")
 
 function main(args)
 
@@ -17,6 +18,7 @@ function main(args)
     top_filename = get(args, "top", "")
     crd_filename = get(args, "crd", "")
     pdb_filename = get(args, "output", "")
+    out_mmcif    = get(args, "mmCIF", false)
 
     # ================================
     # Read in topology and coordinates
@@ -34,7 +36,12 @@ function main(args)
     else
         system_name = pdb_filename[1:end-4]
     end
-    write_pdb(mytop, mycrd, system_name, args)
+
+    if out_mmcif
+        write_mmCIF(mytop, mycrd, system_name, args)
+    else
+        write_pdb(mytop, mycrd, system_name, args)
+    end
 
     if verbose
         println("> converting from *.gro to *.pdb : DONE!")
@@ -60,12 +67,16 @@ function parse_commandline()
         arg_type = String
 
         "--output", "-o"
-        help     = "Output file name."
+        help     = "Output PDB file name."
         arg_type = String
         default  = ""
 
         "--cgconnect"
         help     = "Output CONECTs in CG PDB."
+        action   = :store_true
+
+        "--mmCIF", "-M"
+        help     = "Output as mmCIF/PDBx."
         action   = :store_true
 
         "--verbose"
