@@ -23,10 +23,13 @@ struct DCD_trajectory
     conformations::Vector{Conformation}
 end
 
-                   
+
 function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, Any}())
 
     verbose  = get(args, "verbose", false)
+    i_frame_begin = get(args, "begin", 1)
+    i_frame_end   = get(args, "end", -1)
+    i_frame_step  = get(args, "step", 1)
 
     dcd_file = open(dcd_filename, "r")
 
@@ -100,7 +103,7 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
     block_size_0 = read(dcd_file, Int32)
 
     n_particles  = read(dcd_file, Int32)
-    
+
     block_size_1 = read(dcd_file, Int32)
 
     # ========================
@@ -133,13 +136,31 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
     # ======================
     # Read in Coordinates!!!
     # ======================
-
-    boundary_conditions = zeros(Float64, 6, n_frames)
-    conformations = Vector{Conformation}(undef, 0)
-
     data_block_size = n_particles * 4 # Single precision (4-byte), Float32
+
+    data_frame_size = (data_block_size + 8) * 3
+    if bc_flag == 1
+        data_frame_size += 8 * 6 + 8
+    end
+
+    if i_frame_end < 1
+        i_frame_end = n_frames
+    end
+    i_frame_read_indices = [i_frame_begin:i_frame_step:i_frame_end...]
+
+    boundary_conditions = zeros(Float64, 6, length(i_frame_read_indices))
+    conformations = Vector{Conformation}(undef, 0)
     is_broken_trajectory = false
+    i_read_frame = 0
     for t in 1 : n_frames
+        if !(t in i_frame_read_indices)
+            skip(dcd_file, data_frame_size)
+            continue
+        end
+        if verbose
+            println(" ~~~~> Reading Frame: ", t)
+        end
+        i_read_frame += 1
         # ----------------
         # Read in box info
         # ----------------
@@ -152,7 +173,7 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
             end
             block_size_1 = read(dcd_file, Int32)
             # store box information
-            boundary_conditions[:, t] = bc_size
+            boundary_conditions[:, i_read_frame] = bc_size
         end
 
         # ------------------
@@ -217,7 +238,7 @@ function write_dcd(dcd_trajectory::DCD_trajectory, dcd_filename::AbstractString)
     # ======================
     # Write head information
     # ======================
-    # 
+    #
     # block size
     write(dcd_file, Int32(84))
 
@@ -244,7 +265,7 @@ function write_dcd(dcd_trajectory::DCD_trajectory, dcd_filename::AbstractString)
     # ===========================
     # Write MD information string
     # ===========================
-    # 
+    #
     # block size calculation
     n_doc_line = length(dcd_trajectory.md_doc)
     block_size = 4 + 80 * n_doc_line
@@ -270,7 +291,7 @@ function write_dcd(dcd_trajectory::DCD_trajectory, dcd_filename::AbstractString)
     # =====================
     # Write number of atoms
     # =====================
-    # 
+    #
     # block size
     write(dcd_file, Int32(4))
 
@@ -304,9 +325,9 @@ function write_dcd(dcd_trajectory::DCD_trajectory, dcd_filename::AbstractString)
         end
 
         # ------------
-        # coordinate x 
+        # coordinate x
         # ------------
-        # 
+        #
         # block size
         write(dcd_file, Int32(coor_block_size))
 
@@ -319,9 +340,9 @@ function write_dcd(dcd_trajectory::DCD_trajectory, dcd_filename::AbstractString)
         write(dcd_file, Int32(coor_block_size))
 
         # ------------
-        # coordinate y 
+        # coordinate y
         # ------------
-        # 
+        #
         # block size
         write(dcd_file, Int32(coor_block_size))
 
@@ -334,9 +355,9 @@ function write_dcd(dcd_trajectory::DCD_trajectory, dcd_filename::AbstractString)
         write(dcd_file, Int32(coor_block_size))
 
         # ------------
-        # coordinate z 
+        # coordinate z
         # ------------
-        # 
+        #
         # block size
         write(dcd_file, Int32(coor_block_size))
 
