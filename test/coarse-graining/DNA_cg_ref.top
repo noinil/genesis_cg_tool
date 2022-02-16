@@ -8,13 +8,13 @@
 #include "./param/pair_energy_MJ_96.itp" 
 
 ; Molecule topology 
-#include "histone_cg.itp" 
+#include "DNA_test_cg.itp" 
 
 [ system ] 
-histone_cg 
+DNA_test_cg 
 
 [ molecules ] 
-histone_cg  1 
+DNA_test_cg  1 
 
 ; [ cg_ele_chain_pairs ] 
 ; ON 1 - 2 : 3 - 4 

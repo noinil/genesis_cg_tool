@@ -8,7 +8,7 @@
 #include "./param/pair_energy_MJ_96.itp" 
 
 ; Molecule topology 
-#include "./top/FUS_cg.itp" 
+#include "FUS_cg.itp" 
 
 [ system ] 
 FUS_cg 

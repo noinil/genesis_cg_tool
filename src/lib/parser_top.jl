@@ -44,7 +44,7 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     print(top_file, "\n")
 
     print(top_file, "; Molecule topology \n")
-    print(top_file, "#include \"./top/", itp_name, "\" \n\n")
+    print(top_file, "#include \"", itp_name, "\" \n\n")
 
     print(top_file, "[ system ] \n")
     print(top_file, system_name, " \n\n")

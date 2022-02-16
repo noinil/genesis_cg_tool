@@ -55,16 +55,15 @@ clean_TAL:
 	rm -f TAL_cg.{log,itp,psf,pdb,gro,top}
 
 run_DNA:
-	../../tools/modeling/DNA_3SPN.2C/bdna_3spn2c_gen.sh DNA.fasta
+	../../tools/modeling/DNA_general/build_dna.jl -s DNA.fasta -C -o DNA_test
 
 diff_DNA:
-	diff DNA_x3dna_new_cg.gro DNA_cg_ref.gro || exit 0
-	diff DNA_x3dna_new_cg.pdb DNA_cg_ref.pdb || exit 0
-	diff DNA_x3dna_new_cg.psf DNA_cg_ref.psf || exit 0
-	diff DNA_x3dna_new_cg.itp DNA_cg_ref.itp || exit 0
+	diff DNA_test_cg.gro DNA_cg_ref.gro || exit 0
+	diff DNA_test_cg.cif DNA_cg_ref.cif || exit 0
+	diff DNA_test_cg.itp DNA_cg_ref.itp || exit 0
 
 clean_DNA:
-	rm -f DNA_x3dna*
+	rm -f DNA_test*
 
 run_TBP:
 	../../src/aa_2_cg.jl --pwmcos --pwmcos-scale 2.0 --pwmcos-shift -3.14159 --pfm TBP.pfm TBP.pdb
