@@ -213,7 +213,7 @@ function read_dcd(dcd_filename::String, args::Dict{String, <:Any}=Dict{String, A
     close(dcd_file)
 
     new_trajectory = DCD_trajectory(file_type,
-                                    n_frames,
+                                    i_read_frame,
                                     n_ts_first,
                                     n_ts_interval,
                                     n_ts_all,
