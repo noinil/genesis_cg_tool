@@ -70,9 +70,9 @@ end
 function determine_subdivision_level(r_P)
 
     inv_ξ = 2 / (sqrt(5) + 1)
-    n_s = Int(ceil(2 * atan(inv_ξ) * r_P / 30))
-    r_0 = 2 * r_P * atan(inv_ξ) / n_s
-    sigma = r_0 / sqrt(3)
+    n_s = Int(ceil(2 * atan(inv_ξ) * r_P / 25))
+    d_0 = 2 * r_P * atan(inv_ξ) / n_s
+    sigma = d_0 / sqrt(3)
 
     @printf("Polyhedron radius: %8.3f Å  |  # subdivision level: %5d  |  σ ~ %8.3f Å \n", r_P, n_s, sigma)
 
