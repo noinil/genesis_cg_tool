@@ -16,18 +16,30 @@ function icosahedron_construction(r_P)
     # vertices
     # --------
     nodes = zeros(Float64, (3, 12))
-    nodes[:,  1] = [ 0,  1,  ξ]
-    nodes[:,  2] = [ 0, -1,  ξ]
-    nodes[:,  3] = [ ξ,  0,  1]
-    nodes[:,  4] = [-ξ,  0,  1]
-    nodes[:,  5] = [ 1,  ξ,  0]
-    nodes[:,  6] = [-1,  ξ,  0]
-    nodes[:,  7] = [-1, -ξ,  0]
-    nodes[:,  8] = [ 1, -ξ,  0]
-    nodes[:,  9] = [ ξ,  0, -1]
-    nodes[:, 10] = [-ξ,  0, -1]
-    nodes[:, 11] = [ 0,  1, -ξ]
-    nodes[:, 12] = [ 0, -1, -ξ]
+    # nodes[:,  1] = [ 0,  1,  ξ]
+    # nodes[:,  2] = [ 0, -1,  ξ]
+    # nodes[:,  3] = [ ξ,  0,  1]
+    # nodes[:,  4] = [-ξ,  0,  1]
+    # nodes[:,  5] = [ 1,  ξ,  0]
+    # nodes[:,  6] = [-1,  ξ,  0]
+    # nodes[:,  7] = [ 1, -ξ,  0]
+    # nodes[:,  8] = [-1, -ξ,  0]
+    # nodes[:,  9] = [ ξ,  0, -1]
+    # nodes[:, 10] = [-ξ,  0, -1]
+    # nodes[:, 11] = [ 0,  1, -ξ]
+    # nodes[:, 12] = [ 0, -1, -ξ]
+    nodes[:,  1] = [ 0,  1,  ξ] # 1
+    nodes[:,  2] = [ 0, -1, -ξ] # 12
+    nodes[:,  3] = [ 0, -1,  ξ] # 2
+    nodes[:,  4] = [ 0,  1, -ξ] # 11
+    nodes[:,  5] = [ ξ,  0,  1] # 3
+    nodes[:,  6] = [-ξ,  0, -1] # 10
+    nodes[:,  7] = [-ξ,  0,  1] # 4
+    nodes[:,  8] = [ ξ,  0, -1] # 9
+    nodes[:,  9] = [ 1,  ξ,  0] # 5
+    nodes[:, 10] = [-1, -ξ,  0] # 8
+    nodes[:, 11] = [-1,  ξ,  0] # 6
+    nodes[:, 12] = [ 1, -ξ,  0] # 7
     nodes .*= s_r
 
     # -----
@@ -35,7 +47,7 @@ function icosahedron_construction(r_P)
     # -----
     edge_idx_list = []
     i_count = 1
-    for i in 1:12
+    for i in 1:11
         for j in i + 1:12
             coor_1 = nodes[:, i]
             coor_2 = nodes[:, j]
@@ -70,9 +82,10 @@ end
 function determine_subdivision_level(r_P)
 
     inv_ξ = 2 / (sqrt(5) + 1)
-    n_s = Int(ceil(2 * atan(inv_ξ) * r_P / 25))
+    # estimated upper limit of d_0 is 15Å
+    n_s = Int(ceil(2 * atan(inv_ξ) * r_P / 15))
     d_0 = 2 * r_P * atan(inv_ξ) / n_s
-    sigma = d_0 / sqrt(3)
+    sigma = d_0 / sqrt(3) * 2
 
     @printf("Polyhedron radius: %8.3f Å  |  # subdivision level: %5d  |  σ ~ %8.3f Å \n", r_P, n_s, sigma)
 
@@ -80,26 +93,38 @@ function determine_subdivision_level(r_P)
 
 end
 
-function subdivided_polyhedron_construction(f_polyhedron_construction, r_P)
+function subdivided_polyhedron_construction(f_polyhedron_construction, r_P, DNA_density, linker_length)
 
     # construct polyhedron
     (polyhedron_vertices_coors, edge_list, face_list) = f_polyhedron_construction(r_P)
+    n_poly_vert = size(polyhedron_vertices_coors)[2]
+    n_poly_edge = length(edge_list)
+    n_poly_face = length(face_list)
+
     # determine number of subdivision
     n_subdivision = determine_subdivision_level(r_P)
 
     # calculate number of vertices
-    n_new_points_per_edge = (n_subdivision - 1) * length(edge_list)
-    n_new_points_per_face = Int((n_subdivision - 1) * (n_subdivision - 2) / 2 * length(face_list))
-    n_vertices_total = size(polyhedron_vertices_coors)[2] + n_new_points_per_edge + n_new_points_per_face
+    n_new_points_per_edge = n_subdivision - 1
+    n_new_points_all_edge = n_new_points_per_edge * n_poly_edge
+    n_new_points_per_face = Int((n_subdivision - 1) * (n_subdivision - 2) / 2)
+    n_new_points_all_face = n_new_points_per_face * n_poly_face
+    n_vertices_total = n_poly_vert + n_new_points_all_edge + n_new_points_all_face
 
+    # ===============
+    # DATA structures
+    # ===============
     # new coordinates
     new_polyhedron_coors = zeros(Float64, (3, n_vertices_total))
-    new_polyhedron_coors[:, 1:size(polyhedron_vertices_coors)[2]] = polyhedron_vertices_coors
+    # flags for DNA-planting particles
+    new_polyhedron_flags = zeros(Int, n_vertices_total)
 
     # ===========
     # subdivision
     # ===========
-    i_vertex = size(polyhedron_vertices_coors)[2] + 1
+    # vertices coordinates (first n_poly_vert)
+    new_polyhedron_coors[:, 1:n_poly_vert] = polyhedron_vertices_coors
+    i_node = n_poly_vert + 1
     # -------------
     # step 1: edges
     # -------------
@@ -112,8 +137,8 @@ function subdivided_polyhedron_construction(f_polyhedron_construction, r_P)
         for i in 1:n_subdivision - 1
             coor_new = coor_v1 .+ (i .* e1)
             coor_new .*= r_P / norm(coor_new)
-            new_polyhedron_coors[:, i_vertex] = coor_new
-            i_vertex += 1
+            new_polyhedron_coors[:, i_node] = coor_new
+            i_node += 1
         end
     end
 
@@ -133,13 +158,40 @@ function subdivided_polyhedron_construction(f_polyhedron_construction, r_P)
             for j in 1:i - 1
                 coor_new = coor_v1 .+ (i .* e1) .+ (j .* e2)
                 coor_new .*= r_P / norm(coor_new)
-                new_polyhedron_coors[:, i_vertex] = coor_new
-                i_vertex += 1
+                new_polyhedron_coors[:, i_node] = coor_new
+                i_node += 1
             end
         end
     end
 
-    return new_polyhedron_coors
+
+    # =================================
+    # Determine vertices to connect DNA
+    # =================================
+    A_nanop = pi * r_P * r_P
+    N_DNA   = Int(ceil(A_nanop / DNA_density))
+    if N_DNA <= n_poly_vert
+        new_polyhedron_flags[1:N_DNA] = 1
+    else
+        new_polyhedron_flags[1:n_poly_vert] = 1
+        # non-poly-vertex DNA=connecting particles
+        n_DNA_node_on_face_edge = N_DNA - n_poly_vert
+        n_DNA_node_on_face = Int(ceil(n_DNA_node_on_face_edge * n_new_points_all_face / (n_new_points_all_face + n_new_points_all_edge)))
+        n_DNA_node_on_edge = n_DNA_node_on_face_edge - n_DNA_node_on_face
+        # ----------------------------
+        # put extra DNA nodes on edges
+        # ----------------------------
+        n_interval_tmp = div(n_new_points_all_edge, n_DNA_node_on_edge)
+        new_polyhedron_flags[n_poly_vert+1:n_interval_tmp:n_poly_vert+n_interval_tmp*n_DNA_node_on_edge] .= 1
+        # ----------------------------
+        # put extra DNA nodes on faces
+        # ----------------------------
+        n_interval_tmp = div(n_new_points_all_face, n_DNA_node_on_face)
+        n_shift_tmp    = n_poly_vert + n_poly_edge
+        new_polyhedron_flags[n_shift_tmp+1:n_interval_tmp:n_shift_tmp+n_interval_tmp*n_DNA_node_on_face] .= 1
+    end
+
+    return (new_polyhedron_coors, new_polyhedron_flags)
 
 end
 
@@ -148,9 +200,15 @@ if abspath(PROGRAM_FILE) == @__FILE__
     # unit: Angstrom
     r_P = 120
 
+    # unit: nm^-2
+    DNA_density = 0.2
+
+    # unit: 1
+    len_linker = 5
+
     # icosahedron_construction(r_P)
     # determine_subdivision_level(r_P)
-    my_polyhedron_coors = subdivided_polyhedron_construction(icosahedron_construction, r_P)
+    my_polyhedron_coors = subdivided_polyhedron_construction(icosahedron_construction, r_P, DNA_density, len_linker)
 
     # test
     io = open("test.pdb", "w")
