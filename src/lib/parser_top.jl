@@ -506,12 +506,12 @@ function read_groitp(itp_filename::AbstractString)
             coef = parse(Float64, words[7]) * JOU2CAL
             w    = 0.0
             n    = parse(Int, words[8])
-        elseif f_type == 21
+        elseif f_type == 21 || f_type == 41
             eq   = parse(Float64, words[6])
             coef = parse(Float64, words[7]) * JOU2CAL
             w    = parse(Float64, words[8])
             n    = 0
-        elseif f_type == 22
+        elseif f_type == 22 || f_type == 52
             eq   = 0.0
             coef = 0.0
             w    = 0.0
