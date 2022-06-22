@@ -244,7 +244,7 @@ function parse_commandline()
         default = 1
 
         "--3spn-param"
-        help = "Generate 3SPN.2C parameters from x3DNA generated PDB structure."
+        help = "Generate 3SPN.2C parameters from atomic PDB structure."
         arg_type = Int
         default = 0
 
