@@ -440,7 +440,7 @@ function generate_nanoparticle_with_DNA(nanoP_coors, nanoP_flags, linker_length,
             new_bond = GenTopBond(i_bead, j_bead, DNA3SPN_BOND_FUNC4_TYPE, d_tmp, 0.6 * JOU2CAL)
             push!(top_bonds, new_bond)
             # add L-L and L-S
-            for k in 2:linker_length
+            for k in 1:linker_length
                 i_bead = j_shift + k
                 j_bead = i_bead  + 1
                 d_tmp = compute_distance(atom_coors[:, i_bead], atom_coors[:, j_bead])
