@@ -213,8 +213,8 @@ function subdivided_polyhedron_construction(f_polyhedron_construction, r_P, DNA_
                 n_tmp = n_DNA_per_edge
             end
             if n_tmp >= 1
-                n_interval_tmp = div(n_new_points_per_edge, n_tmp)
-                new_polyhedron_flags[n_tmp_edge_node_count + 1:n_interval_tmp:n_tmp_edge_node_count + n_interval_tmp*n_tmp] .= 1
+                n_interval_tmp = div(n_new_points_per_edge, n_tmp + 1)
+                new_polyhedron_flags[n_tmp_edge_node_count + n_interval_tmp:n_interval_tmp:n_tmp_edge_node_count + n_interval_tmp*n_tmp] .= 1
                 n_tmp_edge_node_count += n_new_points_per_edge
             end
         end
@@ -230,8 +230,8 @@ function subdivided_polyhedron_construction(f_polyhedron_construction, r_P, DNA_
                 n_tmp = n_DNA_per_face
             end
             if n_tmp >= 1
-                n_interval_tmp = div(n_new_points_per_face, n_tmp)
-                new_polyhedron_flags[n_tmp_face_node_count + 1:n_interval_tmp:n_tmp_face_node_count + n_interval_tmp*n_tmp] .= 1
+                n_interval_tmp = div(n_new_points_per_face, n_tmp + 1)
+                new_polyhedron_flags[n_tmp_face_node_count + n_interval_tmp:n_interval_tmp:n_tmp_face_node_count + n_interval_tmp*n_tmp] .= 1
                 n_tmp_face_node_count += n_new_points_per_face
             end
         end
@@ -325,8 +325,10 @@ function generate_nanoparticle_with_DNA(nanoP_coors, nanoP_flags, linker_length,
                 v_tmp = [v0[2], -v0[1], v0[3]]
             end
             vx = cross(v_tmp, v0) # normal vector 1
-            vy = cross(v0, vx)    # normal vector 2
-            frame_local = [vx vy v0]
+            vx0 = vx / norm(vx)
+            vy = cross(v0, vx0)    # normal vector 2
+            vy0 = vy / norm(vy)
+            frame_local = [vx0 vy0 v0]
 
             # adding linker coordinates...
             for j in 1:linker_length
