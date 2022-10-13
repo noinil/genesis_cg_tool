@@ -2,6 +2,14 @@
 
 This project helps you prepare topology and coordinate files for coarse-grained simulations in the MD package [GENESIS](https://github.com/genesis-release-r-ccs/genesis).
 
+
+## NOTICE
+
+From Oct 15th, 2022, the official repository of this project has been migrated to the [GENESIS-release account](https://github.com/genesis-release-r-ccs/genesis_cg_tool).  
+This project (here) is still maintained but will contain some tools and toys of my own interests.  
+However, neither me nor GENESIS developers will take responsibility for the usage of these unofficial codes.
+
+
 ## Usage
 
 Please use the following command to show the basic usage of this tool:
@@ -9,7 +17,7 @@ Please use the following command to show the basic usage of this tool:
 ./src/aa_2_cg.jl -h
 ```
 
-A full documentation can be found from the [wiki-page of this project](https://github.com/genesis-release-r-ccs/genesis_cg_tool/wiki).
+A full documentation can be found from the [wiki-page of this project](https://github.com/noinil/genesis_cg_tool/wiki).
 
 ## Dependencies
 
