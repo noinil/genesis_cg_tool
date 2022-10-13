@@ -1,6 +1,6 @@
 # GENESIS-CG-tool
 
-This project helps you prepare topology and coordinate files for coarse-grained simulations in the MD package GENESIS.
+This project helps you prepare topology and coordinate files for coarse-grained simulations in the MD package [GENESIS](https://github.com/genesis-release-r-ccs/genesis).
 
 ## Usage
 
@@ -9,7 +9,7 @@ Please use the following command to show the basic usage of this tool:
 ./src/aa_2_cg.jl -h
 ```
 
-A full documentation can be found from the [wiki-page of this project](https://github.com/noinil/genesis_cg_tools/wiki).
+A full documentation can be found from the [wiki-page of this project](https://github.com/genesis-release-r-ccs/genesis_cg_tool/wiki).
 
 ## Dependencies
 
@@ -20,7 +20,12 @@ Please run the following command to install dependencies:
 
 ## Tutorials
 
-A bunch of tutorials on performing CG MD simulations with GENESIS and this project can be found from the [website of GENESIS](https://www.r-ccs.riken.jp/labs/cbrt/tutorials2019/).
+A bunch of tutorials on performing CG MD simulations with GENESIS and this project can be found from the [website of GENESIS](https://www.r-ccs.riken.jp/labs/cbrt/tutorials2022/).
+
+## Branches
+
+- The `main` branch is included as a part of official [GENESIS](https://github.com/genesis-release-r-ccs/genesis) release and the code only get updated when there is update in GENESIS.
+- The `dev` branch is based on the `main` branch but contains newer features that will be officially released later.
 
 ## Citation
 
