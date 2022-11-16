@@ -106,8 +106,6 @@ end
 
 function subdivided_polyhedron_construction(f_polyhedron_construction, r_P, DNA_density)
 
-    println(" ============================================================ ")
-
     # construct polyhedron
     (polyhedron_vertices_coors, edge_list, face_list) = f_polyhedron_construction(r_P)
     n_poly_vert = size(polyhedron_vertices_coors)[2]
@@ -244,7 +242,7 @@ function subdivided_polyhedron_construction(f_polyhedron_construction, r_P, DNA_
 end
 
 
-function generate_nanoparticle_with_DNA(nanoP_coors, nanoP_flags, linker_length, DNA_name)
+function generate_nanoparticle_with_DNA(nanoP_coors, nanoP_flags, linker_length, DNA_name, out_name, do_debug)
 
     println(" ------------------------------------------------------------ ")
     println(" Constructing nanoparticle + DNA...")
@@ -366,6 +364,7 @@ function generate_nanoparticle_with_DNA(nanoP_coors, nanoP_flags, linker_length,
     n_tmp_bead = 1 + n_atom_nanoP
     cid = 1
     for i_DNA in 1:N_DNA
+        cid += 1
         for j_bead in 1 : linker_length
             n_tmp_res += 1
             n_tmp_bead += 1
@@ -380,6 +379,11 @@ function generate_nanoparticle_with_DNA(nanoP_coors, nanoP_flags, linker_length,
             n_tmp_bead += 1
             # new_atom = GenTopAtom(i_bead, a_type, r_indx, r_name, a_name, f_type, charge, mass, c_id, s_name)
             my_atom = meta_DNA_top.top_atoms[k_bead]
+            if my_atom.chain_id == 1
+                new_chain_id = 1
+            else
+                new_chain_id = cid
+            end
             n_dna_res = my_atom.residue_index
             new_atom = GenTopAtom(n_tmp_bead, my_atom.atom_type,
                                   n_tmp_res + n_dna_res,
@@ -388,10 +392,10 @@ function generate_nanoparticle_with_DNA(nanoP_coors, nanoP_flags, linker_length,
                                   AICG_ATOM_FUNC_NR,
                                   my_atom.charge,
                                   my_atom.mass,
-                                  cid + my_atom.chain_id, my_atom.seg_name)
+                                  new_chain_id, my_atom.seg_name)
             push!(top_atoms, new_atom)
             push!(global_index_2_local_index, k_bead)
-            push!(global_index_2_local_molid, cid + my_atom.chain_id)
+            push!(global_index_2_local_molid, new_chain_id)
         end
         n_tmp_res += n_dna_res
     end
@@ -544,7 +548,11 @@ function generate_nanoparticle_with_DNA(nanoP_coors, nanoP_flags, linker_length,
     # ===================
     println(" ------------------------------------------------------------ ")
     println(" > Output files...")
-    mol_name = @sprintf("NANOPARTICLE_%s", DNA_name)
+    if length(out_name) > 0
+        mol_name = out_name
+    else
+        mol_name = @sprintf("NANOPARTICLE_%s", DNA_name)
+    end
     mytop = GenTopology(mol_name, n_atom_total,
                         top_default_params,
                         top_default_atomtype,
@@ -579,6 +587,10 @@ function generate_nanoparticle_with_DNA(nanoP_coors, nanoP_flags, linker_length,
     pdb_out_args = Dict("cgconnect"=>true)
     write_pdb(mytop, myconf, mol_name, pdb_out_args)
 
+    # -------------
+    # return values
+    # -------------
+
 end
 
 
@@ -608,6 +620,15 @@ if abspath(PROGRAM_FILE) == @__FILE__
         arg_type = String
         default  = ""
 
+        "--out_file_name", "-o"
+        help     = "File name for your new pet"
+        arg_type = String
+        default  = ""
+
+        "--log", "-L"
+        help = "Debug mode"
+        action = :store_true
+
         "--debug"
         help = "Debug mode"
         action = :store_true
@@ -619,11 +640,24 @@ if abspath(PROGRAM_FILE) == @__FILE__
     DNA_density = main_args["DNA_density"] * 0.01 # unit: Å^-2
     len_linker = main_args["linker_length"]
     DNA_name = get(main_args, "DNA_file_name", "bdna_cg")
+    out_name = get(main_args, "out_file_name", "bdna_cg")
+    do_log = main_args["log"]
+    do_debug = main_args["debug"]
 
     # =============
     # main function
     # =============
+    @printf(" ============================================================ \n")
+    @printf(" DNA-nanoparticle generated with GENESIS-cg-tool  \n\n")
+    @printf(" Command line parameters:  \n")
+    @printf(" Radius of nanoparticle (Å)  > %12.3f \n", r_P)
+    @printf(" Area density of DNA (nm^-2) > %12.3f \n", DNA_density * 100)
+    @printf(" Length of linker            > %12d   \n", len_linker)
+    @printf(" ------------------------------------------------------------ \n")
+
     (my_polyhedron_coors, my_polyhedron_flags) = subdivided_polyhedron_construction(icosahedron_construction, r_P, DNA_density)
-    generate_nanoparticle_with_DNA(my_polyhedron_coors, my_polyhedron_flags, len_linker, DNA_name)
+    generate_nanoparticle_with_DNA(my_polyhedron_coors, my_polyhedron_flags, len_linker, DNA_name, out_name, do_debug)
+
+    @printf(" ============================================================ \n")
 
 end
