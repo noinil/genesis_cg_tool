@@ -2275,6 +2275,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     top_default_CGDNA_exv          = Vector{GenTopCGDNAExvType}(undef, 0)
     top_default_CGPro_flx_angle    = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
     top_default_CGPro_flx_dihedral = Vector{GenTopCGProAICGFlexDihedralType}(undef, 0)
+    top_default_CGIDR_HPS_atomtype = Vector{GenTopCGIDRHPSAtomType}(undef, 0)
+    top_default_CGIDR_KH_atomtype  = Vector{GenTopCGIDRKHAtomType}(undef, 0)
 
     global_index_2_local_index     = Vector{Int}(undef, 0)
     global_index_2_local_molid     = Vector{Int}(undef, 0)
@@ -2698,6 +2700,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         top_default_CGDNA_exv,
                         top_default_CGPro_flx_angle,
                         top_default_CGPro_flx_dihedral,
+                        top_default_CGIDR_HPS_atomtype,
+                        top_default_CGIDR_KH_atomtype,
                         global_index_2_local_index,
                         global_index_2_local_molid,
                         top_atoms,
