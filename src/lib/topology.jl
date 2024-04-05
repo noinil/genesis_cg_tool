@@ -87,6 +87,20 @@ struct GenTopCGIDRKHAtomType
     sigma::Float64
 end
 
+struct GenTopCGIDRMPIPIAtomType
+    name::String
+    mass::Float64
+    charge::Float64
+end
+
+struct GenTopCGIDRMPIPIPairParams
+    name1::String
+    name2::String
+    epsilon::Float64
+    sigma::Float64
+    mu::Int
+end
+
 
 # -----------------------
 # Molecule specific types
@@ -183,6 +197,7 @@ struct GenTopMolecule
     top_pwmcosns::Vector{GenTopPWMcos}
     top_idr_hps::Vector{GenTopRegion}
     top_idr_kh::Vector{GenTopRegion}
+    top_idr_mpipi::Vector{GenTopRegion}
 end
 
 struct GenTopMolList
@@ -204,6 +219,8 @@ struct GenTopology
     top_default_CGPro_flx_dihedral::Vector{GenTopCGProAICGFlexDihedralType}
     top_default_CGIDR_HPS_atomtype::Vector{GenTopCGIDRHPSAtomType}
     top_default_CGIDR_KH_atomtype::Vector{GenTopCGIDRKHAtomType}
+    top_default_CGIDR_MPIPI_atomtype::Vector{GenTopCGIDRMPIPIAtomType}
+    top_default_CGIDR_MPIPI_pairparams::Vector{GenTopCGIDRMPIPIPairParams}
 
     global_index_2_local_index::Vector{Int}
     global_index_2_local_molid::Vector{Int}
@@ -217,6 +234,7 @@ struct GenTopology
     top_pwmcosns::Vector{GenTopPWMcos}
     top_idr_hps::Vector{GenTopRegion}
     top_idr_kh::Vector{GenTopRegion}
+    top_idr_mpipi::Vector{GenTopRegion}
 
     top_mol_list::Vector{GenTopMolList}
    
