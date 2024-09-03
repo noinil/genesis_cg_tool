@@ -202,6 +202,13 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
     wr_itp_idr_kh_comm(io::IO) = @printf(io, ";%9s to %10s\n", "i", "j")
     wr_itp_idr_kh_line(io::IO, e::GenTopRegion) = @printf(io, "%10d    %10d\n", e.istart, e.iend)
 
+    # -----------------------
+    # [ cg_IDR_MPIPI_region ]
+    # -----------------------
+    wr_itp_idr_mpipi_head(io::IO) = print(io, "[ cg_IDR_MPIPI_region ] ; IDR MPIPI model \n")
+    wr_itp_idr_mpipi_comm(io::IO) = @printf(io, ";%9s to %10s\n", "i", "j")
+    wr_itp_idr_mpipi_line(io::IO, e::GenTopRegion) = @printf(io, "%10d    %10d\n", e.istart, e.iend)
+
 
     ###########################################################################
     #                        Begin  writing to file...                        #
@@ -343,6 +350,18 @@ function write_grotop(top::GenTopology, system_name::AbstractString, args::Dict{
         print(itp_file, "\n")
     end
 
+    # -----------------------
+    # [ cg_IDR_MPIPI_region ]
+    # -----------------------
+    if length(top.top_idr_mpipi) > 0
+        wr_itp_idr_mpipi_head(itp_file)
+        wr_itp_idr_mpipi_comm(itp_file)
+        for idr in top.top_idr_mpipi
+            wr_itp_idr_mpipi_line(itp_file, idr)
+        end
+        print(itp_file, "\n")
+    end
+
     close(itp_file)
 
     if verbose
@@ -383,12 +402,16 @@ function write_grotop_pwmcos(top::GenTopology, system_name::AbstractString, args
     print(itp_pwmcos_file, itp_pwmcos_head)
     print(itp_pwmcos_file, itp_pwmcos_comm)
     for p in top.top_pwmcos
-        if p.function_type == 1
+        if p.function_type == PWMCOS_FUNC_TYPE
             @printf(itp_pwmcos_file,
                     "%6d %3d %8.5f %8.3f %8.3f %8.3f%12.6f%12.6f%12.6f%12.6f%8.3f%8.3f \n",
                     p.i, p.function_type, p.r0 * 0.1, p.theta1, p.theta2, p.theta3,
                     p.ene_A, p.ene_C, p.ene_G, p.ene_T, p.gamma, p.eps)
-        elseif p.function_type == 2
+        end
+    end
+
+    for p in top.top_pwmcosns
+        if p.function_type == PWMCOS_NS_FUNC_TYPE
             @printf(itp_pwmcos_file,
                     "%6d %3d %8.5f %8.3f %8.3f %8.3f \n",
                     p.i, p.function_type, p.r0 * 0.1, p.theta1, p.theta3,
@@ -425,6 +448,7 @@ function read_groitp(itp_filename::AbstractString)
     top_pwmcosns      = Vector{GenTopPWMcos}(undef, 0)
     top_idr_hps       = Vector{GenTopRegion}(undef, 0)
     top_idr_kh        = Vector{GenTopRegion}(undef, 0)
+    top_idr_mpipi     = Vector{GenTopRegion}(undef, 0)
 
     function read_top_atoms(line::AbstractString, c_id::Int, s_name::AbstractString)
         words = split(line)
@@ -599,6 +623,15 @@ function read_groitp(itp_filename::AbstractString)
         push!(top_idr_kh, new_idr)
     end
 
+    function read_top_idr_mpipi(line::AbstractString)
+        words   = split(line)
+        i       = parse(Int, words[1])
+        j       = parse(Int, words[2])
+        new_idr = GenTopRegion(i, j)
+        push!(top_idr_mpipi, new_idr)
+    end
+
+
     # ---------
     # main part
     # ---------
@@ -652,7 +685,8 @@ function read_groitp(itp_filename::AbstractString)
                                              top_pwmcos,
                                              top_pwmcosns,
                                              top_idr_hps,
-                                             top_idr_kh)
+                                             top_idr_kh,
+                                             top_idr_mpipi)
 
                 push!(top_mols, new_top_mol)
 
@@ -666,6 +700,7 @@ function read_groitp(itp_filename::AbstractString)
                 top_pwmcosns      = Vector{GenTopPWMcos}(undef, 0)
                 top_idr_hps       = Vector{GenTopRegion}(undef, 0)
                 top_idr_kh        = Vector{GenTopRegion}(undef, 0)
+                top_idr_mpipi     = Vector{GenTopRegion}(undef, 0)
                 c_id_tmp = 0
                 s_name_tmp = ""
             end
@@ -697,6 +732,8 @@ function read_groitp(itp_filename::AbstractString)
                 read_top_idr_hps(line)
             elseif section_name == "cg_IDR_KH_region"
                 read_top_idr_kh(line)
+            elseif section_name == "cg_IDR_MPIPI_region"
+                read_top_idr_mpipi(line)
             end
         end
     end
@@ -713,11 +750,106 @@ function read_groitp(itp_filename::AbstractString)
                                      top_pwmcos,
                                      top_pwmcosns,
                                      top_idr_hps,
-                                     top_idr_kh)
+                                     top_idr_kh,
+                                     top_idr_mpipi)
         push!(top_mols, new_top_mol)
     end
 
     return top_mols
+end
+
+function read_groitp_defaults(itp_filename::AbstractString)
+
+    top_default_atomtype               = Vector{GenTopAtomType}(undef, 0)
+    top_default_CGIDR_HPS_atomtype     = Vector{GenTopCGIDRHPSAtomType}(undef, 0)
+    top_default_CGIDR_MPIPI_atomtype   = Vector{GenTopCGIDRMPIPIAtomType}(undef, 0)
+    top_default_CGIDR_MPIPI_pairparams = Vector{GenTopCGIDRMPIPIPairParams}(undef, 0)
+
+    function read_top_atomtype(line::AbstractString)
+        words  = split(line)
+        a_name = words[1]
+        n      = parse(Int, words[2])
+        mass   = parse(Float64, words[3])
+        charge = parse(Float64, words[4])
+        p_type = words[5]
+        rmin   = parse(Float64, words[6])
+        eps    = parse(Float64, words[7])
+
+        new_atom_type = GenTopAtomType(a_name, mass, charge, rmin, eps, n, p_type)
+        push!(top_default_atomtype, new_atom_type)
+    end
+
+    function read_top_CGIDRHPS_atomtype(line::AbstractString)
+        words  = split(line)
+        a_name = words[1]
+        mass   = parse(Float64, words[2])
+        charge = parse(Float64, words[3])
+        sigma  = parse(Float64, words[4])
+        lambda = parse(Float64, words[5])
+
+        new_atom_type = GenTopCGIDRHPSAtomType(a_name, mass, charge, sigma, lambda)
+        push!(top_default_CGIDR_HPS_atomtype, new_atom_type)
+    end
+
+    function read_top_CGIDRMPIPI_atomtype(line::AbstractString)
+        words  = split(line)
+        a_name = words[1]
+        mass   = parse(Float64, words[2])
+        charge = parse(Float64, words[3])
+
+        new_atom_type = GenTopCGIDRMPIPIAtomType(a_name, mass, charge)
+        push!(top_default_CGIDR_MPIPI_atomtype, new_atom_type)
+    end
+
+    function read_top_CGIDRMPIPI_pairs(line::AbstractString)
+        words   = split(line)
+        a_name  = words[1]
+        b_name  = words[2]
+        epsilon = parse(Float64, words[3])
+        sigma   = parse(Float64, words[4])
+        mu      = parse(Int, words[5])
+
+        new_param_type = GenTopCGIDRMPIPIPairParams(a_name, b_name, epsilon, sigma, mu)
+        push!(top_default_CGIDR_MPIPI_pairparams, new_param_type)
+    end
+
+    # ---------
+    # main part
+    # ---------
+    section_name = ""
+    for line in eachline(itp_filename)
+
+        sep  = findfirst(";", line)
+        if sep != nothing
+            line = strip(line[1 : sep[1] - 1])
+        else
+            line = strip(line)
+        end
+        if length(line) == 0
+            continue
+        end
+
+        if line[1] == '['
+            sep = findfirst("]", line)
+            section_name = strip(line[2 : sep[1] - 1])
+            continue
+        end
+
+        # read_function_name = "read_top_" * section_name * "(line)"
+        # read_expression = Meta.parse(read_function_name)
+        # eval(read_expression)
+        if section_name == "atomtypes"
+            read_top_atomtype(line)
+        elseif section_name == "cg_IDR_HPS_atomtypes"
+            read_top_CGIDRHPS_atomtype(line)
+        elseif section_name == "cg_IDR_MPIPI_atomtypes"
+            read_top_CGIDRMPIPI_atomtype(line)
+        elseif section_name == "cg_IDR_MPIPI_pairs"
+            read_top_CGIDRMPIPI_pairs(line)
+        end
+    end
+
+    return (top_default_atomtype, top_default_CGIDR_HPS_atomtype, top_default_CGIDR_MPIPI_atomtype, top_default_CGIDR_MPIPI_pairparams)
 end
 
 function read_grotop(top_filename::AbstractString)
@@ -726,14 +858,18 @@ function read_grotop(top_filename::AbstractString)
     num_atom = 0
     mol_id   = 0
 
-    top_default_params             = GenTopDefault(0, 0, false, 0.0, 0.0) 
-    top_default_atomtype           = Vector{GenTopAtomType}(undef, 0)
-    top_default_CGDNA_bp           = Vector{GenTopCGDNABasepairType}(undef, 0)
-    top_default_CGDNA_bs           = Vector{GenTopCGDNABasestackType}(undef, 0)
-    top_default_CGDNA_cs           = Vector{GenTopCGDNABasecrossType}(undef, 0)
-    top_default_CGDNA_exv          = Vector{GenTopCGDNAExvType}(undef, 0)
-    top_default_CGPro_flx_angle    = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
-    top_default_CGPro_flx_dihedral = Vector{GenTopCGProAICGFlexDihedralType}(undef, 0)
+    top_default_params                 = GenTopDefault(0, 0, false, 0.0, 0.0) 
+    top_default_atomtype               = Vector{GenTopAtomType}(undef, 0)
+    top_default_CGDNA_bp               = Vector{GenTopCGDNABasepairType}(undef, 0)
+    top_default_CGDNA_bs               = Vector{GenTopCGDNABasestackType}(undef, 0)
+    top_default_CGDNA_cs               = Vector{GenTopCGDNABasecrossType}(undef, 0)
+    top_default_CGDNA_exv              = Vector{GenTopCGDNAExvType}(undef, 0)
+    top_default_CGPro_flx_angle        = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
+    top_default_CGPro_flx_dihedral     = Vector{GenTopCGProAICGFlexDihedralType}(undef, 0)
+    top_default_CGIDR_HPS_atomtype     = Vector{GenTopCGIDRHPSAtomType}(undef, 0)
+    top_default_CGIDR_KH_atomtype      = Vector{GenTopCGIDRKHAtomType}(undef, 0)
+    top_default_CGIDR_MPIPI_atomtype   = Vector{GenTopCGIDRMPIPIAtomType}(undef, 0)
+    top_default_CGIDR_MPIPI_pairparams = Vector{GenTopCGIDRMPIPIPairParams}(undef, 0)
 
     global_index_2_local_index = Vector{Int}(undef, 0)
     global_index_2_local_molid = Vector{Int}(undef, 0)
@@ -747,6 +883,7 @@ function read_grotop(top_filename::AbstractString)
     top_pwmcosns               = Vector{GenTopPWMcos}(undef, 0)
     top_idr_hps                = Vector{GenTopRegion}(undef, 0)
     top_idr_kh                 = Vector{GenTopRegion}(undef, 0)
+    top_idr_mpipi              = Vector{GenTopRegion}(undef, 0)
     top_mol_list               = Vector{GenTopMolList}(undef, 0)
 
     section_name = ""
@@ -784,11 +921,32 @@ function read_grotop(top_filename::AbstractString)
         if startswith(line, "#include")
             mol_file_name = strip(line[9:end], ['\"', '\'', ' '])
             mol_file_basename = basename(mol_file_name)
-            if in(mol_file_basename, ["atom_types.itp", "flexible_local_angle.itp", "flexible_local_dihedral.itp"])
-                continue
-            end
             if !isabspath(mol_file_name)
                 mol_file_name = normpath( joinpath( top_dirname, mol_file_name ) ) 
+            end
+            if in(mol_file_basename, ["atom_types.itp",
+                                      "pair_energy_MJ_96.itp",
+                                      "pair_energy_mpipi_23.itp",
+                                      "flexible_local_angle.itp",
+                                      "flexible_local_dihedral.itp"])
+                # continue
+                tmp_defaults = read_groitp_defaults(mol_file_name)
+                tmp_atomtype = tmp_defaults[1]
+                tmp_CGIDR_HPS_atomtype = tmp_defaults[2]
+                tmp_CGIDR_MPIPI_atomtype = tmp_defaults[3]
+                tmp_CGIDR_MPIPI_pairparams = tmp_defaults[4]
+                for a in tmp_atomtype
+                    push!(top_default_atomtype, a)
+                end
+                for a in tmp_CGIDR_HPS_atomtype
+                    push!(top_default_CGIDR_HPS_atomtype, a)
+                end
+                for a in tmp_CGIDR_MPIPI_atomtype
+                    push!(top_default_CGIDR_MPIPI_atomtype, a)
+                end
+                for a in tmp_CGIDR_MPIPI_pairparams
+                    push!(top_default_CGIDR_MPIPI_pairparams, a)
+                end
             end
             new_mols = read_groitp(mol_file_name)
             for new_mol in new_mols
@@ -907,6 +1065,11 @@ function read_grotop(top_filename::AbstractString)
                                      t.iend + num_atom)
                     push!(top_idr_kh, s)
                 end
+                for t in tmp_mol.top_idr_mpipi
+                    s = GenTopRegion(t.istart + num_atom,
+                                     t.iend + num_atom)
+                    push!(top_idr_mpipi, s)
+                end
 
                 num_atom += tmp_mol.num_atom
             end
@@ -922,6 +1085,10 @@ function read_grotop(top_filename::AbstractString)
                           top_default_CGDNA_exv,
                           top_default_CGPro_flx_angle,
                           top_default_CGPro_flx_dihedral,
+                          top_default_CGIDR_HPS_atomtype,
+                          top_default_CGIDR_KH_atomtype,
+                          top_default_CGIDR_MPIPI_atomtype,
+                          top_default_CGIDR_MPIPI_pairparams,
                           global_index_2_local_index,
                           global_index_2_local_molid,
                           top_atoms,
@@ -934,6 +1101,7 @@ function read_grotop(top_filename::AbstractString)
                           top_pwmcosns,
                           top_idr_hps,
                           top_idr_kh,
+                          top_idr_mpipi,
                           top_mol_list)
 
     return new_top
@@ -1009,6 +1177,10 @@ function read_psf(psf_filename::AbstractString)
     top_default_CGDNA_exv          = Vector{GenTopCGDNAExvType}(undef, 0)
     top_default_CGPro_flx_angle    = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
     top_default_CGPro_flx_dihedral = Vector{GenTopCGProAICGFlexDihedralType}(undef, 0)
+    top_default_CGIDR_HPS_atomtype     = Vector{GenTopCGIDRHPSAtomType}(undef, 0)
+    top_default_CGIDR_KH_atomtype      = Vector{GenTopCGIDRKHAtomType}(undef, 0)
+    top_default_CGIDR_MPIPI_atomtype   = Vector{GenTopCGIDRMPIPIAtomType}(undef, 0)
+    top_default_CGIDR_MPIPI_pairparams = Vector{GenTopCGIDRMPIPIPairParams}(undef, 0)
 
     global_index_2_local_index = Vector{Int}(undef, 0)
     global_index_2_local_molid = Vector{Int}(undef, 0)
@@ -1022,6 +1194,7 @@ function read_psf(psf_filename::AbstractString)
     top_pwmcosns               = Vector{GenTopPWMcos}(undef, 0)
     top_idr_hps                = Vector{GenTopRegion}(undef, 0)
     top_idr_kh                 = Vector{GenTopRegion}(undef, 0)
+    top_idr_mpipi              = Vector{GenTopRegion}(undef, 0)
     top_mol_list               = Vector{GenTopMolList}(undef, 0)
 
     function read_top_atoms(line::AbstractString, c_id::Int, s_name::AbstractString)
@@ -1076,6 +1249,10 @@ function read_psf(psf_filename::AbstractString)
                           top_default_CGDNA_exv,
                           top_default_CGPro_flx_angle,
                           top_default_CGPro_flx_dihedral,
+                          top_default_CGIDR_HPS_atomtype,
+                          top_default_CGIDR_KH_atomtype,
+                          top_default_CGIDR_MPIPI_atomtype,
+                          top_default_CGIDR_MPIPI_pairparams,
                           global_index_2_local_index,
                           global_index_2_local_molid,
                           top_atoms,
@@ -1088,6 +1265,7 @@ function read_psf(psf_filename::AbstractString)
                           top_pwmcosns,
                           top_idr_hps,
                           top_idr_kh,
+                          top_idr_mpipi,
                           top_mol_list)
 
     return new_top

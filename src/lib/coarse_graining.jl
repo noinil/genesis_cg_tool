@@ -324,6 +324,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     AICG2p_flexible_nonlocal = []
     HPS_IDR_region           = []
     KH_IDR_region            = []
+    MPIPI_IDR_region           = []
 
     # DNA
     top_cg_DNA_bonds         = Vector{CGTopBond}(undef, 0)
@@ -1142,6 +1143,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             if haskey(ff_detail_config["IDR"], "KH_region")
                 index_string = ff_detail_config["IDR"]["KH_region"]
                 KH_IDR_region = parse_selection(index_string)
+            end
+            if haskey(ff_detail_config["IDR"], "MPIPI_region")
+                index_string = ff_detail_config["IDR"]["MPIPI_region"]
+                MPIPI_IDR_region = parse_selection(index_string)
             end
         end
     end
@@ -2267,28 +2272,33 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     # Make a new topology structure
     # =============================
 
-    top_default_params             = GenTopDefault(0, 0, false, 0.0, 0.0) 
-    top_default_atomtype           = Vector{GenTopAtomType}(undef, 0)
-    top_default_CGDNA_bp           = Vector{GenTopCGDNABasepairType}(undef, 0)
-    top_default_CGDNA_bs           = Vector{GenTopCGDNABasestackType}(undef, 0)
-    top_default_CGDNA_cs           = Vector{GenTopCGDNABasecrossType}(undef, 0)
-    top_default_CGDNA_exv          = Vector{GenTopCGDNAExvType}(undef, 0)
-    top_default_CGPro_flx_angle    = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
-    top_default_CGPro_flx_dihedral = Vector{GenTopCGProAICGFlexDihedralType}(undef, 0)
+    top_default_params                 = GenTopDefault(0, 0, false, 0.0, 0.0) 
+    top_default_atomtype               = Vector{GenTopAtomType}(undef, 0)
+    top_default_CGDNA_bp               = Vector{GenTopCGDNABasepairType}(undef, 0)
+    top_default_CGDNA_bs               = Vector{GenTopCGDNABasestackType}(undef, 0)
+    top_default_CGDNA_cs               = Vector{GenTopCGDNABasecrossType}(undef, 0)
+    top_default_CGDNA_exv              = Vector{GenTopCGDNAExvType}(undef, 0)
+    top_default_CGPro_flx_angle        = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
+    top_default_CGPro_flx_dihedral     = Vector{GenTopCGProAICGFlexDihedralType}(undef, 0)
+    top_default_CGIDR_HPS_atomtype     = Vector{GenTopCGIDRHPSAtomType}(undef, 0)
+    top_default_CGIDR_KH_atomtype      = Vector{GenTopCGIDRKHAtomType}(undef, 0)
+    top_default_CGIDR_MPIPI_atomtype   = Vector{GenTopCGIDRMPIPIAtomType}(undef, 0)
+    top_default_CGIDR_MPIPI_pairparams = Vector{GenTopCGIDRMPIPIPairParams}(undef, 0)
 
-    global_index_2_local_index     = Vector{Int}(undef, 0)
-    global_index_2_local_molid     = Vector{Int}(undef, 0)
-    top_atoms                      = Vector{GenTopAtom}(undef, 0)
-    top_bonds                      = Vector{GenTopBond}(undef, 0)
-    top_angles                     = Vector{GenTopAngle}(undef, 0)
-    top_dihedrals                  = Vector{GenTopDihedral}(undef, 0)
-    top_pairs                      = Vector{GenTopPair}(undef, 0)
-    top_exclusions                 = Vector{GenTopExclusion}(undef, 0)
-    top_pwmcos                     = Vector{GenTopPWMcos}(undef, 0)
-    top_pwmcosns                   = Vector{GenTopPWMcos}(undef, 0)
-    top_idr_hps                    = Vector{GenTopRegion}(undef, 0)
-    top_idr_kh                     = Vector{GenTopRegion}(undef, 0)
-    top_mol_list                   = Vector{GenTopMolList}(undef, 0)
+    global_index_2_local_index = Vector{Int}(undef, 0)
+    global_index_2_local_molid = Vector{Int}(undef, 0)
+    top_atoms                  = Vector{GenTopAtom}(undef, 0)
+    top_bonds                  = Vector{GenTopBond}(undef, 0)
+    top_angles                 = Vector{GenTopAngle}(undef, 0)
+    top_dihedrals              = Vector{GenTopDihedral}(undef, 0)
+    top_pairs                  = Vector{GenTopPair}(undef, 0)
+    top_exclusions             = Vector{GenTopExclusion}(undef, 0)
+    top_pwmcos                 = Vector{GenTopPWMcos}(undef, 0)
+    top_pwmcosns               = Vector{GenTopPWMcos}(undef, 0)
+    top_idr_hps                = Vector{GenTopRegion}(undef, 0)
+    top_idr_kh                 = Vector{GenTopRegion}(undef, 0)
+    top_idr_mpipi              = Vector{GenTopRegion}(undef, 0)
+    top_mol_list               = Vector{GenTopMolList}(undef, 0)
 
     # ---------
     # [ atoms ]
@@ -2352,7 +2362,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             for ( i_13, a13 ) in enumerate( top_cg_pro_aicg13 )
                 if  in(a13.i, AICG2p_flexible_local) || in(a13.j, AICG2p_flexible_local) || in(a13.k, AICG2p_flexible_local) ||
                     in(a13.i, HPS_IDR_region) || in(a13.j, HPS_IDR_region) || in(a13.k, HPS_IDR_region) ||
-                    in(a13.i, KH_IDR_region) || in(a13.j, KH_IDR_region) || in(a13.k, KH_IDR_region)
+                    in(a13.i, KH_IDR_region) || in(a13.j, KH_IDR_region) || in(a13.k, KH_IDR_region) ||
+                    in(a13.i, MPIPI_IDR_region) || in(a13.j, MPIPI_IDR_region) || in(a13.k, MPIPI_IDR_region)
                     continue
                 end
                 new_angle = GenTopAngle(a13.i, a13.j, a13.k, AICG_ANG_G_FUNC_TYPE, a13.a0, param_cg_pro_e_13[i_13], AICG_13_SIGMA)
@@ -2362,19 +2373,21 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         # AICG2+ flexible
         if length(top_cg_pro_angles) > 0
             for ang in top_cg_pro_angles
-                if  ( in(ang.i, HPS_IDR_region) && in(ang.j, HPS_IDR_region) && in(ang.k, HPS_IDR_region) ) || 
-                    ( in(ang.i, KH_IDR_region) && in(ang.j, KH_IDR_region) && in(ang.k, KH_IDR_region) )
+                if  ( in(ang.i, HPS_IDR_region) && in(ang.j, HPS_IDR_region) && in(ang.k, HPS_IDR_region) ) ||
+                    ( in(ang.i, KH_IDR_region) && in(ang.j, KH_IDR_region) && in(ang.k, KH_IDR_region) ) ||
+                    ( in(ang.i, MPIPI_IDR_region) && in(ang.j, MPIPI_IDR_region) && in(ang.k, MPIPI_IDR_region) )
                     continue
                 end
                 new_angle = GenTopAngle(ang.i, ang.j, ang.k, AICG_ANG_F_FUNC_TYPE, 0.0, 0.0, 0.0)
                 push!(top_angles, new_angle)
             end
         end
-    # Clementi Go angles
+        # Clementi Go angles
     elseif ff_pro == FF_pro_Clementi_Go
         for ang in top_cg_pro_angles
-            if  in(ang.i, HPS_IDR_region) || in(ang.j, HPS_IDR_region) || in(ang.k, HPS_IDR_region) || 
-                in(ang.i, KH_IDR_region) || in(ang.j, KH_IDR_region) || in(ang.k, KH_IDR_region)
+            if  in(ang.i, HPS_IDR_region) || in(ang.j, HPS_IDR_region) || in(ang.k, HPS_IDR_region) ||
+                in(ang.i, KH_IDR_region) || in(ang.j, KH_IDR_region) || in(ang.k, KH_IDR_region) ||
+                in(ang.i, MPIPI_IDR_region) && in(ang.j, MPIPI_IDR_region) && in(ang.k, MPIPI_IDR_region)
                 continue
             end
             new_angle = GenTopAngle(ang.i, ang.j, ang.k, CCGO_ANG_FUNC_TYPE, ang.a0, CCGO_ANGL_K, 0.0)
@@ -2421,9 +2434,11 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                 in(dih.k, AICG2p_flexible_local) || in(dih.l, AICG2p_flexible_local)
                 continue
             elseif  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
-                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region) || 
+                in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region) ||
                 in(dih.i, KH_IDR_region) || in(dih.j, KH_IDR_region) ||
-                in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region) 
+                in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region) ||
+                in(dih.i, MPIPI_IDR_region) || in(dih.j, MPIPI_IDR_region) ||
+                in(dih.k, MPIPI_IDR_region) || in(dih.l, MPIPI_IDR_region)
                 continue
             end
             # if is_dihedral_dangerous(dih)
@@ -2441,20 +2456,24 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             if  ( in(dih.i, HPS_IDR_region) && in(dih.j, HPS_IDR_region) &&
                 in(dih.k, HPS_IDR_region) && in(dih.l, HPS_IDR_region) ) ||
                 ( in(dih.i, KH_IDR_region) && in(dih.j, KH_IDR_region) &&
-                in(dih.k, KH_IDR_region) && in(dih.l, KH_IDR_region) )
+                in(dih.k, KH_IDR_region) && in(dih.l, KH_IDR_region) ) ||
+                ( in(dih.i, MPIPI_IDR_region) && in(dih.j, MPIPI_IDR_region) &&
+                in(dih.k, MPIPI_IDR_region) && in(dih.l, MPIPI_IDR_region) )
                 continue
             end
             dih_func_type = DIHEDRAL_TABU_MOD_TYPE[use_safe_dihedral]
             new_dihedral = GenTopDihedral(dih.i, dih.j, dih.k, dih.l, dih_func_type, 0.0, 0.0, 0.0, 0)
             push!(top_dihedrals, new_dihedral)
         end
-    # Clementi Go dihedral
+        # Clementi Go dihedral
     elseif ff_pro == FF_pro_Clementi_Go
         for dih in top_cg_pro_dihedrals
             if  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
                 in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region) ||
                 in(dih.i, KH_IDR_region) || in(dih.j, KH_IDR_region) ||
-                in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region)
+                in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region) ||
+                in(dih.i, MPIPI_IDR_region) || in(dih.j, MPIPI_IDR_region) ||
+                in(dih.k, MPIPI_IDR_region) || in(dih.l, MPIPI_IDR_region)
                 continue
             end
             # if is_dihedral_dangerous(dih)
@@ -2471,7 +2490,9 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             if  in(dih.i, HPS_IDR_region) || in(dih.j, HPS_IDR_region) ||
                 in(dih.k, HPS_IDR_region) || in(dih.l, HPS_IDR_region) ||
                 in(dih.i, KH_IDR_region) || in(dih.j, KH_IDR_region) ||
-                in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region)
+                in(dih.k, KH_IDR_region) || in(dih.l, KH_IDR_region) ||
+                in(dih.i, MPIPI_IDR_region) || in(dih.j, MPIPI_IDR_region) ||
+                in(dih.k, MPIPI_IDR_region) || in(dih.l, MPIPI_IDR_region)
                 continue
             end
             # if is_dihedral_dangerous(dih)
@@ -2552,19 +2573,21 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
             for c in top_cg_pro_go_contact[i_res]
                 if  in(i_res, AICG2p_flexible_nonlocal) || in(c[1], AICG2p_flexible_nonlocal) ||
                     in(i_res, HPS_IDR_region) || in(c[1], HPS_IDR_region) ||
-                    in(i_res, KH_IDR_region) || in(c[1], KH_IDR_region)
+                    in(i_res, KH_IDR_region) || in(c[1], KH_IDR_region) ||
+                    in(i_res, MPIPI_IDR_region) || in(c[1], MPIPI_IDR_region)
                     continue
                 end
                 new_pair = GenTopPair(i_res, c[1], AICG_CONTACT_FUNC_TYPE, c[2], c[3])
                 push!(top_pairs, new_pair)
             end
         end
-    # Clementi Go native contacts
+        # Clementi Go native contacts
     elseif ff_pro == FF_pro_Clementi_Go
         for i_res in 1:cg_num_particles
             for c in top_cg_pro_go_contact[i_res]
                 if  in(i_res, HPS_IDR_region) || in(c[1], HPS_IDR_region) ||
-                    in(i_res, KH_IDR_region) || in(c[1], KH_IDR_region)
+                    in(i_res, KH_IDR_region) || in(c[1], KH_IDR_region) ||
+                    in(i_res, MPIPI_IDR_region) || in(c[1], MPIPI_IDR_region)
                     continue
                 end
                 new_pair = GenTopPair(i_res, c[1], CCGO_CONTACT_FUNC_TYPE, c[2], CCGO_NATIVE_EPSILON * ccgo_contact_scale)
@@ -2635,8 +2658,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     end
 
     for p in top_cg_pro_DNA_pwmcosns
-        new_pwmcos = GenTopPWMcos(p.i, PWMCOS_FUNC_TYPE, p.r0, p.t1, p.t2, p.t3,
-                                  p.eA, p.eC, p.eG, p.eT, pwmcos_gamma, pwmcos_epsil)
+        new_pwmcos = GenTopPWMcos(p.i, PWMCOS_NS_FUNC_TYPE, p.r0, p.t1, p.t2, p.t3,
+                                  p.eA, p.eC, p.eG, p.eT, pwmcos_gamma, pwmcosns_epsil)
         push!(top_pwmcosns, new_pwmcos)
     end
 
@@ -2687,6 +2710,29 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
         end
     end
 
+    # -----------------------
+    # [ cg_IDR_MPIPI_region ]
+    # -----------------------
+    if has_toml_mod
+        if haskey(ff_detail_config, "IDR")
+            if haskey(ff_detail_config["IDR"], "MPIPI_region")
+                index_string = ff_detail_config["IDR"]["MPIPI_region"]
+                mpipi_words = split(index_string, r"\s*,\s*", keepempty=false)
+                for w in mpipi_words
+                    idxwords = split(w, r"\s*to\s*", keepempty=false)
+                    i = parse(Int, idxwords[1])
+                    if length(idxwords) > 1
+                        j = parse(Int, idxwords[2])
+                    else
+                        j = i
+                    end
+                    new_idr = GenTopRegion(i, j)
+                    push!(top_idr_mpipi, new_idr)
+                end
+            end
+        end
+    end
+
 
     mol_name = pdb_name[1:end-4]
     mytop = GenTopology(mol_name, cg_num_particles,
@@ -2698,6 +2744,10 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         top_default_CGDNA_exv,
                         top_default_CGPro_flx_angle,
                         top_default_CGPro_flx_dihedral,
+                        top_default_CGIDR_HPS_atomtype,
+                        top_default_CGIDR_KH_atomtype,
+                        top_default_CGIDR_MPIPI_atomtype,
+                        top_default_CGIDR_MPIPI_pairparams,
                         global_index_2_local_index,
                         global_index_2_local_molid,
                         top_atoms,
@@ -2710,6 +2760,7 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
                         top_pwmcosns,
                         top_idr_hps,
                         top_idr_kh,
+                        top_idr_mpipi,
                         top_mol_list)
     myconf = Conformation(cg_num_particles, cg_bead_coor)
 
