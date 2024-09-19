@@ -724,6 +724,72 @@ function read_groitp(itp_filename::AbstractString)
     return top_mols
 end
 
+function read_groitp_defaults(itp_filename::AbstractString)
+
+    top_default_atomtype           = Vector{GenTopAtomType}(undef, 0)
+    top_default_CGIDR_HPS_atomtype = Vector{GenTopCGIDRHPSAtomType}(undef, 0)
+
+    function read_top_atomtype(line::AbstractString)
+        words  = split(line)
+        a_name = words[1]
+        n      = parse(Int, words[2])
+        mass   = parse(Float64, words[3])
+        charge = parse(Float64, words[4])
+        p_type = words[5]
+        rmin   = parse(Float64, words[6])
+        eps    = parse(Float64, words[7])
+
+        new_atom_type = GenTopAtomType(a_name, mass, charge, rmin, eps, n, p_type)
+        push!(top_default_atomtype, new_atom_type)
+    end
+
+    function read_top_CGIDRHPS_atomtype(line::AbstractString)
+        words  = split(line)
+        a_name = words[1]
+        mass   = parse(Float64, words[2])
+        charge = parse(Float64, words[3])
+        sigma  = parse(Float64, words[4])
+        lambda = parse(Float64, words[5])
+
+        new_atom_type = GenTopCGIDRHPSAtomType(a_name, mass, charge, sigma, lambda)
+        push!(top_default_CGIDR_HPS_atomtype, new_atom_type)
+    end
+
+    # ---------
+    # main part
+    # ---------
+    section_name = ""
+    for line in eachline(itp_filename)
+
+        sep  = findfirst(";", line)
+        if sep != nothing
+            line = strip(line[1 : sep[1] - 1])
+        else
+            line = strip(line)
+        end
+        if length(line) == 0
+            continue
+        end
+
+        if line[1] == '['
+            sep = findfirst("]", line)
+            section_name = strip(line[2 : sep[1] - 1])
+            continue
+        end
+
+        # read_function_name = "read_top_" * section_name * "(line)"
+        # read_expression = Meta.parse(read_function_name)
+        # eval(read_expression)
+        if section_name == "atomtypes"
+            read_top_atomtype(line)
+        elseif section_name == "cg_IDR_HPS_atomtypes"
+            read_top_CGIDRHPS_atomtype(line)
+        end
+    end
+
+    return (top_default_atomtype, top_default_CGIDR_HPS_atomtype)
+end
+
 function read_grotop(top_filename::AbstractString)
 
     sys_name = ""
@@ -738,6 +804,8 @@ function read_grotop(top_filename::AbstractString)
     top_default_CGDNA_exv          = Vector{GenTopCGDNAExvType}(undef, 0)
     top_default_CGPro_flx_angle    = Vector{GenTopCGProAICGFlexAngleType}(undef, 0)
     top_default_CGPro_flx_dihedral = Vector{GenTopCGProAICGFlexDihedralType}(undef, 0)
+    top_default_CGIDR_HPS_atomtype = Vector{GenTopCGIDRHPSAtomType}(undef, 0)
+    top_default_CGIDR_KH_atomtype  = Vector{GenTopCGIDRKHAtomType}(undef, 0)
 
     global_index_2_local_index = Vector{Int}(undef, 0)
     global_index_2_local_molid = Vector{Int}(undef, 0)
@@ -788,11 +856,24 @@ function read_grotop(top_filename::AbstractString)
         if startswith(line, "#include")
             mol_file_name = strip(line[9:end], ['\"', '\'', ' '])
             mol_file_basename = basename(mol_file_name)
-            if in(mol_file_basename, ["atom_types.itp", "flexible_local_angle.itp", "flexible_local_dihedral.itp"])
-                continue
-            end
             if !isabspath(mol_file_name)
                 mol_file_name = normpath( joinpath( top_dirname, mol_file_name ) ) 
+            end
+            if in(mol_file_basename, ["atom_types.itp",
+                                      "pair_energy_MJ_96.itp",
+                                      "pair_energy_mpipi_23.itp",
+                                      "flexible_local_angle.itp",
+                                      "flexible_local_dihedral.itp"])
+                # continue
+                tmp_defaults = read_groitp_defaults(mol_file_name)
+                tmp_atomtype = tmp_defaults[1]
+                tmp_CGIDR_HPS_atomtype = tmp_defaults[2]
+                for a in tmp_atomtype
+                    push!(top_default_atomtype, a)
+                end
+                for a in tmp_CGIDR_HPS_atomtype
+                    push!(top_default_CGIDR_HPS_atomtype, a)
+                end
             end
             new_mols = read_groitp(mol_file_name)
             for new_mol in new_mols
@@ -926,6 +1007,8 @@ function read_grotop(top_filename::AbstractString)
                           top_default_CGDNA_exv,
                           top_default_CGPro_flx_angle,
                           top_default_CGPro_flx_dihedral,
+                          top_default_CGIDR_HPS_atomtype,
+                          top_default_CGIDR_KH_atomtype,
                           global_index_2_local_index,
                           global_index_2_local_molid,
                           top_atoms,
