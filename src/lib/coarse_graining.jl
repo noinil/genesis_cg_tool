@@ -2635,8 +2635,8 @@ function coarse_graining(aa_molecule::AAMolecule, force_field::ForceFieldCG, arg
     end
 
     for p in top_cg_pro_DNA_pwmcosns
-        new_pwmcos = GenTopPWMcos(p.i, PWMCOS_FUNC_TYPE, p.r0, p.t1, p.t2, p.t3,
-                                  p.eA, p.eC, p.eG, p.eT, pwmcos_gamma, pwmcos_epsil)
+        new_pwmcos = GenTopPWMcos(p.i, PWMCOS_NS_FUNC_TYPE, p.r0, p.t1, p.t2, p.t3,
+                                  p.eA, p.eC, p.eG, p.eT, pwmcos_gamma, pwmcosns_epsil)
         push!(top_pwmcosns, new_pwmcos)
     end
 

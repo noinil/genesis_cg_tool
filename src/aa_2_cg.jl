@@ -204,17 +204,17 @@ function parse_commandline()
         arg_type = String
 
         "--force-field-protein"
-        help = "Force field for protein."
+	help = "Force field for protein. (AICG2+, Clementi)"
         arg_type = String
         default = "AICG2+"
 
         "--force-field-DNA"
-        help = "Force field for DNA."
+	help = "Force field for DNA. (3SPN.2C)"
         arg_type = String
         default = "3SPN.2C"
 
         "--force-field-RNA"
-        help = "Force field for RNA."
+	help = "Force field for RNA. (HT)"
         arg_type = String
         default = "HT"
 
@@ -229,7 +229,7 @@ function parse_commandline()
         default = 1.0
 
         "--respac", "-c"
-        help = "RESPAC protein charge distribution data."
+        help = "RESPAC protein charge distribution data file."
         arg_type = String
         default = ""
 
@@ -244,7 +244,7 @@ function parse_commandline()
         default = 1
 
         "--3spn-param"
-        help = "Generate 3SPN.2C parameters from atomic PDB structure."
+        help = "Generate 3SPN.2C parameters from atomic PDB structure or standard library? 0) no params; 1) PDB structure based params; 2) standard DNA params."
         arg_type = Int
         default = 0
 
@@ -271,7 +271,7 @@ function parse_commandline()
         default = 0.0
 
         "--pwmcos-ns"
-        help = "Generate parameters for protein-DNA sequence-NON-specific interactions."
+	help = "Generate parameters for protein-DNA sequence-NON-specific interactions (hydrogen-bond)."
         action = :store_true
 
         "--pwmcos-ns-ene"
