@@ -22,7 +22,7 @@ function parse_commandline()
         default = 100
 
         "--IDR-model"
-        help = "IDR-model: 1) HPS; 2) KH; 3) AICG2+ LOCAL"
+	help = "IDR-model: 1) HPS; 2) KH; 3) AICG2+ LOCAL; 4) MPIPI"
         arg_type = Int
         default = 1
 
@@ -168,6 +168,8 @@ function make_cg_protein_structure(args)
     elseif idr_model == 3
         args["modeling-options"] = Dict("IDR" => Dict("AICG2p_IDR_local" => "1 to $protein_length",
                                                       "AICG2p_IDR_nonlocal" => "1 to $protein_length"))
+    elseif idr_model == 4
+        args["modeling-options"] = Dict("IDR" => Dict("MPIPI_region" => "1 to $protein_length"))
     end
     args["cgconnect"] = true
 
