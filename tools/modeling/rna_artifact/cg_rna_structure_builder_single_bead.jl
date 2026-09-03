@@ -4,15 +4,7 @@ using Random
 using Printf
 using ArgParse
 
-include("../../../src/lib/biomath.jl")
-include("../../../src/lib/molecule.jl")
-include("../../../src/lib/topology.jl")
-include("../../../src/lib/constants.jl")
-include("../../../src/lib/selection.jl")
-include("../../../src/lib/coarse_graining_subroutines.jl")
-include("../../../src/lib/conformation.jl")
-include("../../../src/lib/coarse_graining.jl")
-include("../../../src/lib/parsers.jl")
+include("../../../src/lib/gcj.jl")
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -23,6 +15,11 @@ function parse_commandline()
         help = "RNA sequence file."
         arg_type = String
         default = ""
+
+        "--model", "-m"
+        help = "Coarse-grained model to use. (HPS or MPIPI)"
+        arg_type = String
+        default = "HPS"
 
         "--length"
         help = "Number of nucleotides in the RNA with random-sequence."
@@ -43,6 +40,10 @@ end
 function make_cg_RNA_structure(args)
 
     seq_name = get(args, "sequence", "")
+    model_name = get(args, "model", "HPS")
+    if model_name != "HPS" && model_name != "MPIPI"
+        error("Only HPS and MPIPI models are supported currently!")
+    end
 
     # non-straightness (because ideal straight chain could have problem...)
     threshold_angle = get( args, "straightness", 45.0)
@@ -61,6 +62,17 @@ function make_cg_RNA_structure(args)
         'G' => 345.200,
         'U' => 306.200
     )
+
+    NT_CHARGE = -1.0
+    BOND_STRENGTH = 0.0
+    if model_name == "HPS"
+        NT_CHARGE = -1.0
+        BOND_STRENGTH = 2000.0
+    elseif model_name == "MPIPI"
+        NT_CHARGE = -0.75
+        BOND_STRENGTH = 8030.0
+    end
+
 
     # ========================================================
     # RNA sequence (read from file or generate random one)
@@ -178,16 +190,20 @@ function make_cg_RNA_structure(args)
     @printf(itp_file, "; +INFO+ CHAIN:      1     SEGNAME: RAND_RNA \n")
     for i in 1 : RNA_length
         @printf(itp_file, "%10d%5s%10d%5s%5s%5d %8.3f %8.3f\n",
-                i, atom_types[i], i, resi_names[i], atom_names[i], 1, -1.000, atom_masss[i])
+                i, atom_types[i], i, resi_names[i], atom_names[i], 1, NT_CHARGE, atom_masss[i])
     end
 
     @printf(itp_file, "\n[ bonds ]\n")
     for i in 1 : RNA_length - 1
         @printf(itp_file, "%10d%10d%5d%18.4E%18.4E\n",
-                i, i + 1, 1, 0.5, 2000.0)
+                i, i + 1, 1, 0.5, BOND_STRENGTH)
     end
 
-    @printf(itp_file, "\n[ cg_IDR_HPS_region ]\n")
+    if model_name == "HPS"
+        @printf(itp_file, "\n[ cg_IDR_HPS_region ]\n")
+    elseif model_name == "MPIPI"
+        @printf(itp_file, "\n[ cg_IDR_MPIPI_region ]\n")
+    end
     @printf(itp_file, "%10d %10d\n", 1, RNA_length)
 
     close(itp_file)
